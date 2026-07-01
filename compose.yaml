@@ -3,7 +3,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     environment:
       DATABASE_URL: postgresql://slide_agent:slide_agent@postgres:5432/slide_agent
       REDIS_URL: redis://redis:6379
@@ -19,8 +21,8 @@ services:
         condition: service_healthy
       mailpit:
         condition: service_started
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
@@ -31,7 +33,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.worker
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     environment:
       DATABASE_URL: postgresql://slide_agent:slide_agent@postgres:5432/slide_agent
       REDIS_URL: redis://redis:6379
@@ -54,8 +58,6 @@ services:
       POSTGRES_DB: slide_agent
     volumes:
       - postgres-data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U slide_agent -d slide_agent"]
       interval: 5s
@@ -67,8 +69,6 @@ services:
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis-data:/data
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -83,9 +83,6 @@ services:
       MINIO_ROOT_PASSWORD: minioadmin
     volumes:
       - minio-data:/data
-    ports:
-      - "9000:9000"
-      - "9001:9001"
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 5s
@@ -106,15 +103,10 @@ services:
 
   mailpit:
     image: axllent/mailpit:v1.21
-    ports:
-      - "1025:1025"
-      - "8025:8025"
 
   ollama:
     image: ollama/ollama:0.5.7
     profiles: ["local-models"]
-    ports:
-      - "11434:11434"
     volumes:
       - ollama-data:/root/.ollama
 

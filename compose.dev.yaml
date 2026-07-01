@@ -1,6 +1,8 @@
 services:
   web:
     command: pnpm --filter web dev
+    ports:
+      - "3000:3000"
     volumes:
       - .:/app
       - pnpm-store:/pnpm/store
@@ -16,6 +18,28 @@ services:
       - node-modules:/app/node_modules
     environment:
       NODE_ENV: development
+
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  minio:
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  mailpit:
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  ollama:
+    ports:
+      - "11434:11434"
 
 volumes:
   pnpm-store:
