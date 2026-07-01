@@ -16,6 +16,7 @@
     "prisma:seed": "tsx src/seed.ts"
   },
   "dependencies": {
+    "@slide-agent/presentation-schema": "workspace:*",
     "@prisma/client": "6.2.1",
     "prisma": "6.2.1",
     "tsx": "4.19.2"

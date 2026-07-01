@@ -21,6 +21,8 @@ The editor should let an authenticated user create, open, edit, save, AI-modify,
 
 ## Work Package 1: Persisted Presentation Loading
 
+Status: Implemented.
+
 Goal: Replace hardcoded sample-only editor loading with a server-backed presentation document read path.
 
 Required functionality:
