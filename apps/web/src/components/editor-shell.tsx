@@ -76,6 +76,11 @@ function IconButton({
   );
 }
 
+async function signOut(): Promise<void> {
+  await fetch("/api/auth/logout", { method: "POST" });
+  globalThis.location.assign("/login");
+}
+
 export function EditorShell() {
   const [document, setDocument] = useState<PresentationDocument>(samplePresentation);
   const [selectedElementId, setSelectedElementId] = useState("title");
@@ -251,6 +256,13 @@ export function EditorShell() {
             <button className="flex h-9 items-center gap-2 rounded-app bg-ink px-3 text-sm font-semibold text-white">
               <Download size={16} />
               Export
+            </button>
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="h-9 rounded-app border border-line bg-white px-3 text-sm font-semibold text-ink hover:border-primary"
+            >
+              Sign out
             </button>
           </div>
         </header>
