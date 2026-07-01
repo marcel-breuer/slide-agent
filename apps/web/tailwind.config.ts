@@ -5,12 +5,14 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#111827",
+        ink: "#0f172a",
         muted: "#64748b",
-        line: "#d9e2ec",
-        canvas: "#f6f8fb",
-        teal: "#0f766e",
-        amber: "#b7791f"
+        line: "#e2e8f0",
+        canvas: "#f8fafc",
+        primary: "#9333ea",
+        "primary-strong": "#7e22ce",
+        accent: "#7c3aed",
+        warning: "#a16207"
       },
       borderRadius: {
         app: "8px"

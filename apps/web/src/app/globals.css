@@ -4,13 +4,15 @@
 
 :root {
   color-scheme: light;
-  --background: #f6f8fb;
+  --background: #f8fafc;
   --surface: #ffffff;
-  --ink: #111827;
+  --ink: #0f172a;
   --muted: #64748b;
-  --line: #d9e2ec;
-  --teal: #0f766e;
-  --amber: #b7791f;
+  --line: #e2e8f0;
+  --primary: #9333ea;
+  --primary-strong: #7e22ce;
+  --accent: #7c3aed;
+  --warning: #a16207;
 }
 
 * {
@@ -42,7 +44,7 @@ input:focus-visible,
 textarea:focus-visible,
 select:focus-visible,
 a:focus-visible {
-  outline: 2px solid var(--teal);
+  outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
 

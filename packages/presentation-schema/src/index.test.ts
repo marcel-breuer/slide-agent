@@ -13,7 +13,7 @@ describe("presentation schema", () => {
       locale: "en",
       format: "WIDE_16_9",
       theme: {
-        colors: { primary: "#0f766e", text: "#111827" },
+        colors: { primary: "#9333ea", text: "#0f172a" },
         fonts: { heading: "Inter", body: "Inter" }
       },
       metadata: { createdAt: now, updatedAt: now, ownerId: "user_1" },
