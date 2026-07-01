@@ -1,8 +1,12 @@
 import { PrismaClient } from "@prisma/client";
 
+import { ensureDemoPresentation } from "./presentations";
+
 const prisma = new PrismaClient();
 
 async function main(): Promise<void> {
+  await ensureDemoPresentation(prisma);
+
   await prisma.providerCatalogEntry.upsert({
     where: { provider: "openai" },
     update: { enabled: true },

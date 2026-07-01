@@ -44,6 +44,9 @@ importers:
       '@slide-agent/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@slide-agent/database':
+        specifier: workspace:*
+        version: link:../../packages/database
       '@slide-agent/editor-core':
         specifier: workspace:*
         version: link:../../packages/editor-core
@@ -151,6 +154,9 @@ importers:
       '@prisma/client':
         specifier: 6.2.1
         version: 6.2.1(prisma@6.2.1)
+      '@slide-agent/presentation-schema':
+        specifier: workspace:*
+        version: link:../presentation-schema
       prisma:
         specifier: 6.2.1
         version: 6.2.1

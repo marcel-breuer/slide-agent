@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import {
   AlignCenter,
   ArrowUpRight,
@@ -33,12 +33,9 @@ import {
   type SlidePointer
 } from "@slide-agent/editor-core";
 import { SlideRenderer } from "@slide-agent/presentation-renderer";
-import type { PresentationDocument } from "@slide-agent/presentation-schema";
-
-import { samplePresentation } from "@/lib/sample-presentation";
+import { validatePresentation, type PresentationDocument } from "@slide-agent/presentation-schema";
 
 const navProjects = ["Board reporting", "Product launch", "Banking pitch"];
-const thumbnails = ["Executive summary", "Market drivers", "Delivery risks", "Budget decision"];
 
 type InspectorTab = "properties" | "layers" | "design" | "assets";
 type TextElement = Extract<PresentationDocument["slides"][number]["elements"][number], { type: "text" }>;
@@ -49,6 +46,12 @@ const inspectorTabs: [InspectorTab, LucideIcon][] = [
   ["design", Palette],
   ["assets", Image]
 ];
+
+type LoadState = "loading" | "loaded" | "not-found" | "error";
+
+type PresentationApiResponse =
+  | { ok: true; data: PresentationDocument }
+  | { ok: false; error: { code: string; message: string } };
 
 function IconButton({
   label,
@@ -81,15 +84,91 @@ async function signOut(): Promise<void> {
   globalThis.location.assign("/login");
 }
 
-export function EditorShell() {
-  const [document, setDocument] = useState<PresentationDocument>(samplePresentation);
+export function EditorShell({ presentationId }: { presentationId: string }) {
+  const [document, setDocument] = useState<PresentationDocument | null>(null);
+  const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPresentation(): Promise<void> {
+      setLoadState("loading");
+      setLoadError(null);
+
+      try {
+        const response = await fetch(`/api/presentations/${encodeURIComponent(presentationId)}`);
+        const payload = (await response.json()) as PresentationApiResponse;
+
+        if (cancelled) return;
+
+        if (!response.ok || !payload.ok) {
+          if (response.status === 404) {
+            setLoadState("not-found");
+            return;
+          }
+
+          setLoadError(payload.ok ? "Presentation could not be loaded." : payload.error.message);
+          setLoadState("error");
+          return;
+        }
+
+        setDocument(validatePresentation(payload.data));
+        setLoadState("loaded");
+      } catch (error) {
+        if (cancelled) return;
+        setLoadError(error instanceof Error ? error.message : "Presentation could not be loaded.");
+        setLoadState("error");
+      }
+    }
+
+    void loadPresentation();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [presentationId]);
+
+  if (loadState === "loading") {
+    return <EditorStateMessage title="Loading presentation" message="Preparing the editor document." />;
+  }
+
+  if (loadState === "not-found") {
+    return <EditorStateMessage title="Presentation not found" message="The requested presentation does not exist." />;
+  }
+
+  if (loadState === "error" || !document) {
+    return (
+      <EditorStateMessage
+        title="Presentation could not be loaded"
+        message={loadError ?? "The editor could not load this document."}
+      />
+    );
+  }
+
+  if (document.slides.length === 0) {
+    return <EditorStateMessage title="No slides available" message="This presentation does not contain slides yet." />;
+  }
+
+  return <LoadedEditor document={document} setDocument={setDocument} />;
+}
+
+function LoadedEditor({
+  document,
+  setDocument
+}: {
+  document: PresentationDocument;
+  setDocument: Dispatch<SetStateAction<PresentationDocument | null>>;
+}) {
   const [selectedElementId, setSelectedElementId] = useState("title");
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("properties");
   const [assistantText, setAssistantText] = useState("");
   const [pointerMode, setPointerMode] = useState(false);
   const [slidePointers, setSlidePointers] = useState<SlidePointer[]>([]);
   const [selectedPointerId, setSelectedPointerId] = useState<string | null>(null);
-  const activeSlide = document.slides[0] ?? samplePresentation.slides[0]!;
+  const activeSlide = document.slides[0]!;
+
+  const thumbnails = document.slides.map((slide) => slide.title ?? `Slide ${slide.order}`);
 
   const selectedElement = useMemo(
     () => activeSlide.elements.find((element) => element.id === selectedElementId),
@@ -117,32 +196,36 @@ export function EditorShell() {
   const assistantPreview = [assistantText.trim(), pointerContext].filter(Boolean).join("\n\n");
 
   function updateTitleText(nextText: string): void {
-    setDocument((current) => ({
-      ...current,
-      slides: current.slides.map((slide) =>
-        slide.id === activeSlide.id
-          ? {
-              ...slide,
-              elements: slide.elements.map((element) => {
-                if (element.id !== "title" || element.type !== "text") return element;
-                const firstParagraph = element.paragraphs[0];
-                const firstRun = firstParagraph?.runs[0];
-                if (!firstParagraph || !firstRun) return element;
-                return {
-                  ...element,
-                  paragraphs: [
-                    {
-                      ...firstParagraph,
-                      runs: [{ ...firstRun, text: nextText }]
-                    },
-                    ...element.paragraphs.slice(1)
-                  ]
-                };
-              })
-            }
-          : slide
-      )
-    }));
+    setDocument((current) => {
+      if (!current) return current;
+
+      return {
+        ...current,
+        slides: current.slides.map((slide) =>
+          slide.id === activeSlide.id
+            ? {
+                ...slide,
+                elements: slide.elements.map((element) => {
+                  if (element.id !== "title" || element.type !== "text") return element;
+                  const firstParagraph = element.paragraphs[0];
+                  const firstRun = firstParagraph?.runs[0];
+                  if (!firstParagraph || !firstRun) return element;
+                  return {
+                    ...element,
+                    paragraphs: [
+                      {
+                        ...firstParagraph,
+                        runs: [{ ...firstRun, text: nextText }]
+                      },
+                      ...element.paragraphs.slice(1)
+                    ]
+                  };
+                })
+              }
+            : slide
+        )
+      };
+    });
   }
 
   function addSlidePointer(point: { x: number; y: number }): void {
@@ -499,6 +582,17 @@ export function EditorShell() {
             ) : null}
           </div>
         </div>
+      </section>
+    </main>
+  );
+}
+
+function EditorStateMessage({ title, message }: { title: string; message: string }) {
+  return (
+    <main className="grid min-h-screen place-items-center bg-canvas px-6">
+      <section className="w-full max-w-md rounded-app border border-line bg-white p-6 text-center shadow-sm">
+        <h1 className="text-base font-bold text-ink">{title}</h1>
+        <p className="mt-2 text-sm text-muted">{message}</p>
       </section>
     </main>
   );

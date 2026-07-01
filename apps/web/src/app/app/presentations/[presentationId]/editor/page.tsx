@@ -1,5 +1,12 @@
 import { EditorShell } from "@/components/editor-shell";
 
-export default function EditorPage() {
-  return <EditorShell />;
+type EditorPageProps = {
+  params: Promise<{
+    presentationId: string;
+  }>;
+};
+
+export default async function EditorPage({ params }: EditorPageProps) {
+  const { presentationId } = await params;
+  return <EditorShell presentationId={presentationId} />;
 }
