@@ -18,6 +18,8 @@ The root compose file includes deployable defaults for the app, database, Redis,
 - `APP_URL`
 - `AUTH_SECRET`
 - `CREDENTIAL_ENCRYPTION_KEY`
+- `DEMO_LOGIN_EMAIL`
+- `DEMO_LOGIN_PASSWORD`
 - `POSTGRES_PASSWORD`
 - SMTP settings if outbound email should be sent through a real mail provider
 
