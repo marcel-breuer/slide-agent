@@ -6,4 +6,4 @@ Start the full development stack with:
 docker compose -f compose.yaml -f compose.dev.yaml up --build
 ```
 
-This starts web, worker, Postgres, Redis, MinIO, MinIO bucket creation, and Mailpit.
+This starts web, worker, Postgres, Redis, a persistent local storage volume, and Mailpit.

@@ -7,7 +7,7 @@ Slide Agent is a production-oriented, open-source web application for creating, 
 This repository contains the MVP foundation:
 
 - TypeScript monorepo with Next.js, worker, and domain packages.
-- Docker Compose environment for web, worker, PostgreSQL, Redis, MinIO, and Mailpit.
+- Docker Compose environment for web, worker, PostgreSQL, Redis, local file storage, and Mailpit.
 - Versioned presentation schema with Zod validation.
 - Browser slide renderer and interactive editor shell.
 - Provider abstraction, deterministic model router, and provider adapters.
@@ -34,7 +34,6 @@ Open:
 
 - Web app: <http://localhost:3000>
 - Mailpit: <http://localhost:8025>
-- MinIO console: <http://localhost:9001>
 
 ## Checks
 

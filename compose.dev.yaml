@@ -27,11 +27,6 @@ services:
     ports:
       - "6379:6379"
 
-  minio:
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-
   mailpit:
     ports:
       - "1025:1025"

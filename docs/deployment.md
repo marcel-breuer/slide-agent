@@ -11,14 +11,14 @@ Use Docker Compose as the build pack with these repository settings:
 
 Coolify accepts a single compose file path in that field, not a full `docker compose -f ... -f ...` command. The root `compose.yaml` intentionally uses `expose: "3000"` for the web service and does not publish host ports, so Coolify's Traefik proxy can route to the web container without colliding with an existing host process on port `3000`.
 
-Set the public domain on the `web` service and target container port `3000` in Coolify. Internal services such as PostgreSQL, Redis, MinIO, and Mailpit are reachable only on the compose network unless you explicitly add port mappings in an override.
+Set the public domain on the `web` service and target container port `3000` in Coolify. Internal services such as PostgreSQL, Redis, and Mailpit are reachable only on the compose network unless you explicitly add port mappings in an override.
 
-The root compose file includes deployable defaults for the app, database, Redis, object storage, SMTP, and worker settings so Coolify can resolve the stack without relying on `.env.example`. Override at least these values in Coolify for production:
+The root compose file includes deployable defaults for the app, database, Redis, local file storage, SMTP, and worker settings so Coolify can resolve the stack without relying on `.env.example`. Override at least these values in Coolify for production:
 
 - `APP_URL`
 - `AUTH_SECRET`
 - `CREDENTIAL_ENCRYPTION_KEY`
 - `POSTGRES_PASSWORD`
-- `S3_ACCESS_KEY_ID`
-- `S3_SECRET_ACCESS_KEY`
 - SMTP settings if outbound email should be sent through a real mail provider
+
+Uploaded files, generated assets, and exports are stored in the `app-storage` Docker volume mounted at `/app/storage` in the web and worker containers.
