@@ -15,7 +15,7 @@ export function SimpleRoutePage({
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-ink">{title}</h1>
           {protectedRoute ? (
-            <span className="rounded-app bg-teal/10 px-2 py-1 text-xs font-semibold text-teal">Protected</span>
+            <span className="rounded-app bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">Protected</span>
           ) : null}
         </div>
         <p className="text-sm leading-6 text-muted">{description}</p>

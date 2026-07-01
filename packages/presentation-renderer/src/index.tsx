@@ -180,7 +180,7 @@ function renderElement(element: SlideElement): ReactElement | null {
               style={{
                 flex: 1,
                 height: `${Math.max(5, Math.min(100, value))}%`,
-                background: "#0f766e",
+                background: "#9333ea",
                 borderRadius: 4
               }}
             />
@@ -207,7 +207,7 @@ export function SlideRenderer({
         ...slideStyle,
         background: slide.background.color,
         fontFamily: presentation.theme.fonts.body,
-        color: presentation.theme.colors.text ?? "#111827"
+        color: presentation.theme.colors.text ?? "#0f172a"
       }}
     >
       {slide.elements
@@ -222,7 +222,7 @@ export function SlideRenderer({
             onPointerDown={() => onElementPointerDown?.(element.id)}
             style={{
               ...elementFrameStyle(element),
-              outline: selected.has(element.id) ? "2px solid #0f766e" : "1px solid transparent",
+              outline: selected.has(element.id) ? "2px solid #9333ea" : "1px solid transparent",
               outlineOffset: 2
             }}
           >

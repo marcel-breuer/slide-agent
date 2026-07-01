@@ -57,7 +57,7 @@ function IconButton({
       title={label}
       aria-label={label}
       className={`grid h-9 w-9 place-items-center rounded-app border text-sm transition ${
-        active ? "border-teal bg-teal text-white" : "border-line bg-white text-ink hover:border-teal"
+        active ? "border-primary bg-primary text-white" : "border-line bg-white text-ink hover:border-primary"
       }`}
     >
       {children}
@@ -127,7 +127,7 @@ export function EditorShell() {
         </div>
 
         <div className="mb-5 grid grid-cols-2 gap-2">
-          <button className="flex h-9 items-center justify-center gap-2 rounded-app bg-teal px-3 text-xs font-semibold text-white">
+          <button className="flex h-9 items-center justify-center gap-2 rounded-app bg-primary px-3 text-xs font-semibold text-white">
             <FolderPlus size={15} />
             Project
           </button>
@@ -158,7 +158,7 @@ export function EditorShell() {
               <button
                 key={item}
                 className={`flex w-full items-center gap-3 rounded-app border p-2 text-left ${
-                  index === 0 ? "border-teal bg-teal/5" : "border-line bg-white"
+                  index === 0 ? "border-primary bg-primary/5" : "border-line bg-white"
                 }`}
               >
                 <span className="grid h-10 w-14 place-items-center rounded bg-canvas text-xs font-semibold">
@@ -175,7 +175,7 @@ export function EditorShell() {
             <Settings size={16} />
             Settings
           </button>
-          <span className="rounded bg-amber/10 px-2 py-1 text-xs font-semibold text-amber">ADMIN</span>
+          <span className="rounded bg-warning/10 px-2 py-1 text-xs font-semibold text-warning">ADMIN</span>
         </div>
       </aside>
 
@@ -212,7 +212,7 @@ export function EditorShell() {
                 <button
                   key={label}
                   className={`w-full rounded-app border p-1 text-left ${
-                    index === 0 ? "border-teal bg-teal/5" : "border-line bg-white"
+                    index === 0 ? "border-primary bg-primary/5" : "border-line bg-white"
                   }`}
                 >
                   <div className="aspect-video rounded bg-white shadow-sm" />
@@ -267,7 +267,7 @@ export function EditorShell() {
               aria-label={String(tab)}
               onClick={() => setInspectorTab(tab)}
               className={`grid h-12 place-items-center ${
-                inspectorTab === tab ? "border-b-2 border-teal text-teal" : "text-muted"
+                inspectorTab === tab ? "border-b-2 border-primary text-primary" : "text-muted"
               }`}
             >
               <Icon size={17} />
@@ -301,7 +301,7 @@ export function EditorShell() {
             </label>
             <label className="block">
               <span className="mb-1 block text-xs font-semibold text-muted">Accent</span>
-              <input type="color" className="h-10 w-full rounded-app border border-line bg-white p-1" defaultValue="#0f766e" />
+              <input type="color" className="h-10 w-full rounded-app border border-line bg-white p-1" defaultValue="#9333ea" />
             </label>
           </div>
 
@@ -315,7 +315,7 @@ export function EditorShell() {
                   key={element.id}
                   onClick={() => setSelectedElementId(element.id)}
                   className={`mb-2 flex w-full items-center justify-between rounded-app border px-3 py-2 text-sm ${
-                    selectedElementId === element.id ? "border-teal bg-teal/5" : "border-line"
+                    selectedElementId === element.id ? "border-primary bg-primary/5" : "border-line"
                   }`}
                 >
                   <span>{element.semanticRole}</span>
@@ -328,7 +328,7 @@ export function EditorShell() {
 
       <section className="col-span-3 border-t border-line bg-white px-5 py-4 max-[960px]:col-span-1">
         <div className="flex h-full items-start gap-4">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-app bg-teal text-white">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-app bg-primary text-white">
             <Bot size={18} />
           </div>
           <div className="min-w-0 flex-1">
@@ -346,7 +346,7 @@ export function EditorShell() {
                 placeholder="Ask for a structured slide edit..."
                 className="h-11 min-w-0 flex-1 rounded-app border border-line px-3 text-sm"
               />
-              <button className="flex h-11 items-center gap-2 rounded-app bg-teal px-4 text-sm font-semibold text-white">
+              <button className="flex h-11 items-center gap-2 rounded-app bg-primary px-4 text-sm font-semibold text-white">
                 <ClipboardList size={16} />
                 Preview ops
               </button>

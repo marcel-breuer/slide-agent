@@ -9,7 +9,7 @@ export function makeTestPresentation(overrides: Partial<PresentationDocument> = 
     locale: "en",
     format: "WIDE_16_9",
     theme: {
-      colors: { text: "#111827", primary: "#0f766e" },
+      colors: { text: "#0f172a", primary: "#9333ea" },
       fonts: { heading: "Inter", body: "Inter" }
     },
     metadata: { createdAt: now, updatedAt: now, ownerId: "test-user" },
