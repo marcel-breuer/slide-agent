@@ -40,7 +40,7 @@ export const TextRunSchema = z.object({
   fontWeight: z.enum(["400", "500", "600", "700"]).default("400"),
   italic: z.boolean().default(false),
   underline: z.boolean().default(false),
-  color: ColorSchema.default("#111827"),
+  color: ColorSchema.default("#0f172a"),
   hyperlink: z.string().url().optional()
 });
 export type TextRun = z.infer<typeof TextRunSchema>;
@@ -72,7 +72,7 @@ const ShapeElementSchema = ElementBaseSchema.extend({
   type: z.literal("shape"),
   shape: z.enum(["rectangle", "roundedRectangle", "ellipse", "triangle", "chevron", "callout", "hexagon"]),
   fill: ColorSchema.default("#ffffff"),
-  borderColor: ColorSchema.default("#d9e2ec"),
+  borderColor: ColorSchema.default("#e2e8f0"),
   borderWidth: z.number().min(0).max(20).default(1)
 });
 
@@ -95,13 +95,13 @@ const IconElementSchema = ElementBaseSchema.extend({
   type: z.literal("icon"),
   icon: z.string().min(1),
   svg: z.string().optional(),
-  color: ColorSchema.default("#111827"),
+  color: ColorSchema.default("#0f172a"),
   strokeWidth: z.number().min(0.5).max(6).default(2)
 });
 
 const LineElementSchema = ElementBaseSchema.extend({
   type: z.enum(["line", "arrow"]),
-  stroke: ColorSchema.default("#111827"),
+  stroke: ColorSchema.default("#0f172a"),
   strokeWidth: z.number().min(0.5).max(20).default(2),
   start: z.object({ x: z.number(), y: z.number() }),
   end: z.object({ x: z.number(), y: z.number() })
@@ -111,7 +111,7 @@ const TableElementSchema = ElementBaseSchema.extend({
   type: z.literal("table"),
   rows: z.array(z.array(z.string())).min(1),
   headerRows: z.number().int().min(0).default(1),
-  borderColor: ColorSchema.default("#d9e2ec")
+  borderColor: ColorSchema.default("#e2e8f0")
 });
 
 const ChartElementSchema = ElementBaseSchema.extend({

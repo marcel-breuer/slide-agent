@@ -10,9 +10,9 @@ export const samplePresentation: PresentationDocument = validatePresentation({
   format: "WIDE_16_9",
   theme: {
     colors: {
-      text: "#111827",
-      primary: "#0f766e",
-      accent: "#b7791f",
+      text: "#0f172a",
+      primary: "#9333ea",
+      accent: "#7c3aed",
       muted: "#64748b"
     },
     fonts: {
@@ -51,7 +51,7 @@ export const samplePresentation: PresentationDocument = validatePresentation({
                   text: "Revenue quality improved; delivery risk remains",
                   fontSize: 31,
                   fontWeight: "700",
-                  color: "#111827"
+                  color: "#0f172a"
                 }
               ]
             }
@@ -66,8 +66,8 @@ export const samplePresentation: PresentationDocument = validatePresentation({
           visible: true,
           locked: false,
           semanticRole: "metric-card",
-          fill: "#e6f4f1",
-          borderColor: "#a7d8d0",
+          fill: "#f3e8ff",
+          borderColor: "#d8b4fe",
           borderWidth: 1
         },
         {
@@ -79,8 +79,8 @@ export const samplePresentation: PresentationDocument = validatePresentation({
           locked: false,
           semanticRole: "metric",
           paragraphs: [
-            { runs: [{ text: "+18%", fontSize: 38, fontWeight: "700", color: "#0f766e" }] },
-            { runs: [{ text: "qualified pipeline", fontSize: 16, fontWeight: "600", color: "#111827" }] },
+            { runs: [{ text: "+18%", fontSize: 38, fontWeight: "700", color: "#9333ea" }] },
+            { runs: [{ text: "qualified pipeline", fontSize: 16, fontWeight: "600", color: "#0f172a" }] },
             { runs: [{ text: "Driven by enterprise renewals", fontSize: 12, color: "#64748b" }] }
           ]
         },
@@ -105,8 +105,8 @@ export const samplePresentation: PresentationDocument = validatePresentation({
           visible: true,
           locked: false,
           semanticRole: "risk-card",
-          fill: "#fff7ed",
-          borderColor: "#f5d49b",
+          fill: "#faf5ff",
+          borderColor: "#e9d5ff",
           borderWidth: 1
         },
         {
@@ -118,13 +118,13 @@ export const samplePresentation: PresentationDocument = validatePresentation({
           locked: false,
           semanticRole: "callout",
           paragraphs: [
-            { runs: [{ text: "Delivery risk", fontSize: 22, fontWeight: "700", color: "#92400e" }] },
+            { runs: [{ text: "Delivery risk", fontSize: 22, fontWeight: "700", color: "#7e22ce" }] },
             {
               runs: [
                 {
                   text: "Three critical dependencies need executive attention before October.",
                   fontSize: 15,
-                  color: "#111827"
+                  color: "#0f172a"
                 }
               ]
             }
@@ -138,7 +138,7 @@ export const samplePresentation: PresentationDocument = validatePresentation({
           visible: true,
           locked: true,
           semanticRole: "divider",
-          stroke: "#d9e2ec",
+          stroke: "#e2e8f0",
           strokeWidth: 2,
           start: { x: 0, y: 50 },
           end: { x: 100, y: 50 }
@@ -152,7 +152,7 @@ export const samplePresentation: PresentationDocument = validatePresentation({
           locked: false,
           semanticRole: "body",
           paragraphs: [
-            { runs: [{ text: "Recommended next steps", fontSize: 18, fontWeight: "700", color: "#111827" }] },
+            { runs: [{ text: "Recommended next steps", fontSize: 18, fontWeight: "700", color: "#0f172a" }] },
             {
               runs: [
                 {

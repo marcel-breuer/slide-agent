@@ -1,12 +1,14 @@
 export const tokens = {
   colors: {
-    background: "#f6f8fb",
+    background: "#f8fafc",
     surface: "#ffffff",
-    ink: "#111827",
+    ink: "#0f172a",
     muted: "#64748b",
-    line: "#d9e2ec",
-    teal: "#0f766e",
-    amber: "#b7791f"
+    line: "#e2e8f0",
+    primary: "#9333ea",
+    primaryStrong: "#7e22ce",
+    accent: "#7c3aed",
+    warning: "#a16207"
   },
   radii: {
     control: 8,
