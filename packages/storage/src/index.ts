@@ -1,66 +1,71 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { z } from "zod";
 
 export const StorageConfigSchema = z.object({
-  endpoint: z.string().url(),
-  region: z.string().default("us-east-1"),
-  accessKeyId: z.string(),
-  secretAccessKey: z.string(),
-  forcePathStyle: z.boolean().default(true)
+  driver: z.literal("local").default("local"),
+  rootDir: z.string().min(1).default("/app/storage")
 });
 
 export type StorageConfig = z.infer<typeof StorageConfigSchema>;
 
 export type StoredObject = {
-  bucket: string;
   key: string;
   mimeType: string;
   checksum?: string;
 };
 
-export class S3ObjectStorage {
-  private readonly client: S3Client;
+export class LocalObjectStorage {
+  private readonly rootDir: string;
 
   constructor(config: StorageConfig) {
-    this.client = new S3Client({
-      endpoint: config.endpoint,
-      region: config.region,
-      forcePathStyle: config.forcePathStyle,
-      credentials: {
-        accessKeyId: config.accessKeyId,
-        secretAccessKey: config.secretAccessKey
-      }
-    });
+    this.rootDir = path.resolve(config.rootDir);
   }
 
   async putObject(input: StoredObject & { bytes: Uint8Array }): Promise<void> {
-    await this.client.send(
-      new PutObjectCommand({
-        Bucket: input.bucket,
-        Key: sanitizeStorageKey(input.key),
-        Body: input.bytes,
-        ContentType: input.mimeType,
-        ChecksumSHA256: input.checksum
-      })
-    );
+    const objectPath = this.objectPath(input.key);
+    await mkdir(path.dirname(objectPath), { recursive: true });
+    await writeFile(objectPath, input.bytes);
   }
 
-  async signedReadUrl(input: Pick<StoredObject, "bucket" | "key">, expiresInSeconds = 300): Promise<string> {
-    return getSignedUrl(
-      this.client,
-      new GetObjectCommand({ Bucket: input.bucket, Key: sanitizeStorageKey(input.key) }),
-      { expiresIn: expiresInSeconds }
-    );
+  async readObject(input: Pick<StoredObject, "key">): Promise<Uint8Array> {
+    return readFile(this.objectPath(input.key));
   }
+
+  objectPath(key: string): string {
+    const safeKey = sanitizeStorageKey(key);
+    const objectPath = path.resolve(this.rootDir, safeKey);
+
+    if (objectPath !== this.rootDir && !objectPath.startsWith(`${this.rootDir}${path.sep}`)) {
+      throw new Error("Storage key must stay inside the storage root.");
+    }
+
+    return objectPath;
+  }
+}
+
+export function createLocalObjectStorageFromEnv(env: Record<string, string | undefined> = process.env): LocalObjectStorage {
+  const config = StorageConfigSchema.parse({
+    driver: env.STORAGE_DRIVER ?? "local",
+    rootDir: env.STORAGE_ROOT ?? "/app/storage"
+  });
+
+  return new LocalObjectStorage(config);
 }
 
 export function sanitizeStorageKey(key: string): string {
   const normalized = key.replace(/\\/g, "/").replace(/^\/+/, "");
-  if (normalized.includes("..")) {
+  const segments = normalized.split("/").filter(Boolean);
+
+  if (segments.length === 0) {
+    throw new Error("Storage key must not be empty.");
+  }
+
+  if (segments.some((segment) => segment === "." || segment === "..")) {
     throw new Error("Storage key must not contain path traversal segments.");
   }
-  return normalized.replace(/[^a-zA-Z0-9/_.,=-]/g, "_");
+
+  return segments.map((segment) => segment.replace(/[^a-zA-Z0-9_.,=-]/g, "_")).join("/");
 }
 
 export function assertAllowedMimeType(mimeType: string, allowed: readonly string[]): void {

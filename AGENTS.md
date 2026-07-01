@@ -7,7 +7,7 @@ This repository contains Slide Agent, a TypeScript-first monorepo for creating, 
 - Work inside Docker whenever practical.
 - Prefer project-defined Docker Compose commands over host-specific global tools.
 - Run dependency installation, tests, linting, type checks, database commands, and builds in the container environment when technically possible.
-- Do not require local Node.js, PostgreSQL, Redis, MinIO, or Mailpit installations for normal development.
+- Do not require local Node.js, PostgreSQL, Redis, or Mailpit installations for normal development.
 
 ## Architecture
 
@@ -23,7 +23,7 @@ This repository contains Slide Agent, a TypeScript-first monorepo for creating, 
 
 - Use strict TypeScript.
 - Do not hardcode secrets.
-- Do not expose or log provider credentials, passwords, tokens, cookies, authorization headers, signed storage URLs, or sensitive prompt content.
+- Do not expose or log provider credentials, passwords, tokens, cookies, authorization headers, storage URLs, or sensitive prompt content.
 - Store provider credentials encrypted at rest and never return plaintext credentials to the browser.
 - Add server-side authorization checks for every protected resource.
 - Do not remove validation or security checks without an equivalent replacement.
