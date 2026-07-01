@@ -1,0 +1,18 @@
+import { z } from "zod";
+
+import { hashPassword } from "@slide-agent/auth";
+
+import { fail, ok } from "@/lib/api";
+
+const RegisterSchema = z.object({
+  email: z.string().email(),
+  password: z.string()
+});
+
+export async function POST(request: Request) {
+  const parsed = RegisterSchema.safeParse(await request.json());
+  if (!parsed.success) return fail("VALIDATION_FAILED", "The registration request is invalid.");
+
+  await hashPassword(parsed.data.password);
+  return ok({ verificationRequired: true }, 201);
+}

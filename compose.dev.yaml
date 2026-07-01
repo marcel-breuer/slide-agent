@@ -1,0 +1,22 @@
+services:
+  web:
+    command: pnpm --filter web dev
+    volumes:
+      - .:/app
+      - pnpm-store:/pnpm/store
+      - node-modules:/app/node_modules
+    environment:
+      NODE_ENV: development
+
+  worker:
+    command: pnpm --filter worker dev
+    volumes:
+      - .:/app
+      - pnpm-store:/pnpm/store
+      - node-modules:/app/node_modules
+    environment:
+      NODE_ENV: development
+
+volumes:
+  pnpm-store:
+  node-modules:

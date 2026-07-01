@@ -1,0 +1,507 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum PresentationStatus {
+  DRAFT
+  BRIEFING
+  STORYLINE_REVIEW
+  APPROVED
+  GENERATING
+  EDITING
+  EXPORTING
+  COMPLETED
+  FAILED
+  ARCHIVED
+}
+
+enum JobType {
+  REFERENCE_ANALYSIS
+  MASTER_ANALYSIS
+  PPTX_IMPORT
+  STORYLINE_GENERATION
+  SLIDE_GENERATION
+  SLIDE_REGENERATION
+  IMAGE_GENERATION
+  PRESENTATION_QA
+  PPTX_EXPORT
+  ASSET_PROCESSING
+  DATA_EXPORT
+  ACCOUNT_DELETION
+}
+
+model User {
+  id             String    @id @default(uuid())
+  email          String    @unique
+  passwordHash   String
+  displayName    String?
+  role           UserRole  @default(USER)
+  emailVerifiedAt DateTime?
+  suspendedAt    DateTime?
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  sessions       Session[]
+  settings       UserSettings?
+  credentials    ProviderCredential[]
+  projects       Project[]
+  auditLogs      AuditLog[]
+
+  @@index([role])
+  @@index([deletedAt])
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  rotatedAt DateTime?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model UserSettings {
+  id                         String  @id @default(uuid())
+  userId                     String  @unique
+  uiLocale                   String  @default("en")
+  presentationLocale         String  @default("en")
+  timeZone                   String  @default("Europe/Berlin")
+  preferredCurrency          String  @default("EUR")
+  personalMaxSlideCount      Int     @default(50)
+  monthlyMoneyBudget         Decimal?
+  monthlyTokenBudget         Int?
+  warningThresholdPercentage Int     @default(80)
+  hardStopEnabled            Boolean @default(true)
+  defaultTone                String  @default("professional")
+  defaultAudience            String  @default("business")
+  user                       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ProviderCredential {
+  id           String   @id @default(uuid())
+  userId       String
+  provider     String
+  enabled      Boolean  @default(true)
+  ciphertext   String
+  nonce        String
+  authTag      String
+  keyVersion   String
+  maskedValue  String
+  metadata     Json     @default("{}")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([provider])
+}
+
+model ProviderConfiguration {
+  id        String   @id @default(uuid())
+  provider  String
+  baseUrl   String?
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Project {
+  id            String         @id @default(uuid())
+  ownerId       String
+  name          String
+  description   String?
+  archivedAt    DateTime?
+  defaultLocale String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  owner         User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  presentations Presentation[]
+
+  @@index([ownerId, archivedAt])
+}
+
+model Presentation {
+  id                       String             @id @default(uuid())
+  ownerId                  String
+  projectId                String
+  title                    String
+  description              String?
+  status                   PresentationStatus @default(DRAFT)
+  requestedSlideCount      Int                @default(10)
+  format                   String             @default("WIDE_16_9")
+  outputLanguage           String             @default("en")
+  designContext            Json?
+  activeStorylineVersionId String?
+  activeVersionId          String?
+  generationStatus         String?
+  lastExportAt             DateTime?
+  archivedAt               DateTime?
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+  project                  Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  conversations            Conversation[]
+  briefings                Briefing[]
+  storylines               Storyline[]
+  slides                   Slide[]
+  versions                 PresentationVersion[]
+  assets                   Asset[]
+  jobs                     GenerationJob[]
+  exports                  Export[]
+
+  @@index([ownerId])
+  @@index([projectId, status])
+}
+
+model Conversation {
+  id             String                @id @default(uuid())
+  presentationId String
+  createdAt      DateTime              @default(now())
+  presentation   Presentation          @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  messages       ConversationMessage[]
+}
+
+model ConversationMessage {
+  id             String       @id @default(uuid())
+  conversationId String
+  role           String
+  content        String
+  structuredData Json?
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model Briefing {
+  id             String       @id @default(uuid())
+  presentationId String
+  answers        Json
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+}
+
+model Storyline {
+  id             String             @id @default(uuid())
+  presentationId String
+  name           String
+  method         String
+  rationale      String
+  createdAt      DateTime           @default(now())
+  presentation   Presentation       @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  versions       StorylineVersion[]
+}
+
+model StorylineVersion {
+  id          String    @id @default(uuid())
+  storylineId String
+  version     Int
+  outline     Json
+  approvedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  storyline   Storyline @relation(fields: [storylineId], references: [id], onDelete: Cascade)
+
+  @@unique([storylineId, version])
+}
+
+model Slide {
+  id             String         @id @default(uuid())
+  presentationId String
+  order          Int
+  document       Json
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  presentation   Presentation   @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  versions       SlideVersion[]
+
+  @@unique([presentationId, order])
+}
+
+model SlideVersion {
+  id        String   @id @default(uuid())
+  slideId   String
+  version   Int
+  document  Json
+  createdAt DateTime @default(now())
+  slide     Slide    @relation(fields: [slideId], references: [id], onDelete: Cascade)
+}
+
+model PresentationVersion {
+  id             String       @id @default(uuid())
+  presentationId String
+  version        Int
+  document       Json
+  createdAt      DateTime     @default(now())
+  presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+}
+
+model DesignProfile {
+  id          String                 @id @default(uuid())
+  ownerId     String
+  name        String
+  description String?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  versions    DesignProfileVersion[]
+}
+
+model DesignProfileVersion {
+  id              String        @id @default(uuid())
+  designProfileId String
+  version         Int
+  profile         Json
+  createdAt       DateTime      @default(now())
+  designProfile   DesignProfile @relation(fields: [designProfileId], references: [id], onDelete: Cascade)
+}
+
+model PresentationDesignSnapshot {
+  id                     String   @id @default(uuid())
+  presentationId          String
+  sourceDesignProfileId   String?
+  sourceDesignProfileVersion Int?
+  snapshot                Json
+  createdAt               DateTime @default(now())
+
+  @@index([presentationId])
+}
+
+model ReferenceFile {
+  id             String              @id @default(uuid())
+  ownerId        String
+  presentationId String?
+  designProfileId String?
+  purpose        String
+  storageKey     String
+  mimeType       String
+  checksum       String
+  createdAt      DateTime            @default(now())
+  analyses       ReferenceAnalysis[]
+}
+
+model ReferenceAnalysis {
+  id              String        @id @default(uuid())
+  referenceFileId String
+  report          Json
+  createdAt       DateTime      @default(now())
+  referenceFile   ReferenceFile @relation(fields: [referenceFileId], references: [id], onDelete: Cascade)
+}
+
+model Asset {
+  id             String       @id @default(uuid())
+  ownerId        String
+  presentationId String?
+  kind           String
+  storageKey     String
+  mimeType       String
+  altText        String?
+  metadata       Json         @default("{}")
+  createdAt      DateTime     @default(now())
+  presentation   Presentation? @relation(fields: [presentationId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId])
+}
+
+model AiOperation {
+  id              String   @id @default(uuid())
+  ownerId         String
+  presentationId  String?
+  slideId         String?
+  taskType        String
+  provider        String
+  model           String
+  routingReason   String
+  inputTokens     Int
+  outputTokens    Int
+  estimatedCost   Decimal
+  actualCost      Decimal?
+  durationMs      Int?
+  status          String
+  retryCount      Int      @default(0)
+  usedFallback    Boolean  @default(false)
+  promptVersion   String
+  schemaVersion   String
+  createdAt       DateTime @default(now())
+
+  @@index([ownerId, createdAt])
+  @@index([presentationId])
+}
+
+model UsageLedgerEntry {
+  id             String   @id @default(uuid())
+  ownerId        String
+  presentationId String?
+  operationId    String?
+  kind           String
+  tokens         Int
+  amount         Decimal
+  currency       String
+  createdAt      DateTime @default(now())
+
+  @@index([ownerId, createdAt])
+}
+
+model BudgetReservation {
+  id             String   @id @default(uuid())
+  ownerId        String
+  presentationId String?
+  amount         Decimal
+  tokens         Int
+  currency       String
+  status         String
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  settledAt      DateTime?
+
+  @@index([ownerId, status])
+}
+
+model MonthlyUsage {
+  id        String   @id @default(uuid())
+  ownerId   String
+  period    String
+  tokens    Int      @default(0)
+  amount    Decimal  @default(0)
+  currency  String
+  updatedAt DateTime @updatedAt
+
+  @@unique([ownerId, period, currency])
+}
+
+model ModelCatalogEntry {
+  id               String   @id @default(uuid())
+  provider         String
+  modelIdentifier  String
+  displayLabel     String
+  capabilities     Json
+  contextSize      Int
+  structuredOutput Boolean
+  vision           Boolean
+  imageGeneration  Boolean
+  qualityTier      String
+  latencyTier      String
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model ProviderCatalogEntry {
+  id        String   @id @default(uuid())
+  provider  String   @unique
+  enabled   Boolean  @default(true)
+  metadata  Json     @default("{}")
+  updatedAt DateTime @updatedAt
+}
+
+model RoutingPolicy {
+  id        String   @id @default(uuid())
+  provider  String
+  model     String
+  priority  Int
+  fallback  Json     @default("[]")
+  active    Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+}
+
+model PricingEntry {
+  id               String   @id @default(uuid())
+  provider         String
+  modelIdentifier  String
+  inputPerMillion  Decimal
+  outputPerMillion Decimal
+  imageUnitCost    Decimal  @default(0)
+  currency         String
+  effectiveDate    DateTime
+  active           Boolean  @default(true)
+}
+
+model ExchangeRate {
+  id        String   @id @default(uuid())
+  base      String
+  quote     String
+  rate      Decimal
+  active    Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+}
+
+model GenerationJob {
+  id             String       @id @default(uuid())
+  ownerId        String
+  presentationId String?
+  type           JobType
+  idempotencyKey String       @unique
+  status         String
+  progress       Int          @default(0)
+  error          Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  presentation   Presentation? @relation(fields: [presentationId], references: [id], onDelete: SetNull)
+}
+
+model Export {
+  id             String       @id @default(uuid())
+  ownerId        String
+  presentationId String
+  storageKey     String
+  report         Json
+  createdAt      DateTime     @default(now())
+  presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+}
+
+model ImportReport {
+  id             String   @id @default(uuid())
+  ownerId        String
+  presentationId String?
+  report         Json
+  createdAt      DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model AdminSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+}

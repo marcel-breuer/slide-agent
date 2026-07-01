@@ -1,0 +1,20 @@
+{
+  "name": "@slide-agent/pptx-exporter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@slide-agent/presentation-schema": "workspace:*",
+    "jszip": "3.10.1",
+    "pptxgenjs": "3.12.0"
+  }
+}

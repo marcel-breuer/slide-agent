@@ -1,0 +1,27 @@
+services:
+  web:
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+
+  worker:
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+
+  postgres:
+    restart: unless-stopped
+    ports: []
+
+  redis:
+    restart: unless-stopped
+    ports: []
+
+  minio:
+    restart: unless-stopped
+    ports: []
+
+  mailpit:
+    profiles: ["dev-mail"]
