@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactElement } from "react";
+import type { CSSProperties, PointerEvent, ReactElement } from "react";
 
 import {
   LOGICAL_SLIDE_HEIGHT,
@@ -12,7 +12,11 @@ export type SlideRendererProps = {
   presentation: PresentationDocument;
   slide: SlideDocument;
   selectedElementIds?: readonly string[];
+  pointers?: readonly SlidePointerOverlay[];
+  interactionMode?: "select" | "pointer";
   onElementPointerDown?: (elementId: string) => void;
+  onSlidePointerDown?: (point: { x: number; y: number }) => void;
+  onPointerSelect?: (pointerId: string) => void;
 };
 
 const slideStyle: CSSProperties = {
@@ -21,6 +25,15 @@ const slideStyle: CSSProperties = {
   position: "relative",
   width: "100%",
   overflow: "hidden"
+};
+
+export type SlidePointerOverlay = {
+  id: string;
+  x: number;
+  y: number;
+  label: string;
+  instruction?: string;
+  selected?: boolean;
 };
 
 function elementFrameStyle(element: SlideElement): CSSProperties {
@@ -37,6 +50,17 @@ function elementFrameStyle(element: SlideElement): CSSProperties {
     opacity: element.opacity,
     display: element.visible ? "block" : "none",
     pointerEvents: element.locked ? "none" : "auto"
+  };
+}
+
+function getLogicalPoint(event: PointerEvent): { x: number; y: number } {
+  const rect = event.currentTarget.getBoundingClientRect();
+  const localX = event.clientX - rect.left;
+  const localY = event.clientY - rect.top;
+
+  return {
+    x: (localX / rect.width) * LOGICAL_SLIDE_WIDTH,
+    y: (localY / rect.height) * LOGICAL_SLIDE_HEIGHT
   };
 }
 
@@ -196,18 +220,27 @@ export function SlideRenderer({
   presentation,
   slide,
   selectedElementIds = [],
-  onElementPointerDown
+  pointers = [],
+  interactionMode = "select",
+  onElementPointerDown,
+  onSlidePointerDown,
+  onPointerSelect
 }: SlideRendererProps): ReactElement {
   const selected = new Set(selectedElementIds);
 
   return (
     <section
       aria-label={slide.title ?? "Slide"}
+      onPointerDown={(event) => {
+        if (interactionMode !== "pointer") return;
+        onSlidePointerDown?.(getLogicalPoint(event));
+      }}
       style={{
         ...slideStyle,
         background: slide.background.color,
         fontFamily: presentation.theme.fonts.body,
-        color: presentation.theme.colors.text ?? "#0f172a"
+        color: presentation.theme.colors.text ?? "#0f172a",
+        cursor: interactionMode === "pointer" ? "crosshair" : "default"
       }}
     >
       {slide.elements
@@ -219,7 +252,11 @@ export function SlideRenderer({
             role="button"
             tabIndex={element.locked ? -1 : 0}
             aria-label={element.accessibilityLabel ?? element.semanticRole}
-            onPointerDown={() => onElementPointerDown?.(element.id)}
+            onPointerDown={(event) => {
+              if (interactionMode === "pointer") return;
+              event.stopPropagation();
+              onElementPointerDown?.(element.id);
+            }}
             style={{
               ...elementFrameStyle(element),
               outline: selected.has(element.id) ? "2px solid #9333ea" : "1px solid transparent",
@@ -229,6 +266,40 @@ export function SlideRenderer({
             {renderElement(element)}
           </div>
         ))}
+      {pointers.map((pointer, index) => (
+        <button
+          key={pointer.id}
+          type="button"
+          aria-label={`Pointer ${pointer.label}: ${pointer.instruction ?? "slide edit target"}`}
+          title={pointer.instruction}
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            onPointerSelect?.(pointer.id);
+          }}
+          style={{
+            position: "absolute",
+            left: `${(pointer.x / LOGICAL_SLIDE_WIDTH) * 100}%`,
+            top: `${(pointer.y / LOGICAL_SLIDE_HEIGHT) * 100}%`,
+            zIndex: 1000 + index,
+            transform: "translate(-50%, -100%)",
+            display: "grid",
+            placeItems: "center",
+            width: 34,
+            height: 34,
+            border: pointer.selected ? "2px solid #7e22ce" : "2px solid #ffffff",
+            borderRadius: 999,
+            background: "#9333ea",
+            color: "#ffffff",
+            boxShadow: "0 12px 24px rgb(15 23 42 / 0.25)",
+            fontSize: 13,
+            fontWeight: 700,
+            lineHeight: 1,
+            cursor: "pointer"
+          }}
+        >
+          {pointer.label}
+        </button>
+      ))}
     </section>
   );
 }

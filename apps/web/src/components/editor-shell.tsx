@@ -13,17 +13,25 @@ import {
   Image,
   Layers,
   Lock,
+  MapPin,
+  MousePointer2,
   Palette,
   PanelRight,
   Plus,
   Redo2,
   Settings,
   Sparkles,
+  Trash2,
   Type,
   Undo2
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+import {
+  buildSlidePointerContext,
+  createSlidePointer,
+  type SlidePointer
+} from "@slide-agent/editor-core";
 import { SlideRenderer } from "@slide-agent/presentation-renderer";
 import type { PresentationDocument } from "@slide-agent/presentation-schema";
 
@@ -45,17 +53,20 @@ const inspectorTabs: [InspectorTab, LucideIcon][] = [
 function IconButton({
   label,
   children,
-  active = false
+  active = false,
+  onClick
 }: {
   label: string;
   children: ReactNode;
   active?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <button
       type="button"
       title={label}
       aria-label={label}
+      onClick={onClick}
       className={`grid h-9 w-9 place-items-center rounded-app border text-sm transition ${
         active ? "border-primary bg-primary text-white" : "border-line bg-white text-ink hover:border-primary"
       }`}
@@ -70,6 +81,9 @@ export function EditorShell() {
   const [selectedElementId, setSelectedElementId] = useState("title");
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("properties");
   const [assistantText, setAssistantText] = useState("");
+  const [pointerMode, setPointerMode] = useState(false);
+  const [slidePointers, setSlidePointers] = useState<SlidePointer[]>([]);
+  const [selectedPointerId, setSelectedPointerId] = useState<string | null>(null);
   const activeSlide = document.slides[0] ?? samplePresentation.slides[0]!;
 
   const selectedElement = useMemo(
@@ -83,6 +97,19 @@ export function EditorShell() {
       ),
     [activeSlide.elements]
   );
+  const activeSlidePointers = useMemo(
+    () => slidePointers.filter((pointer) => pointer.slideId === activeSlide.id),
+    [activeSlide.id, slidePointers]
+  );
+  const selectedPointer = useMemo(
+    () => activeSlidePointers.find((pointer) => pointer.id === selectedPointerId),
+    [activeSlidePointers, selectedPointerId]
+  );
+  const pointerContext = useMemo(
+    () => buildSlidePointerContext(activeSlide.id, activeSlidePointers),
+    [activeSlide.id, activeSlidePointers]
+  );
+  const assistantPreview = [assistantText.trim(), pointerContext].filter(Boolean).join("\n\n");
 
   function updateTitleText(nextText: string): void {
     setDocument((current) => ({
@@ -111,6 +138,32 @@ export function EditorShell() {
           : slide
       )
     }));
+  }
+
+  function addSlidePointer(point: { x: number; y: number }): void {
+    const pointer = createSlidePointer({
+      id: `${activeSlide.id}-pointer-${Date.now()}`,
+      slideId: activeSlide.id,
+      x: point.x,
+      y: point.y
+    });
+
+    setSlidePointers((current) => [...current, pointer]);
+    setSelectedPointerId(pointer.id);
+    setAssistantText((current) => current || "Use the slide pointers to propose precise edits.");
+  }
+
+  function updateSelectedPointerInstruction(instruction: string): void {
+    if (!selectedPointerId) return;
+    setSlidePointers((current) =>
+      current.map((pointer) => (pointer.id === selectedPointerId ? { ...pointer, instruction } : pointer))
+    );
+  }
+
+  function removeSelectedPointer(): void {
+    if (!selectedPointerId) return;
+    setSlidePointers((current) => current.filter((pointer) => pointer.id !== selectedPointerId));
+    setSelectedPointerId(null);
   }
 
   return (
@@ -237,8 +290,17 @@ export function EditorShell() {
                 <IconButton label="Lock">
                   <Lock size={17} />
                 </IconButton>
+                <IconButton label="AI pointer" active={pointerMode} onClick={() => setPointerMode((current) => !current)}>
+                  <MapPin size={17} />
+                </IconButton>
               </div>
               <div className="flex items-center gap-2 text-xs font-medium text-muted">
+                {pointerMode ? (
+                  <span className="flex items-center gap-1 rounded bg-primary/10 px-2 py-1 text-primary">
+                    <MousePointer2 size={13} />
+                    Pointer
+                  </span>
+                ) : null}
                 <span>Fit</span>
                 <span className="rounded bg-white px-2 py-1">87%</span>
               </div>
@@ -250,7 +312,18 @@ export function EditorShell() {
                   presentation={document}
                   slide={activeSlide}
                   selectedElementIds={[selectedElementId]}
+                  pointers={activeSlidePointers.map((pointer, index) => ({
+                    id: pointer.id,
+                    x: pointer.x,
+                    y: pointer.y,
+                    label: String(index + 1),
+                    instruction: pointer.instruction,
+                    selected: pointer.id === selectedPointerId
+                  }))}
+                  interactionMode={pointerMode ? "pointer" : "select"}
                   onElementPointerDown={setSelectedElementId}
+                  onSlidePointerDown={addSlidePointer}
+                  onPointerSelect={setSelectedPointerId}
                 />
               </div>
             </div>
@@ -323,6 +396,56 @@ export function EditorShell() {
                 </button>
               ))}
           </div>
+
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted">AI pointers</div>
+              <span className="rounded bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
+                {activeSlidePointers.length}
+              </span>
+            </div>
+            <div className="space-y-2">
+              {activeSlidePointers.map((pointer, index) => (
+                <button
+                  key={pointer.id}
+                  onClick={() => setSelectedPointerId(pointer.id)}
+                  className={`flex w-full items-start gap-2 rounded-app border px-3 py-2 text-left text-sm ${
+                    selectedPointerId === pointer.id ? "border-primary bg-primary/5" : "border-line"
+                  }`}
+                >
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary text-xs font-bold text-white">
+                    {index + 1}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium text-ink">{pointer.instruction}</span>
+                    <span className="text-xs text-muted">
+                      {Math.round(pointer.x)}, {Math.round(pointer.y)}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+            {selectedPointer ? (
+              <div className="mt-3 space-y-2">
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold text-muted">Pointer instruction</span>
+                  <textarea
+                    className="min-h-20 w-full resize-none rounded-app border border-line bg-white p-3 text-sm"
+                    value={selectedPointer.instruction}
+                    onChange={(event) => updateSelectedPointerInstruction(event.target.value)}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={removeSelectedPointer}
+                  className="flex h-9 w-full items-center justify-center gap-2 rounded-app border border-line text-sm font-semibold text-muted hover:border-primary hover:text-primary"
+                >
+                  <Trash2 size={15} />
+                  Remove pointer
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </aside>
 
@@ -333,7 +456,13 @@ export function EditorShell() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="mb-2 flex flex-wrap gap-2">
-              {["selected title", "slide 1", "executive tone", "within budget"].map((chip) => (
+              {[
+                "selected title",
+                "slide 1",
+                "executive tone",
+                "within budget",
+                `${activeSlidePointers.length} pointers`
+              ].map((chip) => (
                 <span key={chip} className="rounded-app border border-line px-2 py-1 text-xs font-medium text-muted">
                   {chip}
                 </span>
@@ -351,6 +480,11 @@ export function EditorShell() {
                 Preview ops
               </button>
             </div>
+            {assistantPreview ? (
+              <pre className="mt-2 max-h-16 overflow-auto whitespace-pre-wrap rounded-app border border-line bg-canvas px-3 py-2 text-xs leading-5 text-muted">
+                {assistantPreview}
+              </pre>
+            ) : null}
           </div>
         </div>
       </section>
