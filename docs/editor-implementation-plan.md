@@ -52,6 +52,8 @@ Suggested validation:
 
 ## Work Package 2: Autosave And Durable Edits
 
+Status: Implemented.
+
 Goal: Make user edits persist across refreshes and sessions.
 
 Required functionality:

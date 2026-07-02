@@ -3,6 +3,7 @@ import {
   createDemoPresentationDocument,
   DEMO_PRESENTATION_ID,
   DEMO_PRESENTATION_TITLE,
+  migratePresentationDocument,
   PRESENTATION_SCHEMA_VERSION,
   SLIDE_FORMAT,
   validatePresentation,
@@ -39,6 +40,49 @@ export type PresentationLookupClient = {
   };
 };
 
+type PresentationMutationClient = PresentationLookupClient & {
+  presentation: PresentationLookupClient["presentation"] & {
+    updateMany(args: {
+      where: { id: string; updatedAt: Date };
+      data: {
+        title: string;
+        format: string;
+        outputLanguage: string;
+        designContext: Prisma.InputJsonValue;
+      };
+    }): Promise<{ count: number }>;
+  };
+  slide: {
+    deleteMany(args: { where: { presentationId: string } }): Promise<unknown>;
+    createMany(args: {
+      data: Array<{
+        id: string;
+        presentationId: string;
+        order: number;
+        document: Prisma.InputJsonValue;
+      }>;
+    }): Promise<unknown>;
+  };
+};
+
+export type PresentationSaveClient = PresentationMutationClient & {
+  $transaction<T>(callback: (client: PresentationMutationClient) => Promise<T>): Promise<T>;
+};
+
+export class PresentationNotFoundError extends Error {
+  constructor(presentationId: string) {
+    super(`Presentation not found: ${presentationId}`);
+    this.name = "PresentationNotFoundError";
+  }
+}
+
+export class PresentationVersionConflictError extends Error {
+  constructor(presentationId: string) {
+    super(`Presentation version conflict: ${presentationId}`);
+    this.name = "PresentationVersionConflictError";
+  }
+}
+
 export async function findPresentationDocument(
   client: PresentationLookupClient,
   presentationId: string
@@ -50,6 +94,75 @@ export async function findPresentationDocument(
 
   if (!presentation) return null;
   return buildPresentationDocument(presentation);
+}
+
+export async function savePresentationDocument(
+  client: PresentationSaveClient,
+  {
+    presentationId,
+    expectedUpdatedAt,
+    document
+  }: {
+    presentationId: string;
+    expectedUpdatedAt: string;
+    document: unknown;
+  }
+): Promise<PresentationDocument> {
+  const nextDocument = migratePresentationDocument(document);
+  if (nextDocument.id !== presentationId) {
+    throw new Error("Presentation document id does not match the route id.");
+  }
+
+  const expectedUpdatedAtDate = new Date(expectedUpdatedAt);
+  if (Number.isNaN(expectedUpdatedAtDate.getTime())) {
+    throw new Error("Expected updatedAt must be a valid datetime.");
+  }
+
+  return client.$transaction(async (transaction) => {
+    const existing = await transaction.presentation.findUnique({
+      where: { id: presentationId },
+      include: { slides: { orderBy: { order: "asc" } } }
+    });
+
+    if (!existing) {
+      throw new PresentationNotFoundError(presentationId);
+    }
+
+    const updateResult = await transaction.presentation.updateMany({
+      where: { id: presentationId, updatedAt: expectedUpdatedAtDate },
+      data: {
+        title: nextDocument.title,
+        format: nextDocument.format,
+        outputLanguage: nextDocument.locale,
+        designContext: { theme: nextDocument.theme }
+      }
+    });
+
+    if (updateResult.count !== 1) {
+      throw new PresentationVersionConflictError(presentationId);
+    }
+
+    await transaction.slide.deleteMany({ where: { presentationId } });
+    await transaction.slide.createMany({
+      data: nextDocument.slides.map((slide) => ({
+        id: slide.id,
+        presentationId,
+        order: slide.order,
+        document: slide
+      }))
+    });
+
+    const saved = await transaction.presentation.findUnique({
+      where: { id: presentationId },
+      include: { slides: { orderBy: { order: "asc" } } }
+    });
+
+    if (!saved) {
+      throw new PresentationNotFoundError(presentationId);
+    }
+
+    return buildPresentationDocument(saved);
+  });
 }
 
 export function buildPresentationDocument(presentation: PresentationRecord): PresentationDocument {
