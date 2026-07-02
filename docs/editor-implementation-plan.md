@@ -130,6 +130,8 @@ Suggested validation:
 
 ## Work Package 5: Pointer-Driven AI Edit Requests
 
+Status: Implemented with a deterministic proposal provider. Real provider routing and credential handling remain scoped to Work Package 6.
+
 Goal: Connect slide pointers and assistant prompt input to a backend AI edit workflow.
 
 Required functionality:

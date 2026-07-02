@@ -7,6 +7,7 @@ import {
   ArrowUp,
   ArrowUpRight,
   Bot,
+  Check,
   ClipboardList,
   Copy,
   Download,
@@ -15,6 +16,7 @@ import {
   FolderPlus,
   Image,
   Layers,
+  Loader2,
   Lock,
   MapPin,
   MousePointer2,
@@ -26,17 +28,19 @@ import {
   Sparkles,
   Trash2,
   Type,
-  Undo2
+  Undo2,
+  X
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import {
-  applyCommand,
+  applyCommands,
   buildSlidePointerContext,
   createBlankSlide,
   createSlidePointer,
   getSlideSelectionAfterDelete,
   type EditorCommand,
+  type PointerDrivenEditProposal,
   type SlidePointer
 } from "@slide-agent/editor-core";
 import { SlideRenderer } from "@slide-agent/presentation-renderer";
@@ -63,6 +67,11 @@ type PresentationApiResponse =
 type PresentationSaveResponse = PresentationApiResponse;
 
 type SaveStatus = "saved" | "dirty" | "saving" | "failed";
+type AiProposalStatus = "idle" | "loading" | "ready" | "failed";
+
+type AiEditProposalApiResponse =
+  | { ok: true; data: PointerDrivenEditProposal }
+  | { ok: false; error: { code: string; message: string } };
 
 type EditorSnapshot = {
   assistantText: string;
@@ -227,8 +236,11 @@ function LoadedEditor({
   const [selectedSlideId, setSelectedSlideId] = useState(document.slides[0]?.id ?? "");
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("properties");
   const [assistantText, setAssistantText] = useState("");
+  const [aiProposal, setAiProposal] = useState<PointerDrivenEditProposal | null>(null);
+  const [aiProposalError, setAiProposalError] = useState<string | null>(null);
+  const [aiProposalStatus, setAiProposalStatus] = useState<AiProposalStatus>("idle");
   const [pointerMode, setPointerMode] = useState(false);
-  const [slidePointers, setSlidePointers] = useState<SlidePointer[]>([]);
+  const [slidePointers, setSlidePointers] = useState<SlidePointer[]>(() => readDocumentSlidePointers(document));
   const [selectedPointerId, setSelectedPointerId] = useState<string | null>(null);
   const [editorHistory, setEditorHistory] = useState<EditorHistory>({ redoStack: [], undoStack: [] });
   const restoredSlideSelectionRef = useRef<string | null>(null);
@@ -244,6 +256,7 @@ function LoadedEditor({
   const canMoveSlideUp = activeSlideIndex > 0;
   const canRedo = editorHistory.redoStack.length > 0;
   const canUndo = editorHistory.undoStack.length > 0;
+  const canRequestAiProposal = assistantText.trim().length > 0 && aiProposalStatus !== "loading";
 
   const thumbnails = document.slides.map((slide) => slide.title ?? `Slide ${slide.order}`);
 
@@ -305,6 +318,10 @@ function LoadedEditor({
 
   useEffect(() => {
     setEditorHistory({ redoStack: [], undoStack: [] });
+    setSlidePointers(readDocumentSlidePointers(document));
+    setAiProposal(null);
+    setAiProposalError(null);
+    setAiProposalStatus("idle");
   }, [presentationId]);
 
   function currentSnapshot(): EditorSnapshot {
@@ -339,7 +356,15 @@ function LoadedEditor({
   }
 
   function commitDocumentCommand(command: EditorCommand, overrides: Partial<Omit<EditorSnapshot, "document">> = {}): void {
-    const nextDocument = applyCommand(document, command);
+    commitDocumentCommands([command], overrides);
+  }
+
+  function commitDocumentCommands(
+    commands: readonly EditorCommand[],
+    overrides: Partial<Omit<EditorSnapshot, "document">> = {}
+  ): void {
+    const nextSlidePointers = normalizeSlidePointers(overrides.slidePointers ?? slidePointers);
+    const nextDocument = syncDocumentSlidePointers(applyCommands(document, commands), nextSlidePointers);
 
     commitSnapshot({
       assistantText,
@@ -347,8 +372,8 @@ function LoadedEditor({
       selectedElementId,
       selectedPointerId,
       selectedSlideId,
-      slidePointers,
-      ...overrides
+      ...overrides,
+      slidePointers: nextSlidePointers
     });
   }
 
@@ -399,45 +424,51 @@ function LoadedEditor({
   function addSlidePointer(point: { x: number; y: number }): void {
     const pointer = createSlidePointer({
       id: `${activeSlide.id}-pointer-${Date.now()}`,
+      label: String(activeSlidePointers.length + 1),
       slideId: activeSlide.id,
       x: point.x,
       y: point.y
     });
     const nextAssistantText = assistantText || "Use the slide pointers to propose precise edits.";
+    const nextSlidePointers = normalizeSlidePointers([...slidePointers, pointer]);
 
     commitSnapshot({
       assistantText: nextAssistantText,
-      document,
+      document: syncDocumentSlidePointers(document, nextSlidePointers),
       selectedElementId,
       selectedPointerId: pointer.id,
       selectedSlideId,
-      slidePointers: [...slidePointers, pointer]
+      slidePointers: nextSlidePointers
     });
   }
 
   function updateSelectedPointerInstruction(instruction: string): void {
     if (!selectedPointerId) return;
+    const nextSlidePointers = normalizeSlidePointers(
+      slidePointers.map((pointer) => (pointer.id === selectedPointerId ? { ...pointer, instruction } : pointer))
+    );
+
     commitSnapshot({
       assistantText,
-      document,
+      document: syncDocumentSlidePointers(document, nextSlidePointers),
       selectedElementId,
       selectedPointerId,
       selectedSlideId,
-      slidePointers: slidePointers.map((pointer) =>
-        pointer.id === selectedPointerId ? { ...pointer, instruction } : pointer
-      )
+      slidePointers: nextSlidePointers
     });
   }
 
   function removeSelectedPointer(): void {
     if (!selectedPointerId) return;
+    const nextSlidePointers = normalizeSlidePointers(slidePointers.filter((pointer) => pointer.id !== selectedPointerId));
+
     commitSnapshot({
       assistantText,
-      document,
+      document: syncDocumentSlidePointers(document, nextSlidePointers),
       selectedElementId,
       selectedPointerId: null,
       selectedSlideId,
-      slidePointers: slidePointers.filter((pointer) => pointer.id !== selectedPointerId)
+      slidePointers: nextSlidePointers
     });
   }
 
@@ -493,6 +524,76 @@ function LoadedEditor({
 
   function moveActiveSlide(delta: number): void {
     commitDocumentCommand({ slideId: activeSlide.id, toIndex: activeSlideIndex + delta, type: "MOVE_SLIDE" });
+  }
+
+  async function requestAiEditProposal(): Promise<void> {
+    const prompt = assistantText.trim();
+    if (!prompt || aiProposalStatus === "loading") return;
+
+    setAiProposal(null);
+    setAiProposalError(null);
+    setAiProposalStatus("loading");
+
+    try {
+      const documentWithPointers = syncDocumentSlidePointers(document, slidePointers);
+      const requestBody = {
+        document: documentWithPointers,
+        pointers: activeSlidePointers,
+        prompt,
+        slideId: activeSlide.id,
+        ...(selectedElementId ? { selectedElementId } : {})
+      };
+      const response = await fetch(
+        `/api/presentations/${encodeURIComponent(presentationId)}/ai-edit-proposals`,
+        {
+          body: JSON.stringify(requestBody),
+          headers: { "Content-Type": "application/json" },
+          method: "POST"
+        }
+      );
+      const payload = (await response.json()) as AiEditProposalApiResponse;
+
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.ok ? "AI edit proposal could not be created." : payload.error.message);
+      }
+
+      setAiProposal(payload.data);
+      setAiProposalStatus("ready");
+    } catch (error) {
+      setAiProposalError(error instanceof Error ? error.message : "AI edit proposal could not be created.");
+      setAiProposalStatus("failed");
+    }
+  }
+
+  function acceptAiProposal(): void {
+    if (!aiProposal) return;
+
+    commitDocumentCommands(
+      [
+        ...aiProposal.commands.map((entry) => entry.command),
+        {
+          metadata: {
+            generatedAt: aiProposal.metadata.generatedAt,
+            operationId: aiProposal.metadata.operationId,
+            promptVersion: aiProposal.metadata.promptVersion
+          },
+          slideId: aiProposal.slideId,
+          type: "SET_SLIDE_AI_METADATA"
+        }
+      ],
+      {
+        selectedSlideId: aiProposal.slideId
+      }
+    );
+    setAiProposal(null);
+    setAiProposalError(null);
+    setAiProposalStatus("idle");
+  }
+
+  function rejectAiProposal(): void {
+    setAiProposal(null);
+    setAiProposalError(null);
+    setAiProposalStatus("idle");
   }
 
   return (
@@ -674,7 +775,7 @@ function LoadedEditor({
                     id: pointer.id,
                     x: pointer.x,
                     y: pointer.y,
-                    label: String(index + 1),
+                    label: pointer.label || String(index + 1),
                     instruction: pointer.instruction,
                     selected: pointer.id === selectedPointerId
                   }))}
@@ -843,15 +944,66 @@ function LoadedEditor({
                 placeholder="Ask for a structured slide edit..."
                 className="h-11 min-w-0 flex-1 rounded-app border border-line px-3 text-sm"
               />
-              <button className="flex h-11 items-center gap-2 rounded-app bg-primary px-4 text-sm font-semibold text-white">
-                <ClipboardList size={16} />
-                Preview ops
+              <button
+                type="button"
+                disabled={!canRequestAiProposal}
+                onClick={() => void requestAiEditProposal()}
+                className={`flex h-11 items-center gap-2 rounded-app px-4 text-sm font-semibold ${
+                  canRequestAiProposal
+                    ? "bg-primary text-white"
+                    : "cursor-not-allowed bg-primary/40 text-white"
+                }`}
+              >
+                {aiProposalStatus === "loading" ? <Loader2 className="animate-spin" size={16} /> : <ClipboardList size={16} />}
+                {aiProposalStatus === "loading" ? "Building" : "Preview ops"}
               </button>
             </div>
+            {aiProposalStatus === "failed" && aiProposalError ? (
+              <div className="mt-2 rounded-app border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                {aiProposalError}
+              </div>
+            ) : null}
             {assistantPreview ? (
               <pre className="mt-2 max-h-16 overflow-auto whitespace-pre-wrap rounded-app border border-line bg-canvas px-3 py-2 text-xs leading-5 text-muted">
                 {assistantPreview}
               </pre>
+            ) : null}
+            {aiProposal ? (
+              <div className="mt-3 rounded-app border border-line bg-canvas px-3 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-ink">{aiProposal.title}</div>
+                    <div className="mt-1 text-xs text-muted">{aiProposal.summary}</div>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                      type="button"
+                      onClick={acceptAiProposal}
+                      className="grid h-8 w-8 place-items-center rounded-app bg-primary text-white"
+                      title="Accept proposal"
+                      aria-label="Accept proposal"
+                    >
+                      <Check size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={rejectAiProposal}
+                      className="grid h-8 w-8 place-items-center rounded-app border border-line bg-white text-muted hover:border-primary hover:text-primary"
+                      title="Reject proposal"
+                      aria-label="Reject proposal"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-2 space-y-1">
+                  {aiProposal.commands.map((entry, index) => (
+                    <div key={`${entry.command.type}-${index}`} className="text-xs leading-5 text-muted">
+                      {index + 1}. {entry.description}
+                    </div>
+                  ))}
+                </div>
+              </div>
             ) : null}
           </div>
         </div>
@@ -1000,6 +1152,60 @@ function createEditorSlideId(document: PresentationDocument, prefix: string): st
   }
 
   return candidate;
+}
+
+function readDocumentSlidePointers(document: PresentationDocument): SlidePointer[] {
+  return normalizeSlidePointers(
+    document.slides.flatMap((slide) =>
+      slide.pointers.map((pointer) => ({
+        id: pointer.id,
+        instruction: pointer.instruction,
+        label: pointer.label,
+        slideId: slide.id,
+        x: pointer.x,
+        y: pointer.y
+      }))
+    )
+  );
+}
+
+function normalizeSlidePointers(pointers: readonly SlidePointer[]): SlidePointer[] {
+  const countsBySlide = new Map<string, number>();
+
+  return pointers.map((pointer) => {
+    const nextCount = (countsBySlide.get(pointer.slideId) ?? 0) + 1;
+    countsBySlide.set(pointer.slideId, nextCount);
+
+    return {
+      ...pointer,
+      instruction: pointer.instruction.trim() || "Describe the requested change here",
+      label: String(nextCount)
+    };
+  });
+}
+
+function syncDocumentSlidePointers(
+  document: PresentationDocument,
+  pointers: readonly SlidePointer[]
+): PresentationDocument {
+  const pointersBySlide = new Map<string, SlidePointer[]>();
+  for (const pointer of normalizeSlidePointers(pointers)) {
+    pointersBySlide.set(pointer.slideId, [...(pointersBySlide.get(pointer.slideId) ?? []), pointer]);
+  }
+
+  return {
+    ...document,
+    slides: document.slides.map((slide) => ({
+      ...slide,
+      pointers: (pointersBySlide.get(slide.id) ?? []).map((pointer) => ({
+        id: pointer.id,
+        instruction: pointer.instruction,
+        label: pointer.label,
+        x: pointer.x,
+        y: pointer.y
+      }))
+    }))
+  };
 }
 
 function cloneEditorSnapshot(snapshot: EditorSnapshot): EditorSnapshot {

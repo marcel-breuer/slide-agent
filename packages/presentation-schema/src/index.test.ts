@@ -22,6 +22,15 @@ describe("presentation schema", () => {
           id: "slide_1",
           order: 1,
           background: { type: "solid", color: "#ffffff" },
+          pointers: [
+            {
+              id: "pointer_1",
+              label: "1",
+              x: 250,
+              y: 180,
+              instruction: "Make this metric stand out"
+            }
+          ],
           elements: [
             {
               id: "title",
@@ -39,6 +48,7 @@ describe("presentation schema", () => {
     });
 
     expect(document.slides).toHaveLength(1);
+    expect(document.slides[0]?.pointers).toHaveLength(1);
   });
 
   it("enforces the lowest configured slide limit", () => {

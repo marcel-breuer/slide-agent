@@ -5,9 +5,11 @@ import { createDemoPresentationDocument, validatePresentation, type Presentation
 import {
   addSlideAfter,
   applyCommand,
+  applyCommands,
   buildSlidePointerContext,
   createBlankSlide,
   createEditorState,
+  createPointerDrivenEditProposal,
   createSlidePointer,
   deleteSlide,
   dispatchEditorCommand,
@@ -205,6 +207,76 @@ describe("editor command history", () => {
     });
 
     expect(next.slides.map((candidate) => candidate.id)).toEqual(["slide-1", "slide-new", "slide-2"]);
+  });
+});
+
+describe("pointer-driven edit proposals", () => {
+  it("creates a structured proposal from pointers and a prompt", () => {
+    const document = withSlides(1);
+    const proposal = createPointerDrivenEditProposal({
+      document,
+      now: "2026-07-02T12:00:00.000Z",
+      operationId: "ai-edit-test",
+      pointers: [
+        createSlidePointer({
+          id: "pointer-1",
+          instruction: "Make the slide feel less stark",
+          label: "1",
+          slideId: "slide-1",
+          x: 200,
+          y: 150
+        })
+      ],
+      prompt: "Use #f8fafc for the area near the pointer.",
+      slideId: "slide-1"
+    });
+
+    expect(proposal).toMatchObject({
+      id: "ai-edit-test",
+      slideId: "slide-1",
+      pointerIds: ["pointer-1"],
+      metadata: {
+        operationId: "ai-edit-test",
+        provider: "mock",
+        promptVersion: "pointer-edit-v1"
+      }
+    });
+    expect(proposal.commands[0]?.command).toEqual({
+      color: "#f8fafc",
+      slideId: "slide-1",
+      type: "UPDATE_SLIDE_BACKGROUND"
+    });
+  });
+
+  it("applies accepted proposal commands and records slide operation metadata", () => {
+    const document = withSlides(1);
+    const proposal = createPointerDrivenEditProposal({
+      document,
+      now: "2026-07-02T12:00:00.000Z",
+      operationId: "ai-edit-test",
+      pointers: [],
+      prompt: "Refresh the background",
+      slideId: "slide-1"
+    });
+    const next = applyCommands(document, [
+      ...proposal.commands.map((entry) => entry.command),
+      {
+        metadata: {
+          generatedAt: proposal.metadata.generatedAt,
+          operationId: proposal.metadata.operationId,
+          promptVersion: proposal.metadata.promptVersion
+        },
+        slideId: proposal.slideId,
+        type: "SET_SLIDE_AI_METADATA"
+      }
+    ]);
+
+    expect(next.slides[0]?.background.color).not.toBe(document.slides[0]?.background.color);
+    expect(next.slides[0]?.aiMetadata).toEqual({
+      generatedAt: "2026-07-02T12:00:00.000Z",
+      operationId: "ai-edit-test",
+      promptVersion: "pointer-edit-v1"
+    });
   });
 });
 

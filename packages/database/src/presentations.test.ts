@@ -92,6 +92,15 @@ describe("presentation document lookup", () => {
         slide.id === "slide-1"
           ? {
               ...slide,
+              pointers: [
+                {
+                  id: "pointer-1",
+                  instruction: "Make the metric clearer",
+                  label: "1",
+                  x: 240,
+                  y: 180
+                }
+              ],
               title: "Updated title"
             }
           : slide
@@ -121,6 +130,15 @@ describe("presentation document lookup", () => {
 
     expect(saved.metadata.updatedAt).toBe(later.toISOString());
     expect(saved.slides[0]?.title).toBe("Updated title");
+    expect(saved.slides[0]?.pointers).toEqual([
+      {
+        id: "pointer-1",
+        instruction: "Make the metric clearer",
+        label: "1",
+        x: 240,
+        y: 180
+      }
+    ]);
   });
 
   it("rejects stale document saves", async () => {
