@@ -105,6 +105,8 @@ Suggested validation:
 
 ## Work Package 4: Editor Command Model And Undo/Redo
 
+Status: Implemented. Command history is kept in the editor session until reload, and autosave persists the current document snapshot after undo/redo.
+
 Goal: Make editing operations predictable, reversible, and reusable by manual UI and AI actions.
 
 Required functionality:
