@@ -92,9 +92,12 @@ export type CreatePointerDrivenEditProposalInput = {
   slideId: string;
   prompt: string;
   pointers: readonly SlidePointer[];
+  model?: string;
   selectedElementId?: string;
   now?: string;
   operationId?: string;
+  provider?: string;
+  usage?: PointerDrivenEditProposalMetadata["usage"];
 };
 
 export function createEditorState(document: PresentationDocument): EditorState {
@@ -259,9 +262,9 @@ export function createPointerDrivenEditProposal(
       operationId,
       promptVersion: "pointer-edit-v1",
       generatedAt,
-      provider: "mock",
-      model: "deterministic-pointer-proposal",
-      usage: {
+      provider: input.provider ?? "mock",
+      model: input.model ?? "deterministic-pointer-proposal",
+      usage: input.usage ?? {
         inputTokens: estimateTokens(`${prompt}\n${JSON.stringify(slide)}\n${pointerContext}`),
         outputTokens: estimateTokens(JSON.stringify(commands)),
         imageGenerations: 0
