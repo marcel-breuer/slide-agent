@@ -13,7 +13,7 @@ export type SlideRendererProps = {
   slide: SlideDocument;
   selectedElementIds?: readonly string[];
   pointers?: readonly SlidePointerOverlay[];
-  interactionMode?: "select" | "pointer";
+  interactionMode?: "preview" | "select" | "pointer";
   onElementPointerDown?: (elementId: string) => void;
   onSlidePointerDown?: (point: { x: number; y: number }) => void;
   onPointerSelect?: (pointerId: string) => void;
@@ -227,6 +227,7 @@ export function SlideRenderer({
   onPointerSelect
 }: SlideRendererProps): ReactElement {
   const selected = new Set(selectedElementIds);
+  const isPreview = interactionMode === "preview";
 
   return (
     <section
@@ -249,17 +250,17 @@ export function SlideRenderer({
         .map((element) => (
           <div
             key={element.id}
-            role="button"
-            tabIndex={element.locked ? -1 : 0}
+            role={isPreview ? undefined : "button"}
+            tabIndex={isPreview || element.locked ? -1 : 0}
             aria-label={element.accessibilityLabel ?? element.semanticRole}
             onPointerDown={(event) => {
-              if (interactionMode === "pointer") return;
+              if (interactionMode === "pointer" || isPreview) return;
               event.stopPropagation();
               onElementPointerDown?.(element.id);
             }}
             style={{
               ...elementFrameStyle(element),
-              outline: selected.has(element.id) ? "2px solid #9333ea" : "1px solid transparent",
+              outline: !isPreview && selected.has(element.id) ? "2px solid #9333ea" : "1px solid transparent",
               outlineOffset: 2
             }}
           >

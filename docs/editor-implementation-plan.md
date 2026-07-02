@@ -183,6 +183,8 @@ Suggested validation:
 
 ## Work Package 7: Preview Mode
 
+Status: Implemented. Preview uses the current editor document snapshot in a read-only full-screen viewer with isolated slide navigation state, so closing preview preserves the editor selection.
+
 Goal: Add a presentation preview experience separate from edit mode.
 
 Required functionality:

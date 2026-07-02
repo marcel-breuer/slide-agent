@@ -46,6 +46,8 @@ import {
 import { SlideRenderer } from "@slide-agent/presentation-renderer";
 import { validatePresentation, type PresentationDocument } from "@slide-agent/presentation-schema";
 
+import { PresentationPreview } from "./presentation-preview";
+
 const navProjects = ["Board reporting", "Product launch", "Banking pitch"];
 
 type InspectorTab = "properties" | "layers" | "design" | "assets";
@@ -239,6 +241,7 @@ function LoadedEditor({
   const [aiProposal, setAiProposal] = useState<PointerDrivenEditProposal | null>(null);
   const [aiProposalError, setAiProposalError] = useState<string | null>(null);
   const [aiProposalStatus, setAiProposalStatus] = useState<AiProposalStatus>("idle");
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [pointerMode, setPointerMode] = useState(false);
   const [slidePointers, setSlidePointers] = useState<SlidePointer[]>(() => readDocumentSlidePointers(document));
   const [selectedPointerId, setSelectedPointerId] = useState<string | null>(null);
@@ -598,6 +601,13 @@ function LoadedEditor({
 
   return (
     <main className="editor-grid">
+      {isPreviewOpen ? (
+        <PresentationPreview
+          initialSlideId={activeSlide.id}
+          onClose={() => setIsPreviewOpen(false)}
+          presentation={syncDocumentSlidePointers(document, slidePointers)}
+        />
+      ) : null}
       <aside className="border-r border-line bg-white px-4 py-5">
         <div className="mb-6 flex items-center gap-3">
           <div className="grid h-9 w-9 place-items-center rounded-app bg-ink text-white">
@@ -678,7 +688,7 @@ function LoadedEditor({
             <IconButton label="Redo" disabled={!canRedo} onClick={redoEditorChange}>
               <Redo2 size={17} />
             </IconButton>
-            <IconButton label="Preview">
+            <IconButton label="Preview" onClick={() => setIsPreviewOpen(true)}>
               <Eye size={17} />
             </IconButton>
             <button className="flex h-9 items-center gap-2 rounded-app bg-ink px-3 text-sm font-semibold text-white">
