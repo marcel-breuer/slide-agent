@@ -3,9 +3,12 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import {
   AlignCenter,
+  ArrowDown,
+  ArrowUp,
   ArrowUpRight,
   Bot,
   ClipboardList,
+  Copy,
   Download,
   Eye,
   FilePlus2,
@@ -28,8 +31,15 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import {
+  addSlideAfter,
   buildSlidePointerContext,
+  createBlankSlide,
   createSlidePointer,
+  deleteSlide,
+  duplicateSlide,
+  getSlideSelectionAfterDelete,
+  moveSlide,
+  renameSlide,
   type SlidePointer
 } from "@slide-agent/editor-core";
 import { SlideRenderer } from "@slide-agent/presentation-renderer";
@@ -61,11 +71,13 @@ function IconButton({
   label,
   children,
   active = false,
+  disabled = false,
   onClick
 }: {
   label: string;
   children: ReactNode;
   active?: boolean;
+  disabled?: boolean;
   onClick?: () => void;
 }) {
   return (
@@ -73,9 +85,43 @@ function IconButton({
       type="button"
       title={label}
       aria-label={label}
+      disabled={disabled}
       onClick={onClick}
       className={`grid h-9 w-9 place-items-center rounded-app border text-sm transition ${
-        active ? "border-primary bg-primary text-white" : "border-line bg-white text-ink hover:border-primary"
+        disabled
+          ? "cursor-not-allowed border-line bg-canvas text-muted opacity-60"
+          : active
+            ? "border-primary bg-primary text-white"
+            : "border-line bg-white text-ink hover:border-primary"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function RailIconButton({
+  label,
+  children,
+  disabled = false,
+  onClick
+}: {
+  label: string;
+  children: ReactNode;
+  disabled?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className={`grid h-9 w-full place-items-center rounded-app border text-sm transition ${
+        disabled
+          ? "cursor-not-allowed border-line bg-canvas text-muted opacity-60"
+          : "border-line bg-white text-ink hover:border-primary hover:text-primary"
       }`}
     >
       {children}
@@ -173,12 +219,17 @@ function LoadedEditor({
   const [pointerMode, setPointerMode] = useState(false);
   const [slidePointers, setSlidePointers] = useState<SlidePointer[]>([]);
   const [selectedPointerId, setSelectedPointerId] = useState<string | null>(null);
+  const restoredSlideSelectionRef = useRef<string | null>(null);
   const { error: saveError, status: saveStatus } = usePresentationAutosave({
     document,
     presentationId,
     setDocument
   });
   const activeSlide = document.slides.find((slide) => slide.id === selectedSlideId) ?? document.slides[0]!;
+  const activeSlideIndex = document.slides.findIndex((slide) => slide.id === activeSlide.id);
+  const canDeleteSlide = document.slides.length > 1;
+  const canMoveSlideDown = activeSlideIndex >= 0 && activeSlideIndex < document.slides.length - 1;
+  const canMoveSlideUp = activeSlideIndex > 0;
 
   const thumbnails = document.slides.map((slide) => slide.title ?? `Slide ${slide.order}`);
 
@@ -211,11 +262,14 @@ function LoadedEditor({
   const accentValue = document.theme.colors.primary ?? "#9333ea";
 
   useEffect(() => {
+    if (restoredSlideSelectionRef.current === presentationId) return;
+    restoredSlideSelectionRef.current = presentationId;
+
     const storedSlideId = globalThis.localStorage?.getItem(selectedSlideStorageKey(presentationId));
     if (storedSlideId && document.slides.some((slide) => slide.id === storedSlideId)) {
       setSelectedSlideId(storedSlideId);
     }
-  }, [document.id, document.slides, presentationId]);
+  }, [document.slides, presentationId]);
 
   useEffect(() => {
     if (!document.slides.some((slide) => slide.id === selectedSlideId)) {
@@ -236,37 +290,7 @@ function LoadedEditor({
   }, [activeSlide.elements, selectedElementId]);
 
   function updateTitleText(nextText: string): void {
-    setDocument((current) => {
-      if (!current) return current;
-
-      return {
-        ...current,
-        slides: current.slides.map((slide) =>
-          slide.id === activeSlide.id
-            ? {
-                ...slide,
-                title: nextText,
-                elements: slide.elements.map((element) => {
-                  if (element.id !== "title" || element.type !== "text") return element;
-                  const firstParagraph = element.paragraphs[0];
-                  const firstRun = firstParagraph?.runs[0];
-                  if (!firstParagraph || !firstRun) return element;
-                  return {
-                    ...element,
-                    paragraphs: [
-                      {
-                        ...firstParagraph,
-                        runs: [{ ...firstRun, text: nextText }]
-                      },
-                      ...element.paragraphs.slice(1)
-                    ]
-                  };
-                })
-              }
-            : slide
-        )
-      };
-    });
+    setDocument((current) => (current ? renameSlide(current, { slideId: activeSlide.id, title: nextText }) : current));
   }
 
   function updateFillColor(nextColor: string): void {
@@ -343,6 +367,52 @@ function LoadedEditor({
     setSelectedPointerId(null);
   }
 
+  function addSlide(): void {
+    const slideId = createEditorSlideId(document, "slide");
+    const slide = createBlankSlide({
+      accentColor: document.theme.colors.primary ?? "#9333ea",
+      id: slideId,
+      textColor: document.theme.colors.text ?? "#0f172a",
+      title: `Slide ${document.slides.length + 1}`
+    });
+
+    setDocument((current) => (current ? addSlideAfter(current, { afterSlideId: activeSlide.id, slide }) : current));
+    setSelectedSlideId(slideId);
+    setSelectedElementId("title");
+    setSelectedPointerId(null);
+  }
+
+  function duplicateActiveSlide(): void {
+    const slideId = createEditorSlideId(document, `${activeSlide.id}-copy`);
+
+    setDocument((current) => (current ? duplicateSlide(current, { newSlideId: slideId, slideId: activeSlide.id }) : current));
+    setSelectedSlideId(slideId);
+    setSelectedElementId("title");
+    setSelectedPointerId(null);
+  }
+
+  function deleteActiveSlide(): void {
+    const selection = getSlideSelectionAfterDelete(document, {
+      selectedSlideId,
+      slideId: activeSlide.id
+    });
+    if (!selection.deleted) return;
+
+    setDocument((current) => (current ? deleteSlide(current, activeSlide.id) : current));
+    setSlidePointers((current) => current.filter((pointer) => pointer.slideId !== activeSlide.id));
+    setSelectedSlideId(selection.selectedSlideId);
+    setSelectedElementId("title");
+    setSelectedPointerId(null);
+  }
+
+  function moveActiveSlide(delta: number): void {
+    setDocument((current) => {
+      if (!current) return current;
+      const currentIndex = current.slides.findIndex((slide) => slide.id === activeSlide.id);
+      return moveSlide(current, { slideId: activeSlide.id, toIndex: currentIndex + delta });
+    });
+  }
+
   return (
     <main className="editor-grid">
       <aside className="border-r border-line bg-white px-4 py-5">
@@ -386,7 +456,7 @@ function LoadedEditor({
           <div className="space-y-2">
             {thumbnails.slice(0, 3).map((item, index) => (
               <button
-                key={item}
+                key={`${item}-${index}`}
                 className={`flex w-full items-center gap-3 rounded-app border p-2 text-left ${
                   index === 0 ? "border-primary bg-primary/5" : "border-line bg-white"
                 }`}
@@ -419,10 +489,10 @@ function LoadedEditor({
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <IconButton label="Undo">
+            <IconButton label="Undo unavailable" disabled>
               <Undo2 size={17} />
             </IconButton>
-            <IconButton label="Redo">
+            <IconButton label="Redo unavailable" disabled>
               <Redo2 size={17} />
             </IconButton>
             <IconButton label="Preview">
@@ -444,20 +514,38 @@ function LoadedEditor({
 
         <div className="flex min-h-0 flex-1">
           <div className="w-28 shrink-0 border-r border-line bg-white p-3">
-            <button className="mb-3 grid h-9 w-full place-items-center rounded-app border border-dashed border-line text-muted">
-              <Plus size={16} />
-            </button>
+            <div className="mb-3 grid grid-cols-2 gap-2">
+              <RailIconButton label="Add slide" onClick={addSlide}>
+                <Plus size={16} />
+              </RailIconButton>
+              <RailIconButton label="Duplicate slide" onClick={duplicateActiveSlide}>
+                <Copy size={16} />
+              </RailIconButton>
+              <RailIconButton label="Move slide up" disabled={!canMoveSlideUp} onClick={() => moveActiveSlide(-1)}>
+                <ArrowUp size={16} />
+              </RailIconButton>
+              <RailIconButton label="Move slide down" disabled={!canMoveSlideDown} onClick={() => moveActiveSlide(1)}>
+                <ArrowDown size={16} />
+              </RailIconButton>
+              <div className="col-span-2">
+                <RailIconButton label="Delete slide" disabled={!canDeleteSlide} onClick={deleteActiveSlide}>
+                  <Trash2 size={16} />
+                </RailIconButton>
+              </div>
+            </div>
             <div className="space-y-3">
-              {thumbnails.map((label, index) => (
+              {document.slides.map((slide, index) => (
                 <button
-                  key={label}
-                  onClick={() => setSelectedSlideId(document.slides[index]?.id ?? selectedSlideId)}
+                  key={slide.id}
+                  onClick={() => setSelectedSlideId(slide.id)}
                   className={`w-full rounded-app border p-1 text-left ${
-                    document.slides[index]?.id === activeSlide.id ? "border-primary bg-primary/5" : "border-line bg-white"
+                    slide.id === activeSlide.id ? "border-primary bg-primary/5" : "border-line bg-white"
                   }`}
                 >
                   <div className="aspect-video rounded bg-white shadow-sm" />
-                  <div className="mt-1 truncate text-[10px] font-medium text-muted">{index + 1}. {label}</div>
+                  <div className="mt-1 truncate text-[10px] font-medium text-muted">
+                    {index + 1}. {slide.title ?? `Slide ${slide.order}`}
+                  </div>
                 </button>
               ))}
             </div>
@@ -545,7 +633,7 @@ function LoadedEditor({
           </div>
 
           <label className="block">
-            <span className="mb-1 block text-xs font-semibold text-muted">Title text</span>
+            <span className="mb-1 block text-xs font-semibold text-muted">Slide title</span>
             <textarea
               className="min-h-24 w-full resize-none rounded-app border border-line bg-white p-3 text-sm"
               value={
@@ -811,4 +899,23 @@ function saveStatusLabel(status: SaveStatus): string {
 
 function selectedSlideStorageKey(presentationId: string): string {
   return `slide-agent:selected-slide:${presentationId}`;
+}
+
+function createEditorSlideId(document: PresentationDocument, prefix: string): string {
+  const existingIds = new Set(document.slides.map((slide) => slide.id));
+  const safePrefix = prefix
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/--+/g, "-");
+  const baseId = `${safePrefix || "slide"}-${Date.now().toString(36)}`;
+  let candidate = baseId;
+  let suffix = 1;
+
+  while (existingIds.has(candidate)) {
+    candidate = `${baseId}-${suffix}`;
+    suffix += 1;
+  }
+
+  return candidate;
 }
