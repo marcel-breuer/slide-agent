@@ -157,6 +157,8 @@ Suggested validation:
 
 ## Work Package 6: Provider Configuration And Real AI Routing
 
+Status: Implemented. The edit proposal route now uses provider configuration, credential validation, model routing, usage/cost estimates, and AI operation logging. Deterministic mock routing remains available through `AI_PROVIDER_MODE=mock`.
+
 Goal: Move from mocked proposal behavior to configured provider-backed generation.
 
 Required functionality:

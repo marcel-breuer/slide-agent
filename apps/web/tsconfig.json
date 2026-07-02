@@ -17,6 +17,9 @@
       "@slide-agent/ai-core": [
         "../../packages/ai-core/src/index.ts"
       ],
+      "@slide-agent/ai-providers": [
+        "../../packages/ai-providers/src/index.ts"
+      ],
       "@slide-agent/auth": [
         "../../packages/auth/src/index.ts"
       ],

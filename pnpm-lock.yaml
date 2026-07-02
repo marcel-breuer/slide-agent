@@ -41,6 +41,9 @@ importers:
       '@slide-agent/ai-core':
         specifier: workspace:*
         version: link:../../packages/ai-core
+      '@slide-agent/ai-providers':
+        specifier: workspace:*
+        version: link:../../packages/ai-providers
       '@slide-agent/auth':
         specifier: workspace:*
         version: link:../../packages/auth

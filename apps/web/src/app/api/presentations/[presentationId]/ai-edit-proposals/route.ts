@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import { createPointerDrivenEditProposal } from "@slide-agent/editor-core";
@@ -9,8 +9,13 @@ import {
 } from "@slide-agent/database";
 import { DEMO_PRESENTATION_ID, LOGICAL_SLIDE_HEIGHT, LOGICAL_SLIDE_WIDTH, PresentationDocumentSchema } from "@slide-agent/presentation-schema";
 
+import {
+  AiRoutingConfigurationError,
+  aiProviderModeFromEnv,
+  resolveAiEditRouting
+} from "../../../../../lib/ai-provider-routing";
 import { fail, ok } from "../../../../../lib/api";
-import { SESSION_COOKIE_NAME } from "../../../../../lib/auth-session";
+import { getAuthenticatedUserId } from "../../../../../lib/server-session";
 
 type RouteContext = {
   params: Promise<{
@@ -36,7 +41,8 @@ const AiEditProposalRequestSchema = z.object({
 });
 
 export async function POST(request: Request, context: RouteContext) {
-  if (!(await hasSession())) {
+  const userId = await getAuthenticatedUserId();
+  if (!userId) {
     return fail("UNAUTHORIZED", "A valid session is required.", 401);
   }
 
@@ -63,17 +69,56 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   try {
+    const providerContext = await loadProviderContext(userId);
+    const routing = await resolveAiEditRouting({
+      ...providerContext,
+      encryptionKey: process.env.CREDENTIAL_ENCRYPTION_KEY ?? "local-dev-encryption-key",
+      mode: aiProviderModeFromEnv(process.env),
+      presentationId,
+      prompt: buildRoutingPrompt(parsed.data),
+      remainingBudget: null,
+      remainingTokens: null,
+      userId
+    });
+    const operationId = randomUUID();
     const proposalInput = {
       document: parsed.data.document,
+      model: routing.decision.model,
+      operationId,
       pointers: parsed.data.pointers,
       prompt: parsed.data.prompt,
+      provider: routing.decision.provider,
       slideId: parsed.data.slideId,
+      usage: routing.usage,
       ...(parsed.data.selectedElementId ? { selectedElementId: parsed.data.selectedElementId } : {})
     };
     const proposal = createPointerDrivenEditProposal(proposalInput);
 
+    await prisma.aiOperation.create({
+      data: {
+        id: operationId,
+        ownerId: userId,
+        presentationId,
+        slideId: parsed.data.slideId,
+        taskType: "SLIDE_REVISION",
+        provider: routing.decision.provider,
+        model: routing.decision.model,
+        routingReason: routing.decision.reason,
+        inputTokens: proposal.metadata.usage.inputTokens,
+        outputTokens: proposal.metadata.usage.outputTokens,
+        estimatedCost: routing.decision.estimatedCost.displayCost,
+        status: "SUCCEEDED",
+        promptVersion: proposal.metadata.promptVersion,
+        schemaVersion: parsed.data.document.schemaVersion
+      }
+    });
+
     return ok(proposal);
   } catch (error) {
+    if (error instanceof AiRoutingConfigurationError) {
+      return fail(error.code, error.message, error.status);
+    }
+
     return fail(
       "PROPOSAL_FAILED",
       error instanceof Error ? error.message : "AI edit proposal could not be created.",
@@ -82,7 +127,40 @@ export async function POST(request: Request, context: RouteContext) {
   }
 }
 
-async function hasSession(): Promise<boolean> {
-  const cookieStore = await cookies();
-  return Boolean(cookieStore.get(SESSION_COOKIE_NAME)?.value);
+async function loadProviderContext(userId: string) {
+  const [credentials, configurations] = await Promise.all([
+    prisma.providerCredential.findMany({
+      where: { userId, enabled: true },
+      select: {
+        provider: true,
+        enabled: true,
+        ciphertext: true,
+        nonce: true,
+        authTag: true,
+        keyVersion: true,
+        maskedValue: true
+      }
+    }),
+    prisma.providerConfiguration.findMany({
+      where: { enabled: true },
+      select: {
+        provider: true,
+        enabled: true,
+        baseUrl: true
+      }
+    })
+  ]);
+
+  return { credentials, configurations };
+}
+
+function buildRoutingPrompt(input: z.infer<typeof AiEditProposalRequestSchema>): string {
+  const slide = input.document.slides.find((candidate) => candidate.id === input.slideId);
+  return JSON.stringify({
+    task: "SLIDE_REVISION",
+    prompt: input.prompt,
+    slide,
+    pointers: input.pointers,
+    selectedElementId: input.selectedElementId ?? null
+  });
 }
