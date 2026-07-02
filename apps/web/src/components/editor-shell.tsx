@@ -31,15 +31,12 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import {
-  addSlideAfter,
+  applyCommand,
   buildSlidePointerContext,
   createBlankSlide,
   createSlidePointer,
-  deleteSlide,
-  duplicateSlide,
   getSlideSelectionAfterDelete,
-  moveSlide,
-  renameSlide,
+  type EditorCommand,
   type SlidePointer
 } from "@slide-agent/editor-core";
 import { SlideRenderer } from "@slide-agent/presentation-renderer";
@@ -66,6 +63,20 @@ type PresentationApiResponse =
 type PresentationSaveResponse = PresentationApiResponse;
 
 type SaveStatus = "saved" | "dirty" | "saving" | "failed";
+
+type EditorSnapshot = {
+  assistantText: string;
+  document: PresentationDocument;
+  selectedElementId: string;
+  selectedPointerId: string | null;
+  selectedSlideId: string;
+  slidePointers: SlidePointer[];
+};
+
+type EditorHistory = {
+  redoStack: EditorSnapshot[];
+  undoStack: EditorSnapshot[];
+};
 
 function IconButton({
   label,
@@ -219,6 +230,7 @@ function LoadedEditor({
   const [pointerMode, setPointerMode] = useState(false);
   const [slidePointers, setSlidePointers] = useState<SlidePointer[]>([]);
   const [selectedPointerId, setSelectedPointerId] = useState<string | null>(null);
+  const [editorHistory, setEditorHistory] = useState<EditorHistory>({ redoStack: [], undoStack: [] });
   const restoredSlideSelectionRef = useRef<string | null>(null);
   const { error: saveError, status: saveStatus } = usePresentationAutosave({
     document,
@@ -230,6 +242,8 @@ function LoadedEditor({
   const canDeleteSlide = document.slides.length > 1;
   const canMoveSlideDown = activeSlideIndex >= 0 && activeSlideIndex < document.slides.length - 1;
   const canMoveSlideUp = activeSlideIndex > 0;
+  const canRedo = editorHistory.redoStack.length > 0;
+  const canUndo = editorHistory.undoStack.length > 0;
 
   const thumbnails = document.slides.map((slide) => slide.title ?? `Slide ${slide.order}`);
 
@@ -289,56 +303,97 @@ function LoadedEditor({
     }
   }, [activeSlide.elements, selectedElementId]);
 
+  useEffect(() => {
+    setEditorHistory({ redoStack: [], undoStack: [] });
+  }, [presentationId]);
+
+  function currentSnapshot(): EditorSnapshot {
+    return {
+      assistantText,
+      document,
+      selectedElementId,
+      selectedPointerId,
+      selectedSlideId,
+      slidePointers
+    };
+  }
+
+  function restoreSnapshot(snapshot: EditorSnapshot): void {
+    setAssistantText(snapshot.assistantText);
+    setDocument(snapshot.document);
+    setSelectedElementId(snapshot.selectedElementId);
+    setSelectedPointerId(snapshot.selectedPointerId);
+    setSelectedSlideId(snapshot.selectedSlideId);
+    setSlidePointers(snapshot.slidePointers);
+  }
+
+  function commitSnapshot(after: EditorSnapshot): void {
+    const before = currentSnapshot();
+    if (editorSnapshotsMatch(before, after)) return;
+
+    setEditorHistory((current) => ({
+      redoStack: [],
+      undoStack: [...current.undoStack, cloneEditorSnapshot(before)]
+    }));
+    restoreSnapshot(after);
+  }
+
+  function commitDocumentCommand(command: EditorCommand, overrides: Partial<Omit<EditorSnapshot, "document">> = {}): void {
+    const nextDocument = applyCommand(document, command);
+
+    commitSnapshot({
+      assistantText,
+      document: nextDocument,
+      selectedElementId,
+      selectedPointerId,
+      selectedSlideId,
+      slidePointers,
+      ...overrides
+    });
+  }
+
+  function undoEditorChange(): void {
+    const previous = editorHistory.undoStack.at(-1);
+    if (!previous) return;
+
+    setEditorHistory((current) => ({
+      redoStack: [...current.redoStack, cloneEditorSnapshot(currentSnapshot())],
+      undoStack: current.undoStack.slice(0, -1)
+    }));
+    restoreSnapshot(previous);
+  }
+
+  function redoEditorChange(): void {
+    const next = editorHistory.redoStack.at(-1);
+    if (!next) return;
+
+    setEditorHistory((current) => ({
+      redoStack: current.redoStack.slice(0, -1),
+      undoStack: [...current.undoStack, cloneEditorSnapshot(currentSnapshot())]
+    }));
+    restoreSnapshot(next);
+  }
+
   function updateTitleText(nextText: string): void {
-    setDocument((current) => (current ? renameSlide(current, { slideId: activeSlide.id, title: nextText }) : current));
+    commitDocumentCommand({ slideId: activeSlide.id, title: nextText, type: "RENAME_SLIDE" });
   }
 
   function updateFillColor(nextColor: string): void {
-    setDocument((current) => {
-      if (!current) return current;
+    if (selectedElement?.type === "shape") {
+      commitDocumentCommand({
+        elementId: selectedElement.id,
+        fill: nextColor,
+        slideId: activeSlide.id,
+        type: "UPDATE_SHAPE_FILL"
+      });
+      return;
+    }
 
-      return {
-        ...current,
-        slides: current.slides.map((slide) => {
-          if (slide.id !== activeSlide.id) return slide;
-
-          if (selectedElement?.type === "shape") {
-            return {
-              ...slide,
-              elements: slide.elements.map((element) =>
-                element.id === selectedElement.id && element.type === "shape" ? { ...element, fill: nextColor } : element
-              )
-            };
-          }
-
-          return {
-            ...slide,
-            background: {
-              ...slide.background,
-              color: nextColor
-            }
-          };
-        })
-      };
-    });
+    commitDocumentCommand({ color: nextColor, slideId: activeSlide.id, type: "UPDATE_SLIDE_BACKGROUND" });
   }
 
   function updateAccentColor(nextColor: string): void {
-    setDocument((current) => {
-      if (!current) return current;
-
-      return {
-        ...current,
-        theme: {
-          ...current.theme,
-          colors: {
-            ...current.theme.colors,
-            accent: nextColor,
-            primary: nextColor
-          }
-        }
-      };
-    });
+    commitDocumentCommand({ color: nextColor, type: "UPDATE_THEME_ACCENT" });
   }
 
   function addSlidePointer(point: { x: number; y: number }): void {
@@ -348,23 +403,42 @@ function LoadedEditor({
       x: point.x,
       y: point.y
     });
+    const nextAssistantText = assistantText || "Use the slide pointers to propose precise edits.";
 
-    setSlidePointers((current) => [...current, pointer]);
-    setSelectedPointerId(pointer.id);
-    setAssistantText((current) => current || "Use the slide pointers to propose precise edits.");
+    commitSnapshot({
+      assistantText: nextAssistantText,
+      document,
+      selectedElementId,
+      selectedPointerId: pointer.id,
+      selectedSlideId,
+      slidePointers: [...slidePointers, pointer]
+    });
   }
 
   function updateSelectedPointerInstruction(instruction: string): void {
     if (!selectedPointerId) return;
-    setSlidePointers((current) =>
-      current.map((pointer) => (pointer.id === selectedPointerId ? { ...pointer, instruction } : pointer))
-    );
+    commitSnapshot({
+      assistantText,
+      document,
+      selectedElementId,
+      selectedPointerId,
+      selectedSlideId,
+      slidePointers: slidePointers.map((pointer) =>
+        pointer.id === selectedPointerId ? { ...pointer, instruction } : pointer
+      )
+    });
   }
 
   function removeSelectedPointer(): void {
     if (!selectedPointerId) return;
-    setSlidePointers((current) => current.filter((pointer) => pointer.id !== selectedPointerId));
-    setSelectedPointerId(null);
+    commitSnapshot({
+      assistantText,
+      document,
+      selectedElementId,
+      selectedPointerId: null,
+      selectedSlideId,
+      slidePointers: slidePointers.filter((pointer) => pointer.id !== selectedPointerId)
+    });
   }
 
   function addSlide(): void {
@@ -376,19 +450,27 @@ function LoadedEditor({
       title: `Slide ${document.slides.length + 1}`
     });
 
-    setDocument((current) => (current ? addSlideAfter(current, { afterSlideId: activeSlide.id, slide }) : current));
-    setSelectedSlideId(slideId);
-    setSelectedElementId("title");
-    setSelectedPointerId(null);
+    commitDocumentCommand(
+      { afterSlideId: activeSlide.id, slide, type: "ADD_SLIDE_AFTER" },
+      {
+        selectedElementId: "title",
+        selectedPointerId: null,
+        selectedSlideId: slideId
+      }
+    );
   }
 
   function duplicateActiveSlide(): void {
     const slideId = createEditorSlideId(document, `${activeSlide.id}-copy`);
 
-    setDocument((current) => (current ? duplicateSlide(current, { newSlideId: slideId, slideId: activeSlide.id }) : current));
-    setSelectedSlideId(slideId);
-    setSelectedElementId("title");
-    setSelectedPointerId(null);
+    commitDocumentCommand(
+      { newSlideId: slideId, slideId: activeSlide.id, type: "DUPLICATE_SLIDE" },
+      {
+        selectedElementId: "title",
+        selectedPointerId: null,
+        selectedSlideId: slideId
+      }
+    );
   }
 
   function deleteActiveSlide(): void {
@@ -398,19 +480,19 @@ function LoadedEditor({
     });
     if (!selection.deleted) return;
 
-    setDocument((current) => (current ? deleteSlide(current, activeSlide.id) : current));
-    setSlidePointers((current) => current.filter((pointer) => pointer.slideId !== activeSlide.id));
-    setSelectedSlideId(selection.selectedSlideId);
-    setSelectedElementId("title");
-    setSelectedPointerId(null);
+    commitDocumentCommand(
+      { slideId: activeSlide.id, type: "DELETE_SLIDE" },
+      {
+        selectedElementId: "title",
+        selectedPointerId: null,
+        selectedSlideId: selection.selectedSlideId,
+        slidePointers: slidePointers.filter((pointer) => pointer.slideId !== activeSlide.id)
+      }
+    );
   }
 
   function moveActiveSlide(delta: number): void {
-    setDocument((current) => {
-      if (!current) return current;
-      const currentIndex = current.slides.findIndex((slide) => slide.id === activeSlide.id);
-      return moveSlide(current, { slideId: activeSlide.id, toIndex: currentIndex + delta });
-    });
+    commitDocumentCommand({ slideId: activeSlide.id, toIndex: activeSlideIndex + delta, type: "MOVE_SLIDE" });
   }
 
   return (
@@ -489,10 +571,10 @@ function LoadedEditor({
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <IconButton label="Undo unavailable" disabled>
+            <IconButton label="Undo" disabled={!canUndo} onClick={undoEditorChange}>
               <Undo2 size={17} />
             </IconButton>
-            <IconButton label="Redo unavailable" disabled>
+            <IconButton label="Redo" disabled={!canRedo} onClick={redoEditorChange}>
               <Redo2 size={17} />
             </IconButton>
             <IconButton label="Preview">
@@ -918,4 +1000,15 @@ function createEditorSlideId(document: PresentationDocument, prefix: string): st
   }
 
   return candidate;
+}
+
+function cloneEditorSnapshot(snapshot: EditorSnapshot): EditorSnapshot {
+  return {
+    ...snapshot,
+    slidePointers: snapshot.slidePointers.map((pointer) => ({ ...pointer }))
+  };
+}
+
+function editorSnapshotsMatch(left: EditorSnapshot, right: EditorSnapshot): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
 }

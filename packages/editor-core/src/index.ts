@@ -5,14 +5,26 @@ export type EditorCommand =
   | { type: "MOVE_ELEMENT"; slideId: string; elementId: string; dx: number; dy: number }
   | { type: "RESIZE_ELEMENT"; slideId: string; elementId: string; width: number; height: number }
   | { type: "DELETE_ELEMENT"; slideId: string; elementId: string }
+  | { type: "RENAME_SLIDE"; slideId: string; title: string }
+  | { type: "UPDATE_SHAPE_FILL"; slideId: string; elementId: string; fill: string }
+  | { type: "UPDATE_SLIDE_BACKGROUND"; slideId: string; color: string }
+  | { type: "UPDATE_THEME_ACCENT"; color: string }
   | { type: "DUPLICATE_SLIDE"; slideId: string; newSlideId: string }
+  | { type: "ADD_SLIDE_AFTER"; afterSlideId?: string; slide: SlideDocument }
   | { type: "ADD_SLIDE"; slide: SlideDocument }
-  | { type: "DELETE_SLIDE"; slideId: string };
+  | { type: "DELETE_SLIDE"; slideId: string }
+  | { type: "MOVE_SLIDE"; slideId: string; toIndex: number };
+
+export type EditorHistoryEntry = {
+  command: EditorCommand;
+  before: PresentationDocument;
+  after: PresentationDocument;
+};
 
 export type EditorState = {
   document: PresentationDocument;
-  undoStack: EditorCommand[];
-  redoStack: EditorCommand[];
+  undoStack: EditorHistoryEntry[];
+  redoStack: EditorHistoryEntry[];
 };
 
 export type SlidePointer = {
@@ -43,6 +55,47 @@ export type SlideSelectionAfterDelete = {
   deleted: boolean;
   selectedSlideId: string;
 };
+
+export function createEditorState(document: PresentationDocument): EditorState {
+  return {
+    document,
+    redoStack: [],
+    undoStack: []
+  };
+}
+
+export function dispatchEditorCommand(state: EditorState, command: EditorCommand): EditorState {
+  const after = applyCommand(state.document, command);
+  if (documentsMatch(state.document, after)) return state;
+
+  return {
+    document: after,
+    redoStack: [],
+    undoStack: [...state.undoStack, { after, before: state.document, command }]
+  };
+}
+
+export function undoEditorCommand(state: EditorState): EditorState {
+  const entry = state.undoStack.at(-1);
+  if (!entry) return state;
+
+  return {
+    document: entry.before,
+    redoStack: [...state.redoStack, entry],
+    undoStack: state.undoStack.slice(0, -1)
+  };
+}
+
+export function redoEditorCommand(state: EditorState): EditorState {
+  const entry = state.redoStack.at(-1);
+  if (!entry) return state;
+
+  return {
+    document: entry.after,
+    redoStack: state.redoStack.slice(0, -1),
+    undoStack: [...state.undoStack, entry]
+  };
+}
 
 function clampCoordinate(value: number, max: number): number {
   if (!Number.isFinite(value)) return 0;
@@ -320,13 +373,60 @@ export function applyCommand(document: PresentationDocument, command: EditorComm
             : slide
         )
       };
+    case "RENAME_SLIDE":
+      return renameSlide(document, { slideId: command.slideId, title: command.title });
+    case "UPDATE_SHAPE_FILL":
+      return {
+        ...document,
+        slides: document.slides.map((slide) =>
+          slide.id === command.slideId
+            ? mapElement(slide, command.elementId, (element) =>
+                element.type === "shape" ? { ...element, fill: command.fill } : element
+              )
+            : slide
+        )
+      };
+    case "UPDATE_SLIDE_BACKGROUND":
+      return {
+        ...document,
+        slides: document.slides.map((slide) =>
+          slide.id === command.slideId
+            ? {
+                ...slide,
+                background: {
+                  ...slide.background,
+                  color: command.color
+                }
+              }
+            : slide
+        )
+      };
+    case "UPDATE_THEME_ACCENT":
+      return {
+        ...document,
+        theme: {
+          ...document.theme,
+          colors: {
+            ...document.theme.colors,
+            accent: command.color,
+            primary: command.color
+          }
+        }
+      };
     case "DUPLICATE_SLIDE": {
       return duplicateSlide(document, { newSlideId: command.newSlideId, slideId: command.slideId });
     }
+    case "ADD_SLIDE_AFTER":
+      return addSlideAfter(
+        document,
+        command.afterSlideId ? { afterSlideId: command.afterSlideId, slide: command.slide } : { slide: command.slide }
+      );
     case "ADD_SLIDE":
       return addSlideAfter(document, { slide: command.slide });
     case "DELETE_SLIDE":
       return deleteSlide(document, command.slideId);
+    case "MOVE_SLIDE":
+      return moveSlide(document, { slideId: command.slideId, toIndex: command.toIndex });
   }
 }
 
@@ -355,4 +455,8 @@ function renameTitleElement(element: SlideElement, title: string): SlideElement 
 
 function structuredCloneSlide(slide: SlideDocument): SlideDocument {
   return JSON.parse(JSON.stringify(slide)) as SlideDocument;
+}
+
+function documentsMatch(left: PresentationDocument, right: PresentationDocument): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
 }

@@ -4,14 +4,19 @@ import { createDemoPresentationDocument, validatePresentation, type Presentation
 
 import {
   addSlideAfter,
+  applyCommand,
   buildSlidePointerContext,
   createBlankSlide,
+  createEditorState,
   createSlidePointer,
   deleteSlide,
+  dispatchEditorCommand,
   duplicateSlide,
   getSlideSelectionAfterDelete,
   moveSlide,
-  renameSlide
+  redoEditorCommand,
+  renameSlide,
+  undoEditorCommand
 } from "./index";
 
 describe("slide pointers", () => {
@@ -124,6 +129,82 @@ describe("slide structure editing", () => {
 
     expect(next.slides[0]?.title).toBe("Revised title");
     expect(titleElement?.type === "text" ? titleElement.paragraphs[0]?.runs[0]?.text : "").toBe("Revised title");
+  });
+});
+
+describe("editor command history", () => {
+  it("applies commands and records undo history", () => {
+    const document = withSlides(1);
+    const state = createEditorState(document);
+    const next = dispatchEditorCommand(state, {
+      type: "RENAME_SLIDE",
+      slideId: "slide-1",
+      title: "Command title"
+    });
+
+    expect(next.document.slides[0]?.title).toBe("Command title");
+    expect(next.undoStack).toHaveLength(1);
+    expect(next.redoStack).toHaveLength(0);
+  });
+
+  it("undoes and redoes document commands", () => {
+    const document = withSlides(1);
+    const changed = dispatchEditorCommand(createEditorState(document), {
+      type: "UPDATE_THEME_ACCENT",
+      color: "#123456"
+    });
+    const undone = undoEditorCommand(changed);
+    const redone = redoEditorCommand(undone);
+
+    expect(undone.document.theme.colors.primary).toBe(document.theme.colors.primary);
+    expect(undone.undoStack).toHaveLength(0);
+    expect(undone.redoStack).toHaveLength(1);
+    expect(redone.document.theme.colors.primary).toBe("#123456");
+    expect(redone.undoStack).toHaveLength(1);
+    expect(redone.redoStack).toHaveLength(0);
+  });
+
+  it("clears redo history when a new command is dispatched after undo", () => {
+    const document = withSlides(1);
+    const changed = dispatchEditorCommand(createEditorState(document), {
+      type: "RENAME_SLIDE",
+      slideId: "slide-1",
+      title: "First"
+    });
+    const undone = undoEditorCommand(changed);
+    const next = dispatchEditorCommand(undone, {
+      type: "RENAME_SLIDE",
+      slideId: "slide-1",
+      title: "Second"
+    });
+
+    expect(next.document.slides[0]?.title).toBe("Second");
+    expect(next.undoStack).toHaveLength(1);
+    expect(next.redoStack).toHaveLength(0);
+  });
+
+  it("does not record no-op commands", () => {
+    const document = withSlides(1);
+    const state = createEditorState(document);
+    const next = dispatchEditorCommand(state, {
+      type: "MOVE_SLIDE",
+      slideId: "slide-1",
+      toIndex: 0
+    });
+
+    expect(next).toBe(state);
+  });
+
+  it("applies slide structure commands through the command path", () => {
+    const document = withSlides(2);
+    const slide = createBlankSlide({ id: "slide-new", title: "Inserted" });
+    const next = applyCommand(document, {
+      type: "ADD_SLIDE_AFTER",
+      afterSlideId: "slide-1",
+      slide
+    });
+
+    expect(next.slides.map((candidate) => candidate.id)).toEqual(["slide-1", "slide-new", "slide-2"]);
   });
 });
 
