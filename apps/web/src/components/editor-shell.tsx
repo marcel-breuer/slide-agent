@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import {
   AlignCenter,
   ArrowUpRight,
@@ -52,6 +52,10 @@ type LoadState = "loading" | "loaded" | "not-found" | "error";
 type PresentationApiResponse =
   | { ok: true; data: PresentationDocument }
   | { ok: false; error: { code: string; message: string } };
+
+type PresentationSaveResponse = PresentationApiResponse;
+
+type SaveStatus = "saved" | "dirty" | "saving" | "failed";
 
 function IconButton({
   label,
@@ -150,23 +154,31 @@ export function EditorShell({ presentationId }: { presentationId: string }) {
     return <EditorStateMessage title="No slides available" message="This presentation does not contain slides yet." />;
   }
 
-  return <LoadedEditor document={document} setDocument={setDocument} />;
+  return <LoadedEditor document={document} presentationId={presentationId} setDocument={setDocument} />;
 }
 
 function LoadedEditor({
   document,
+  presentationId,
   setDocument
 }: {
   document: PresentationDocument;
+  presentationId: string;
   setDocument: Dispatch<SetStateAction<PresentationDocument | null>>;
 }) {
   const [selectedElementId, setSelectedElementId] = useState("title");
+  const [selectedSlideId, setSelectedSlideId] = useState(document.slides[0]?.id ?? "");
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("properties");
   const [assistantText, setAssistantText] = useState("");
   const [pointerMode, setPointerMode] = useState(false);
   const [slidePointers, setSlidePointers] = useState<SlidePointer[]>([]);
   const [selectedPointerId, setSelectedPointerId] = useState<string | null>(null);
-  const activeSlide = document.slides[0]!;
+  const { error: saveError, status: saveStatus } = usePresentationAutosave({
+    document,
+    presentationId,
+    setDocument
+  });
+  const activeSlide = document.slides.find((slide) => slide.id === selectedSlideId) ?? document.slides[0]!;
 
   const thumbnails = document.slides.map((slide) => slide.title ?? `Slide ${slide.order}`);
 
@@ -194,6 +206,34 @@ function LoadedEditor({
     [activeSlide.id, activeSlidePointers]
   );
   const assistantPreview = [assistantText.trim(), pointerContext].filter(Boolean).join("\n\n");
+  const selectedShapeFill = selectedElement?.type === "shape" ? selectedElement.fill : undefined;
+  const fillValue = selectedShapeFill ?? activeSlide.background.color ?? "#ffffff";
+  const accentValue = document.theme.colors.primary ?? "#9333ea";
+
+  useEffect(() => {
+    const storedSlideId = globalThis.localStorage?.getItem(selectedSlideStorageKey(presentationId));
+    if (storedSlideId && document.slides.some((slide) => slide.id === storedSlideId)) {
+      setSelectedSlideId(storedSlideId);
+    }
+  }, [document.id, document.slides, presentationId]);
+
+  useEffect(() => {
+    if (!document.slides.some((slide) => slide.id === selectedSlideId)) {
+      setSelectedSlideId(document.slides[0]?.id ?? "");
+    }
+  }, [document.slides, selectedSlideId]);
+
+  useEffect(() => {
+    if (selectedSlideId) {
+      globalThis.localStorage?.setItem(selectedSlideStorageKey(presentationId), selectedSlideId);
+    }
+  }, [presentationId, selectedSlideId]);
+
+  useEffect(() => {
+    if (!activeSlide.elements.some((element) => element.id === selectedElementId)) {
+      setSelectedElementId(activeSlide.elements[0]?.id ?? "");
+    }
+  }, [activeSlide.elements, selectedElementId]);
 
   function updateTitleText(nextText: string): void {
     setDocument((current) => {
@@ -205,6 +245,7 @@ function LoadedEditor({
           slide.id === activeSlide.id
             ? {
                 ...slide,
+                title: nextText,
                 elements: slide.elements.map((element) => {
                   if (element.id !== "title" || element.type !== "text") return element;
                   const firstParagraph = element.paragraphs[0];
@@ -224,6 +265,54 @@ function LoadedEditor({
               }
             : slide
         )
+      };
+    });
+  }
+
+  function updateFillColor(nextColor: string): void {
+    setDocument((current) => {
+      if (!current) return current;
+
+      return {
+        ...current,
+        slides: current.slides.map((slide) => {
+          if (slide.id !== activeSlide.id) return slide;
+
+          if (selectedElement?.type === "shape") {
+            return {
+              ...slide,
+              elements: slide.elements.map((element) =>
+                element.id === selectedElement.id && element.type === "shape" ? { ...element, fill: nextColor } : element
+              )
+            };
+          }
+
+          return {
+            ...slide,
+            background: {
+              ...slide.background,
+              color: nextColor
+            }
+          };
+        })
+      };
+    });
+  }
+
+  function updateAccentColor(nextColor: string): void {
+    setDocument((current) => {
+      if (!current) return current;
+
+      return {
+        ...current,
+        theme: {
+          ...current.theme,
+          colors: {
+            ...current.theme.colors,
+            accent: nextColor,
+            primary: nextColor
+          }
+        }
       };
     });
   }
@@ -324,7 +413,10 @@ function LoadedEditor({
         <header className="flex items-center justify-between border-b border-line bg-white px-4 py-3">
           <div>
             <h1 className="text-base font-bold">{document.title}</h1>
-            <p className="text-xs text-muted">Autosaved · 16:9 widescreen · English output</p>
+            <p className="text-xs text-muted" aria-live="polite">
+              {saveStatusLabel(saveStatus)}
+              {saveError ? `: ${saveError}` : ""} · 16:9 widescreen · English output
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <IconButton label="Undo">
@@ -359,8 +451,9 @@ function LoadedEditor({
               {thumbnails.map((label, index) => (
                 <button
                   key={label}
+                  onClick={() => setSelectedSlideId(document.slides[index]?.id ?? selectedSlideId)}
                   className={`w-full rounded-app border p-1 text-left ${
-                    index === 0 ? "border-primary bg-primary/5" : "border-line bg-white"
+                    document.slides[index]?.id === activeSlide.id ? "border-primary bg-primary/5" : "border-line bg-white"
                   }`}
                 >
                   <div className="aspect-video rounded bg-white shadow-sm" />
@@ -465,11 +558,21 @@ function LoadedEditor({
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
               <span className="mb-1 block text-xs font-semibold text-muted">Fill</span>
-              <input type="color" className="h-10 w-full rounded-app border border-line bg-white p-1" defaultValue="#ffffff" />
+              <input
+                type="color"
+                className="h-10 w-full rounded-app border border-line bg-white p-1"
+                value={fillValue}
+                onChange={(event) => updateFillColor(event.target.value)}
+              />
             </label>
             <label className="block">
               <span className="mb-1 block text-xs font-semibold text-muted">Accent</span>
-              <input type="color" className="h-10 w-full rounded-app border border-line bg-white p-1" defaultValue="#9333ea" />
+              <input
+                type="color"
+                className="h-10 w-full rounded-app border border-line bg-white p-1"
+                value={accentValue}
+                onChange={(event) => updateAccentColor(event.target.value)}
+              />
             </label>
           </div>
 
@@ -596,4 +699,116 @@ function EditorStateMessage({ title, message }: { title: string; message: string
       </section>
     </main>
   );
+}
+
+function usePresentationAutosave({
+  document,
+  presentationId,
+  setDocument
+}: {
+  document: PresentationDocument;
+  presentationId: string;
+  setDocument: Dispatch<SetStateAction<PresentationDocument | null>>;
+}): { error: string | null; status: SaveStatus } {
+  const [status, setStatus] = useState<SaveStatus>("saved");
+  const [error, setError] = useState<string | null>(null);
+  const currentSerializedRef = useRef(JSON.stringify(document));
+  const savedSerializedRef = useRef(currentSerializedRef.current);
+  const savedUpdatedAtRef = useRef(document.metadata.updatedAt);
+  const saveSequenceRef = useRef(0);
+
+  useEffect(() => {
+    const serialized = JSON.stringify(document);
+    currentSerializedRef.current = serialized;
+
+    if (serialized === savedSerializedRef.current) {
+      setStatus("saved");
+      setError(null);
+      return;
+    }
+
+    setStatus("dirty");
+    setError(null);
+
+    const timeoutId = globalThis.setTimeout(() => {
+      const sequence = ++saveSequenceRef.current;
+      const serializedAtSaveStart = currentSerializedRef.current;
+      setStatus("saving");
+
+      void savePresentation({
+        document,
+        expectedUpdatedAt: savedUpdatedAtRef.current,
+        presentationId
+      })
+        .then((savedDocument) => {
+          if (sequence !== saveSequenceRef.current) return;
+
+          savedUpdatedAtRef.current = savedDocument.metadata.updatedAt;
+          savedSerializedRef.current =
+            currentSerializedRef.current === serializedAtSaveStart
+              ? JSON.stringify(savedDocument)
+              : serializedAtSaveStart;
+
+          if (currentSerializedRef.current === serializedAtSaveStart) {
+            setDocument(savedDocument);
+            setStatus("saved");
+          } else {
+            setStatus("dirty");
+          }
+
+          setError(null);
+        })
+        .catch((saveError: unknown) => {
+          if (sequence !== saveSequenceRef.current) return;
+          setStatus("failed");
+          setError(saveError instanceof Error ? saveError.message : "Presentation could not be saved.");
+        });
+    }, 800);
+
+    return () => {
+      globalThis.clearTimeout(timeoutId);
+    };
+  }, [document, presentationId, setDocument]);
+
+  return { error, status };
+}
+
+async function savePresentation({
+  document,
+  expectedUpdatedAt,
+  presentationId
+}: {
+  document: PresentationDocument;
+  expectedUpdatedAt: string;
+  presentationId: string;
+}): Promise<PresentationDocument> {
+  const response = await fetch(`/api/presentations/${encodeURIComponent(presentationId)}`, {
+    body: JSON.stringify({ document, expectedUpdatedAt }),
+    headers: { "Content-Type": "application/json" },
+    method: "PUT"
+  });
+  const payload = (await response.json()) as PresentationSaveResponse;
+
+  if (!response.ok || !payload.ok) {
+    throw new Error(payload.ok ? "Presentation could not be saved." : payload.error.message);
+  }
+
+  return validatePresentation(payload.data);
+}
+
+function saveStatusLabel(status: SaveStatus): string {
+  switch (status) {
+    case "dirty":
+      return "Unsaved changes";
+    case "failed":
+      return "Save failed";
+    case "saving":
+      return "Saving";
+    case "saved":
+      return "Saved";
+  }
+}
+
+function selectedSlideStorageKey(presentationId: string): string {
+  return `slide-agent:selected-slide:${presentationId}`;
 }

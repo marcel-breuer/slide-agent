@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
+import type { Prisma } from "@prisma/client";
 
 import { createDemoPresentationDocument } from "@slide-agent/presentation-schema";
 
-import { buildPresentationDocument, findPresentationDocument, type PresentationLookupClient } from "./presentations";
+import {
+  buildPresentationDocument,
+  findPresentationDocument,
+  PresentationVersionConflictError,
+  savePresentationDocument,
+  type PresentationLookupClient,
+  type PresentationSaveClient
+} from "./presentations";
 
 describe("presentation document lookup", () => {
   it("returns null when the presentation does not exist", async () => {
@@ -73,4 +81,128 @@ describe("presentation document lookup", () => {
     expect(document.format).toBe("WIDE_16_9");
     expect(document.locale).toBe("en");
   });
+
+  it("saves a valid document when the loaded version matches", async () => {
+    const now = new Date("2026-07-02T10:00:00.000Z");
+    const later = new Date("2026-07-02T10:01:00.000Z");
+    const demo = createDemoPresentationDocument({ ownerId: "user-1", now: now.toISOString() });
+    const updatedDocument = {
+      ...demo,
+      slides: demo.slides.map((slide) =>
+        slide.id === "slide-1"
+          ? {
+              ...slide,
+              title: "Updated title"
+            }
+          : slide
+      )
+    };
+    const client = createInMemorySaveClient({
+      createdAt: now,
+      designContext: { theme: demo.theme },
+      format: demo.format,
+      id: demo.id,
+      outputLanguage: demo.locale,
+      ownerId: "user-1",
+      slides: demo.slides.map((slide) => ({
+        document: slide,
+        id: slide.id,
+        order: slide.order
+      })),
+      title: demo.title,
+      updatedAt: now
+    }, later);
+
+    const saved = await savePresentationDocument(client, {
+      document: updatedDocument,
+      expectedUpdatedAt: now.toISOString(),
+      presentationId: demo.id
+    });
+
+    expect(saved.metadata.updatedAt).toBe(later.toISOString());
+    expect(saved.slides[0]?.title).toBe("Updated title");
+  });
+
+  it("rejects stale document saves", async () => {
+    const now = new Date("2026-07-02T10:00:00.000Z");
+    const stale = new Date("2026-07-02T09:59:00.000Z");
+    const demo = createDemoPresentationDocument({ ownerId: "user-1", now: now.toISOString() });
+    const client = createInMemorySaveClient({
+      createdAt: now,
+      designContext: { theme: demo.theme },
+      format: demo.format,
+      id: demo.id,
+      outputLanguage: demo.locale,
+      ownerId: "user-1",
+      slides: demo.slides.map((slide) => ({
+        document: slide,
+        id: slide.id,
+        order: slide.order
+      })),
+      title: demo.title,
+      updatedAt: now
+    });
+
+    await expect(
+      savePresentationDocument(client, {
+        document: demo,
+        expectedUpdatedAt: stale.toISOString(),
+        presentationId: demo.id
+      })
+    ).rejects.toBeInstanceOf(PresentationVersionConflictError);
+  });
 });
+
+function createInMemorySaveClient(
+  initial: Awaited<ReturnType<PresentationLookupClient["presentation"]["findUnique"]>>,
+  nextUpdatedAt = new Date("2026-07-02T10:01:00.000Z")
+): PresentationSaveClient {
+  if (!initial) throw new Error("Initial record is required.");
+  let record = initial;
+
+  const client: PresentationSaveClient = {
+    async $transaction(callback) {
+      return callback(client);
+    },
+    presentation: {
+      async findUnique() {
+        return record;
+      },
+      async updateMany(args) {
+        if (args.where.updatedAt.getTime() !== record.updatedAt.getTime()) {
+          return { count: 0 };
+        }
+
+        record = {
+          ...record,
+          designContext: args.data.designContext as Prisma.JsonValue,
+          format: args.data.format,
+          outputLanguage: args.data.outputLanguage,
+          title: args.data.title,
+          updatedAt: nextUpdatedAt
+        };
+        return { count: 1 };
+      }
+    },
+    slide: {
+      async createMany(args) {
+        record = {
+          ...record,
+          slides: args.data.map((slide) => ({
+            document: slide.document as Prisma.JsonValue,
+            id: slide.id,
+            order: slide.order
+          }))
+        };
+      },
+      async deleteMany() {
+        record = {
+          ...record,
+          slides: []
+        };
+      }
+    }
+  };
+
+  return client;
+}
