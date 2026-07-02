@@ -78,6 +78,8 @@ Suggested validation:
 
 ## Work Package 3: Slide And Deck Structure Editing
 
+Status: Implemented. Undo/redo controls are intentionally disabled until the command history model in Work Package 4.
+
 Goal: Implement core deck editing controls beyond text properties.
 
 Required functionality:

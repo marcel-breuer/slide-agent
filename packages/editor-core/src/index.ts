@@ -1,5 +1,5 @@
 import type { PresentationDocument, SlideDocument, SlideElement } from "@slide-agent/presentation-schema";
-import { LOGICAL_SLIDE_HEIGHT, LOGICAL_SLIDE_WIDTH } from "@slide-agent/presentation-schema";
+import { GLOBAL_MAX_SLIDES, LOGICAL_SLIDE_HEIGHT, LOGICAL_SLIDE_WIDTH } from "@slide-agent/presentation-schema";
 
 export type EditorCommand =
   | { type: "MOVE_ELEMENT"; slideId: string; elementId: string; dx: number; dy: number }
@@ -29,6 +29,19 @@ export type CreateSlidePointerInput = {
   x: number;
   y: number;
   instruction?: string;
+};
+
+export type CreateBlankSlideInput = {
+  id: string;
+  order?: number;
+  title?: string;
+  accentColor?: string;
+  textColor?: string;
+};
+
+export type SlideSelectionAfterDelete = {
+  deleted: boolean;
+  selectedSlideId: string;
 };
 
 function clampCoordinate(value: number, max: number): number {
@@ -61,6 +74,200 @@ export function buildSlidePointerContext(slideId: string, pointers: readonly Sli
   });
 
   return ["Slide AI pointers:", ...lines].join("\n");
+}
+
+export function createBlankSlide(input: CreateBlankSlideInput): SlideDocument {
+  const title = input.title?.trim() || "Untitled slide";
+
+  return {
+    id: input.id,
+    order: input.order ?? 1,
+    title,
+    purpose: "Draft the core message for this slide.",
+    keyMessage: "",
+    background: { type: "solid", color: "#ffffff" },
+    speakerNotes: "",
+    sources: [],
+    elements: [
+      {
+        id: "title",
+        type: "text",
+        frame: { x: 60, y: 48, width: 820, height: 76, rotation: 0 },
+        zIndex: 2,
+        visible: true,
+        locked: false,
+        semanticRole: "title",
+        opacity: 1,
+        paragraphs: [
+          {
+            runs: [
+              {
+                text: title,
+                fontFamily: "Inter",
+                fontSize: 34,
+                fontWeight: "700",
+                italic: false,
+                underline: false,
+                color: input.textColor ?? "#0f172a"
+              }
+            ],
+            align: "left",
+            lineHeight: 1.15,
+            spacingAfter: 0,
+            list: "none",
+            indent: 0
+          }
+        ],
+        verticalAlign: "top",
+        autoFit: { enabled: true, minFontSize: 10, maxFontSize: 48 }
+      },
+      {
+        id: "accent-line",
+        type: "shape",
+        frame: { x: 60, y: 142, width: 190, height: 8, rotation: 0 },
+        zIndex: 1,
+        visible: true,
+        locked: false,
+        semanticRole: "accent",
+        opacity: 1,
+        shape: "roundedRectangle",
+        fill: input.accentColor ?? "#9333ea",
+        borderColor: input.accentColor ?? "#9333ea",
+        borderWidth: 0
+      }
+    ]
+  };
+}
+
+export function addSlideAfter(
+  document: PresentationDocument,
+  {
+    afterSlideId,
+    slide
+  }: {
+    afterSlideId?: string;
+    slide: SlideDocument;
+  }
+): PresentationDocument {
+  if (document.slides.length >= GLOBAL_MAX_SLIDES) return document;
+
+  const afterIndex = afterSlideId ? document.slides.findIndex((candidate) => candidate.id === afterSlideId) : -1;
+  const insertIndex = afterIndex >= 0 ? afterIndex + 1 : document.slides.length;
+  const slides = [...document.slides.slice(0, insertIndex), slide, ...document.slides.slice(insertIndex)];
+
+  return { ...document, slides: normalizeSlideOrder(slides) };
+}
+
+export function duplicateSlide(
+  document: PresentationDocument,
+  {
+    newSlideId,
+    slideId
+  }: {
+    newSlideId: string;
+    slideId: string;
+  }
+): PresentationDocument {
+  if (document.slides.length >= GLOBAL_MAX_SLIDES) return document;
+
+  const sourceIndex = document.slides.findIndex((slide) => slide.id === slideId);
+  if (sourceIndex < 0) return document;
+
+  const source = document.slides[sourceIndex]!;
+  const duplicated: SlideDocument = {
+    ...structuredCloneSlide(source),
+    id: newSlideId,
+    title: source.title ? `${source.title} copy` : "Slide copy"
+  };
+
+  const slides = [
+    ...document.slides.slice(0, sourceIndex + 1),
+    duplicated,
+    ...document.slides.slice(sourceIndex + 1)
+  ];
+
+  return { ...document, slides: normalizeSlideOrder(slides) };
+}
+
+export function deleteSlide(document: PresentationDocument, slideId: string): PresentationDocument {
+  if (document.slides.length <= 1) return document;
+
+  const slides = document.slides.filter((slide) => slide.id !== slideId);
+  if (slides.length === document.slides.length) return document;
+
+  return { ...document, slides: normalizeSlideOrder(slides) };
+}
+
+export function getSlideSelectionAfterDelete(
+  document: PresentationDocument,
+  {
+    selectedSlideId,
+    slideId
+  }: {
+    selectedSlideId: string;
+    slideId: string;
+  }
+): SlideSelectionAfterDelete {
+  const deleteIndex = document.slides.findIndex((slide) => slide.id === slideId);
+  if (document.slides.length <= 1 || deleteIndex < 0) {
+    return { deleted: false, selectedSlideId };
+  }
+
+  if (selectedSlideId !== slideId) {
+    return { deleted: true, selectedSlideId };
+  }
+
+  const nextSlide = document.slides[deleteIndex + 1] ?? document.slides[deleteIndex - 1]!;
+  return { deleted: true, selectedSlideId: nextSlide.id };
+}
+
+export function moveSlide(
+  document: PresentationDocument,
+  {
+    slideId,
+    toIndex
+  }: {
+    slideId: string;
+    toIndex: number;
+  }
+): PresentationDocument {
+  const fromIndex = document.slides.findIndex((slide) => slide.id === slideId);
+  if (fromIndex < 0) return document;
+
+  const clampedIndex = Math.max(0, Math.min(document.slides.length - 1, toIndex));
+  if (fromIndex === clampedIndex) return document;
+
+  const slides = [...document.slides];
+  const [slide] = slides.splice(fromIndex, 1);
+  slides.splice(clampedIndex, 0, slide!);
+
+  return { ...document, slides: normalizeSlideOrder(slides) };
+}
+
+export function renameSlide(
+  document: PresentationDocument,
+  {
+    slideId,
+    title
+  }: {
+    slideId: string;
+    title: string;
+  }
+): PresentationDocument {
+  const nextTitle = title.trim() || "Untitled slide";
+
+  return {
+    ...document,
+    slides: document.slides.map((slide) =>
+      slide.id === slideId
+        ? {
+            ...slide,
+            title: nextTitle,
+            elements: slide.elements.map((element) => renameTitleElement(element, nextTitle))
+          }
+        : slide
+    )
+  };
 }
 
 function mapElement(slide: SlideDocument, elementId: string, update: (element: SlideElement) => SlideElement): SlideDocument {
@@ -114,28 +321,38 @@ export function applyCommand(document: PresentationDocument, command: EditorComm
         )
       };
     case "DUPLICATE_SLIDE": {
-      const source = document.slides.find((slide) => slide.id === command.slideId);
-      if (!source) return document;
-      const duplicated: SlideDocument = {
-        ...source,
-        id: command.newSlideId,
-        order: source.order + 1,
-        title: source.title ? `${source.title} copy` : undefined
-      };
-      const slides = [...document.slides, duplicated].map((slide, index) => ({ ...slide, order: index + 1 }));
-      return { ...document, slides };
+      return duplicateSlide(document, { newSlideId: command.newSlideId, slideId: command.slideId });
     }
     case "ADD_SLIDE":
-      return {
-        ...document,
-        slides: [...document.slides, { ...command.slide, order: document.slides.length + 1 }]
-      };
+      return addSlideAfter(document, { slide: command.slide });
     case "DELETE_SLIDE":
-      return {
-        ...document,
-        slides: document.slides
-          .filter((slide) => slide.id !== command.slideId)
-          .map((slide, index) => ({ ...slide, order: index + 1 }))
-      };
+      return deleteSlide(document, command.slideId);
   }
+}
+
+function normalizeSlideOrder(slides: readonly SlideDocument[]): SlideDocument[] {
+  return slides.map((slide, index) => ({ ...slide, order: index + 1 }));
+}
+
+function renameTitleElement(element: SlideElement, title: string): SlideElement {
+  if (element.id !== "title" || element.type !== "text") return element;
+
+  const firstParagraph = element.paragraphs[0];
+  const firstRun = firstParagraph?.runs[0];
+  if (!firstParagraph || !firstRun) return element;
+
+  return {
+    ...element,
+    paragraphs: [
+      {
+        ...firstParagraph,
+        runs: [{ ...firstRun, text: title }]
+      },
+      ...element.paragraphs.slice(1)
+    ]
+  };
+}
+
+function structuredCloneSlide(slide: SlideDocument): SlideDocument {
+  return JSON.parse(JSON.stringify(slide)) as SlideDocument;
 }
