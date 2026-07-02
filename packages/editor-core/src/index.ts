@@ -13,7 +13,8 @@ export type EditorCommand =
   | { type: "ADD_SLIDE_AFTER"; afterSlideId?: string; slide: SlideDocument }
   | { type: "ADD_SLIDE"; slide: SlideDocument }
   | { type: "DELETE_SLIDE"; slideId: string }
-  | { type: "MOVE_SLIDE"; slideId: string; toIndex: number };
+  | { type: "MOVE_SLIDE"; slideId: string; toIndex: number }
+  | { type: "SET_SLIDE_AI_METADATA"; slideId: string; metadata: NonNullable<SlideDocument["aiMetadata"]> };
 
 export type EditorHistoryEntry = {
   command: EditorCommand;
@@ -30,6 +31,7 @@ export type EditorState = {
 export type SlidePointer = {
   id: string;
   slideId: string;
+  label: string;
   x: number;
   y: number;
   instruction: string;
@@ -40,6 +42,7 @@ export type CreateSlidePointerInput = {
   slideId: string;
   x: number;
   y: number;
+  label?: string;
   instruction?: string;
 };
 
@@ -54,6 +57,44 @@ export type CreateBlankSlideInput = {
 export type SlideSelectionAfterDelete = {
   deleted: boolean;
   selectedSlideId: string;
+};
+
+export type PointerDrivenEditProposalCommand = {
+  command: EditorCommand;
+  description: string;
+};
+
+export type PointerDrivenEditProposalMetadata = {
+  operationId: string;
+  promptVersion: string;
+  generatedAt: string;
+  provider: string;
+  model: string;
+  usage: {
+    inputTokens: number;
+    outputTokens: number;
+    imageGenerations: number;
+  };
+};
+
+export type PointerDrivenEditProposal = {
+  id: string;
+  title: string;
+  summary: string;
+  slideId: string;
+  pointerIds: string[];
+  commands: PointerDrivenEditProposalCommand[];
+  metadata: PointerDrivenEditProposalMetadata;
+};
+
+export type CreatePointerDrivenEditProposalInput = {
+  document: PresentationDocument;
+  slideId: string;
+  prompt: string;
+  pointers: readonly SlidePointer[];
+  selectedElementId?: string;
+  now?: string;
+  operationId?: string;
 };
 
 export function createEditorState(document: PresentationDocument): EditorState {
@@ -106,10 +147,44 @@ function formatPercent(value: number, max: number): string {
   return `${Math.round((clampCoordinate(value, max) / max) * 1000) / 10}%`;
 }
 
+function extractHexColor(value: string): string | null {
+  return value.match(/#(?:[0-9a-f]{6}|[0-9a-f]{8})\b/i)?.[0] ?? null;
+}
+
+function mentionsTitle(value: string): boolean {
+  return /\b(title|headline|heading|titel|ueberschrift|überschrift)\b/i.test(value);
+}
+
+function buildProposedTitle(currentTitle: string, prompt: string): string {
+  const normalizedPrompt = prompt
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/[.!?]+$/g, "");
+
+  if (normalizedPrompt.length >= 8 && normalizedPrompt.length <= 72) return normalizedPrompt;
+
+  const baseTitle = currentTitle.trim() || "Untitled slide";
+  return baseTitle.toLowerCase().startsWith("refined ") ? baseTitle : `Refined ${baseTitle}`;
+}
+
+function estimateTokens(value: string): number {
+  return Math.max(1, Math.ceil(value.length / 4));
+}
+
+function hashText(value: string): number {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(index);
+    hash |= 0;
+  }
+  return hash;
+}
+
 export function createSlidePointer(input: CreateSlidePointerInput): SlidePointer {
   return {
     id: input.id,
     slideId: input.slideId,
+    label: input.label?.trim() || "1",
     x: clampCoordinate(input.x, LOGICAL_SLIDE_WIDTH),
     y: clampCoordinate(input.y, LOGICAL_SLIDE_HEIGHT),
     instruction: input.instruction?.trim() || "Describe the requested change here"
@@ -123,10 +198,80 @@ export function buildSlidePointerContext(slideId: string, pointers: readonly Sli
   const lines = slidePointers.map((pointer, index) => {
     const x = formatPercent(pointer.x, LOGICAL_SLIDE_WIDTH);
     const y = formatPercent(pointer.y, LOGICAL_SLIDE_HEIGHT);
-    return `${index + 1}. pointer ${index + 1} at x ${x}, y ${y}: ${pointer.instruction}`;
+    return `${index + 1}. pointer ${pointer.label} at x ${x}, y ${y}: ${pointer.instruction}`;
   });
 
   return ["Slide AI pointers:", ...lines].join("\n");
+}
+
+export function createPointerDrivenEditProposal(
+  input: CreatePointerDrivenEditProposalInput
+): PointerDrivenEditProposal {
+  const prompt = input.prompt.trim();
+  if (!prompt) throw new Error("Prompt is required.");
+
+  const slide = input.document.slides.find((candidate) => candidate.id === input.slideId);
+  if (!slide) throw new Error("Selected slide was not found.");
+
+  const selectedElement = input.selectedElementId
+    ? slide.elements.find((element) => element.id === input.selectedElementId)
+    : undefined;
+  const slidePointers = input.pointers.filter((pointer) => pointer.slideId === slide.id);
+  const pointerContext = buildSlidePointerContext(slide.id, slidePointers);
+  const fullInstruction = [prompt, pointerContext].filter(Boolean).join("\n").toLowerCase();
+  const color = extractHexColor(fullInstruction);
+  const operationId = input.operationId ?? `ai-edit-${Math.abs(hashText(`${slide.id}:${prompt}:${pointerContext}`))}`;
+  const generatedAt = input.now ?? new Date().toISOString();
+  const commands: PointerDrivenEditProposalCommand[] = [];
+
+  if (selectedElement?.type === "shape") {
+    const fill = color ?? input.document.theme.colors.accent ?? input.document.theme.colors.primary ?? "#2563eb";
+    commands.push({
+      command: { elementId: selectedElement.id, fill, slideId: slide.id, type: "UPDATE_SHAPE_FILL" },
+      description: `Update the selected ${selectedElement.semanticRole} shape fill to ${fill}.`
+    });
+  } else if (mentionsTitle(fullInstruction) && slide.title) {
+    const title = buildProposedTitle(slide.title, prompt);
+    commands.push({
+      command: { slideId: slide.id, title, type: "RENAME_SLIDE" },
+      description: `Rename the slide title to "${title}".`
+    });
+  } else {
+    const currentColor = slide.background.color ?? "#ffffff";
+    const backgroundColor = color ?? (currentColor.toLowerCase() === "#f8fafc" ? "#eef2ff" : "#f8fafc");
+    commands.push({
+      command: { color: backgroundColor, slideId: slide.id, type: "UPDATE_SLIDE_BACKGROUND" },
+      description: `Update the slide background color to ${backgroundColor}.`
+    });
+  }
+
+  return {
+    id: operationId,
+    title: "Pointer-guided edit proposal",
+    summary:
+      slidePointers.length > 0
+        ? `Prepared ${commands.length} edit for ${slidePointers.length} pointer target.`
+        : `Prepared ${commands.length} edit from the prompt.`,
+    slideId: slide.id,
+    pointerIds: slidePointers.map((pointer) => pointer.id),
+    commands,
+    metadata: {
+      operationId,
+      promptVersion: "pointer-edit-v1",
+      generatedAt,
+      provider: "mock",
+      model: "deterministic-pointer-proposal",
+      usage: {
+        inputTokens: estimateTokens(`${prompt}\n${JSON.stringify(slide)}\n${pointerContext}`),
+        outputTokens: estimateTokens(JSON.stringify(commands)),
+        imageGenerations: 0
+      }
+    }
+  };
+}
+
+export function applyCommands(document: PresentationDocument, commands: readonly EditorCommand[]): PresentationDocument {
+  return commands.reduce((current, command) => applyCommand(current, command), document);
 }
 
 export function createBlankSlide(input: CreateBlankSlideInput): SlideDocument {
@@ -139,6 +284,7 @@ export function createBlankSlide(input: CreateBlankSlideInput): SlideDocument {
     purpose: "Draft the core message for this slide.",
     keyMessage: "",
     background: { type: "solid", color: "#ffffff" },
+    pointers: [],
     speakerNotes: "",
     sources: [],
     elements: [
@@ -427,6 +573,13 @@ export function applyCommand(document: PresentationDocument, command: EditorComm
       return deleteSlide(document, command.slideId);
     case "MOVE_SLIDE":
       return moveSlide(document, { slideId: command.slideId, toIndex: command.toIndex });
+    case "SET_SLIDE_AI_METADATA":
+      return {
+        ...document,
+        slides: document.slides.map((slide) =>
+          slide.id === command.slideId ? { ...slide, aiMetadata: command.metadata } : slide
+        )
+      };
   }
 }
 

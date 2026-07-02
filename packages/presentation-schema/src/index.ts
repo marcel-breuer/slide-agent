@@ -144,6 +144,15 @@ export const SlideBackgroundSchema = z.object({
   assetId: z.string().optional()
 });
 
+export const SlidePointerMarkerSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1).max(12),
+  x: z.number().finite().min(0).max(LOGICAL_SLIDE_WIDTH),
+  y: z.number().finite().min(0).max(LOGICAL_SLIDE_HEIGHT),
+  instruction: z.string().min(1).max(1000)
+});
+export type SlidePointerMarker = z.infer<typeof SlidePointerMarkerSchema>;
+
 export const SlideDocumentSchema = z.object({
   id: z.string().min(1),
   order: z.number().int().min(1),
@@ -153,6 +162,7 @@ export const SlideDocumentSchema = z.object({
   layoutId: z.string().optional(),
   background: SlideBackgroundSchema,
   elements: z.array(SlideElementSchema),
+  pointers: z.array(SlidePointerMarkerSchema).max(25).default([]),
   speakerNotes: z.string().optional(),
   sources: z.array(z.object({ label: z.string(), url: z.string().url().optional() })).default([]),
   aiMetadata: z
