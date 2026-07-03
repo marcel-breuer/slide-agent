@@ -7,10 +7,12 @@ const nextConfig: NextConfig = {
     "@slide-agent/auth",
     "@slide-agent/editor-core",
     "@slide-agent/i18n",
+    "@slide-agent/pptx-exporter",
     "@slide-agent/presentation-renderer",
     "@slide-agent/presentation-schema",
     "@slide-agent/pricing",
     "@slide-agent/shared",
+    "@slide-agent/storage",
   ],
   typedRoutes: true,
 };

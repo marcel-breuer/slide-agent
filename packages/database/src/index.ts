@@ -2,6 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 
 import { createPrismaClient } from "./client";
 export * from "./presentations";
+export type { Prisma, PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as typeof globalThis & {
   slideAgentPrisma?: PrismaClient;
