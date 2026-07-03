@@ -8,7 +8,7 @@ import { createDemoPresentationDocument } from "@slide-agent/presentation-schema
 import { POST } from "./route";
 
 vi.mock("next/headers", () => ({
-  cookies: vi.fn()
+  cookies: vi.fn(),
 }));
 
 vi.mock("@slide-agent/database", () => ({
@@ -17,22 +17,23 @@ vi.mock("@slide-agent/database", () => ({
   findPresentationDocument: vi.fn(),
   prisma: {
     aiOperation: {
-      create: vi.fn()
+      create: vi.fn(),
     },
     providerConfiguration: {
-      findMany: vi.fn()
+      findMany: vi.fn(),
     },
     providerCredential: {
-      findMany: vi.fn()
-    }
-  }
+      findMany: vi.fn(),
+    },
+  },
 }));
 
 const mockedCookies = vi.mocked(cookies);
 const mockedEnsureDemoPresentation = vi.mocked(ensureDemoPresentation);
 const mockedFindPresentationDocument = vi.mocked(findPresentationDocument);
 const mockedAiOperationCreate = prisma.aiOperation.create as unknown as Mock;
-const mockedProviderConfigurationFindMany = prisma.providerConfiguration.findMany as unknown as Mock;
+const mockedProviderConfigurationFindMany = prisma.providerConfiguration
+  .findMany as unknown as Mock;
 const mockedProviderCredentialFindMany = prisma.providerCredential.findMany as unknown as Mock;
 
 describe("AI edit proposals API", () => {
@@ -49,7 +50,7 @@ describe("AI edit proposals API", () => {
     mockedCookies.mockResolvedValue({ get: () => undefined } as never);
 
     const response = await POST(new Request("http://test.local"), {
-      params: Promise.resolve({ presentationId: "demo-presentation" })
+      params: Promise.resolve({ presentationId: "demo-presentation" }),
     });
     const payload = (await response.json()) as { ok: boolean; error: { code: string } };
 
@@ -74,18 +75,18 @@ describe("AI edit proposals API", () => {
               label: "1",
               slideId: "slide-1",
               x: 240,
-              y: 180
-            }
+              y: 180,
+            },
           ],
           prompt: "Use #f8fafc near pointer 1.",
-          slideId: "slide-1"
+          slideId: "slide-1",
         }),
         headers: { "Content-Type": "application/json" },
-        method: "POST"
+        method: "POST",
       }),
       {
-        params: Promise.resolve({ presentationId: "demo-presentation" })
-      }
+        params: Promise.resolve({ presentationId: "demo-presentation" }),
+      },
     );
     const payload = (await response.json()) as {
       ok: boolean;
@@ -101,7 +102,7 @@ describe("AI edit proposals API", () => {
     expect(payload.data.commands[0]?.command).toEqual({
       color: "#f8fafc",
       slideId: "slide-1",
-      type: "UPDATE_SLIDE_BACKGROUND"
+      type: "UPDATE_SLIDE_BACKGROUND",
     });
     expect(mockedAiOperationCreate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -109,9 +110,9 @@ describe("AI edit proposals API", () => {
           ownerId: "demo-user",
           provider: "mock",
           model: "deterministic-pointer-proposal",
-          taskType: "SLIDE_REVISION"
-        })
-      })
+          taskType: "SLIDE_REVISION",
+        }),
+      }),
     );
   });
 
@@ -127,16 +128,19 @@ describe("AI edit proposals API", () => {
           document,
           pointers: [],
           prompt: "Use #f8fafc near pointer 1.",
-          slideId: "slide-1"
+          slideId: "slide-1",
         }),
         headers: { "Content-Type": "application/json" },
-        method: "POST"
+        method: "POST",
       }),
       {
-        params: Promise.resolve({ presentationId: "demo-presentation" })
-      }
+        params: Promise.resolve({ presentationId: "demo-presentation" }),
+      },
     );
-    const payload = (await response.json()) as { ok: boolean; error: { code: string; message: string } };
+    const payload = (await response.json()) as {
+      ok: boolean;
+      error: { code: string; message: string };
+    };
 
     expect(response.status).toBe(409);
     expect(payload.error.code).toBe("AI_PROVIDER_NOT_CONFIGURED");

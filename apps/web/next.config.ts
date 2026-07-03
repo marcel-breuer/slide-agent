@@ -10,9 +10,9 @@ const nextConfig: NextConfig = {
     "@slide-agent/presentation-renderer",
     "@slide-agent/presentation-schema",
     "@slide-agent/pricing",
-    "@slide-agent/shared"
+    "@slide-agent/shared",
   ],
-  typedRoutes: true
+  typedRoutes: true,
 };
 
 export default nextConfig;

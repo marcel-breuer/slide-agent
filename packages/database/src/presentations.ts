@@ -8,7 +8,7 @@ import {
   SLIDE_FORMAT,
   validatePresentation,
   type Locale,
-  type PresentationDocument
+  type PresentationDocument,
 } from "@slide-agent/presentation-schema";
 
 export const DEMO_USER_EMAIL = "demo@slide-agent.local";
@@ -85,11 +85,11 @@ export class PresentationVersionConflictError extends Error {
 
 export async function findPresentationDocument(
   client: PresentationLookupClient,
-  presentationId: string
+  presentationId: string,
 ): Promise<PresentationDocument | null> {
   const presentation = await client.presentation.findUnique({
     where: { id: presentationId },
-    include: { slides: { orderBy: { order: "asc" } } }
+    include: { slides: { orderBy: { order: "asc" } } },
   });
 
   if (!presentation) return null;
@@ -101,12 +101,12 @@ export async function savePresentationDocument(
   {
     presentationId,
     expectedUpdatedAt,
-    document
+    document,
   }: {
     presentationId: string;
     expectedUpdatedAt: string;
     document: unknown;
-  }
+  },
 ): Promise<PresentationDocument> {
   const nextDocument = migratePresentationDocument(document);
   if (nextDocument.id !== presentationId) {
@@ -121,7 +121,7 @@ export async function savePresentationDocument(
   return client.$transaction(async (transaction) => {
     const existing = await transaction.presentation.findUnique({
       where: { id: presentationId },
-      include: { slides: { orderBy: { order: "asc" } } }
+      include: { slides: { orderBy: { order: "asc" } } },
     });
 
     if (!existing) {
@@ -134,8 +134,8 @@ export async function savePresentationDocument(
         title: nextDocument.title,
         format: nextDocument.format,
         outputLanguage: nextDocument.locale,
-        designContext: { theme: nextDocument.theme }
-      }
+        designContext: { theme: nextDocument.theme },
+      },
     });
 
     if (updateResult.count !== 1) {
@@ -148,13 +148,13 @@ export async function savePresentationDocument(
         id: slide.id,
         presentationId,
         order: slide.order,
-        document: slide
-      }))
+        document: slide,
+      })),
     });
 
     const saved = await transaction.presentation.findUnique({
       where: { id: presentationId },
-      include: { slides: { orderBy: { order: "asc" } } }
+      include: { slides: { orderBy: { order: "asc" } } },
     });
 
     if (!saved) {
@@ -180,23 +180,23 @@ export function buildPresentationDocument(presentation: PresentationRecord): Pre
     metadata: {
       createdAt: presentation.createdAt.toISOString(),
       updatedAt: presentation.updatedAt.toISOString(),
-      ownerId: presentation.ownerId
+      ownerId: presentation.ownerId,
     },
     slides: presentation.slides.map((slide) => {
       const document = asRecord(slide.document) ?? {};
       return {
         ...document,
         id: typeof document.id === "string" ? document.id : slide.id,
-        order: slide.order
+        order: slide.order,
       };
-    })
+    }),
   });
 }
 
 export async function ensureDemoPresentation(client: PrismaClient): Promise<string> {
   const existing = await client.presentation.findUnique({
     where: { id: DEMO_PRESENTATION_ID },
-    select: { id: true }
+    select: { id: true },
   });
 
   if (existing) return existing.id;
@@ -205,28 +205,28 @@ export async function ensureDemoPresentation(client: PrismaClient): Promise<stri
   const user = await client.user.upsert({
     where: { email: DEMO_USER_EMAIL },
     update: {
-      displayName: "Demo User"
+      displayName: "Demo User",
     },
     create: {
       id: DEMO_USER_ID,
       email: DEMO_USER_EMAIL,
       passwordHash: "demo-login-placeholder",
-      displayName: "Demo User"
-    }
+      displayName: "Demo User",
+    },
   });
 
   const project = await client.project.upsert({
     where: { id: DEMO_PROJECT_ID },
     update: {
       ownerId: user.id,
-      name: "Board reporting"
+      name: "Board reporting",
     },
     create: {
       id: DEMO_PROJECT_ID,
       ownerId: user.id,
       name: "Board reporting",
-      description: "Demo project for local editor development."
-    }
+      description: "Demo project for local editor development.",
+    },
   });
 
   await client.presentation.create({
@@ -244,10 +244,10 @@ export async function ensureDemoPresentation(client: PrismaClient): Promise<stri
         create: document.slides.map((slide) => ({
           id: slide.id,
           order: slide.order,
-          document: slide
-        }))
-      }
-    }
+          document: slide,
+        })),
+      },
+    },
   });
 
   return DEMO_PRESENTATION_ID;
@@ -258,5 +258,7 @@ function toLocale(value: string): Locale {
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
-  return value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 }

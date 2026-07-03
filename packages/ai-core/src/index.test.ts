@@ -15,7 +15,7 @@ const policies: RoutingModelPolicy[] = [
     latencyTier: "low",
     priority: 10,
     active: true,
-    local: false
+    local: false,
   },
   {
     provider: "local",
@@ -29,8 +29,8 @@ const policies: RoutingModelPolicy[] = [
     latencyTier: "low",
     priority: 1,
     active: true,
-    local: true
-  }
+    local: true,
+  },
 ];
 
 describe("model router", () => {
@@ -58,11 +58,11 @@ describe("model router", () => {
             displayCurrency: "USD",
             totalTokens: 9000,
             uncertaintyLow: 0.09,
-            uncertaintyHigh: 0.16
-          }
-        }
+            uncertaintyHigh: 0.16,
+          },
+        },
       },
-      policies
+      policies,
     );
 
     expect(decision.provider).toBe("openai");

@@ -10,11 +10,11 @@ export function fail(code: string, message: string, status = 400): Response {
 
 export const ProjectInputSchema = z.object({
   name: z.string().min(1),
-  description: z.string().optional()
+  description: z.string().optional(),
 });
 
 export const PresentationInputSchema = z.object({
   projectId: z.string().min(1),
   title: z.string().min(1),
-  requestedSlideCount: z.number().int().min(1).max(50).default(10)
+  requestedSlideCount: z.number().int().min(1).max(50).default(10),
 });

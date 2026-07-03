@@ -11,7 +11,7 @@ export const PricingEntrySchema = z.object({
   outputPerMillion: z.number().min(0),
   imageGenerationUnit: z.number().min(0).default(0),
   effectiveDate: z.string().datetime(),
-  active: z.boolean().default(true)
+  active: z.boolean().default(true),
 });
 export type PricingEntry = z.infer<typeof PricingEntrySchema>;
 
@@ -35,7 +35,7 @@ export function estimateCost(
   pricing: PricingEntry,
   usage: UsageInput,
   displayCurrency: Currency,
-  usdToEurRate: number
+  usdToEurRate: number,
 ): CostEstimate {
   const totalTokens = usage.inputTokens + usage.outputTokens;
   const providerCost =
@@ -56,11 +56,15 @@ export function estimateCost(
     displayCurrency,
     totalTokens,
     uncertaintyLow: displayCost * 0.8,
-    uncertaintyHigh: displayCost * 1.3
+    uncertaintyHigh: displayCost * 1.3,
   };
 }
 
-export function canReserveBudget(remainingCost: number | null, remainingTokens: number | null, estimate: CostEstimate): boolean {
+export function canReserveBudget(
+  remainingCost: number | null,
+  remainingTokens: number | null,
+  estimate: CostEstimate,
+): boolean {
   const costAllowed = remainingCost === null || estimate.displayCost <= remainingCost;
   const tokenAllowed = remainingTokens === null || estimate.totalTokens <= remainingTokens;
   return costAllowed && tokenAllowed;

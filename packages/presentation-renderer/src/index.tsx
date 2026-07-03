@@ -5,7 +5,7 @@ import {
   LOGICAL_SLIDE_WIDTH,
   type PresentationDocument,
   type SlideDocument,
-  type SlideElement
+  type SlideElement,
 } from "@slide-agent/presentation-schema";
 
 export type SlideRendererProps = {
@@ -24,7 +24,7 @@ const slideStyle: CSSProperties = {
   containerType: "inline-size",
   position: "relative",
   width: "100%",
-  overflow: "hidden"
+  overflow: "hidden",
 };
 
 export type SlidePointerOverlay = {
@@ -49,7 +49,7 @@ function elementFrameStyle(element: SlideElement): CSSProperties {
     zIndex: element.zIndex,
     opacity: element.opacity,
     display: element.visible ? "block" : "none",
-    pointerEvents: element.locked ? "none" : "auto"
+    pointerEvents: element.locked ? "none" : "auto",
   };
 }
 
@@ -60,7 +60,7 @@ function getLogicalPoint(event: PointerEvent): { x: number; y: number } {
 
   return {
     x: (localX / rect.width) * LOGICAL_SLIDE_WIDTH,
-    y: (localY / rect.height) * LOGICAL_SLIDE_HEIGHT
+    y: (localY / rect.height) * LOGICAL_SLIDE_HEIGHT,
   };
 }
 
@@ -77,7 +77,7 @@ function renderText(element: Extract<SlideElement, { type: "text" }>): ReactElem
             ? "center"
             : element.verticalAlign === "bottom"
               ? "flex-end"
-              : "flex-start"
+              : "flex-start",
       }}
     >
       {element.paragraphs.map((paragraph, paragraphIndex) => (
@@ -87,7 +87,7 @@ function renderText(element: Extract<SlideElement, { type: "text" }>): ReactElem
             margin: `0 0 ${paragraph.spacingAfter}px 0`,
             textAlign: paragraph.align,
             lineHeight: paragraph.lineHeight,
-            paddingLeft: paragraph.indent
+            paddingLeft: paragraph.indent,
           }}
         >
           {paragraph.runs.map((run, runIndex) => (
@@ -99,7 +99,7 @@ function renderText(element: Extract<SlideElement, { type: "text" }>): ReactElem
                 fontSize: `${(run.fontSize / LOGICAL_SLIDE_WIDTH) * 100}cqw`,
                 fontWeight: run.fontWeight,
                 fontStyle: run.italic ? "italic" : "normal",
-                textDecoration: run.underline ? "underline" : "none"
+                textDecoration: run.underline ? "underline" : "none",
               }}
             >
               {run.text}
@@ -123,7 +123,8 @@ function renderElement(element: SlideElement): ReactElement | null {
             height: "100%",
             background: element.fill,
             border: `${element.borderWidth}px solid ${element.borderColor}`,
-            borderRadius: element.shape === "roundedRectangle" ? 8 : element.shape === "ellipse" ? "50%" : 0
+            borderRadius:
+              element.shape === "roundedRectangle" ? 8 : element.shape === "ellipse" ? "50%" : 0,
           }}
         />
       );
@@ -156,7 +157,14 @@ function renderElement(element: SlideElement): ReactElement | null {
       return (
         <svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="none">
           <defs>
-            <marker id={`${element.id}-arrow`} markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <marker
+              id={`${element.id}-arrow`}
+              markerWidth="8"
+              markerHeight="8"
+              refX="6"
+              refY="3"
+              orient="auto"
+            >
               <path d="M0,0 L0,6 L7,3 z" fill={element.stroke} />
             </marker>
           </defs>
@@ -183,7 +191,7 @@ function renderElement(element: SlideElement): ReactElement | null {
                     style={{
                       border: `1px solid ${element.borderColor}`,
                       padding: 8,
-                      fontWeight: rowIndex < element.headerRows ? 700 : 400
+                      fontWeight: rowIndex < element.headerRows ? 700 : 400,
                     }}
                   >
                     {cell}
@@ -196,7 +204,9 @@ function renderElement(element: SlideElement): ReactElement | null {
       );
     case "chart":
       return (
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: "100%", padding: 12 }}>
+        <div
+          style={{ display: "flex", alignItems: "flex-end", gap: 8, height: "100%", padding: 12 }}
+        >
           {element.series[0]?.values.map((value, index) => (
             <div
               key={`${element.categories[index]}-${value}`}
@@ -205,7 +215,7 @@ function renderElement(element: SlideElement): ReactElement | null {
                 flex: 1,
                 height: `${Math.max(5, Math.min(100, value))}%`,
                 background: "#9333ea",
-                borderRadius: 4
+                borderRadius: 4,
               }}
             />
           ))}
@@ -224,7 +234,7 @@ export function SlideRenderer({
   interactionMode = "select",
   onElementPointerDown,
   onSlidePointerDown,
-  onPointerSelect
+  onPointerSelect,
 }: SlideRendererProps): ReactElement {
   const selected = new Set(selectedElementIds);
   const isPreview = interactionMode === "preview";
@@ -241,7 +251,7 @@ export function SlideRenderer({
         background: slide.background.color,
         fontFamily: presentation.theme.fonts.body,
         color: presentation.theme.colors.text ?? "#0f172a",
-        cursor: interactionMode === "pointer" ? "crosshair" : "default"
+        cursor: interactionMode === "pointer" ? "crosshair" : "default",
       }}
     >
       {slide.elements
@@ -260,8 +270,11 @@ export function SlideRenderer({
             }}
             style={{
               ...elementFrameStyle(element),
-              outline: !isPreview && selected.has(element.id) ? "2px solid #9333ea" : "1px solid transparent",
-              outlineOffset: 2
+              outline:
+                !isPreview && selected.has(element.id)
+                  ? "2px solid #9333ea"
+                  : "1px solid transparent",
+              outlineOffset: 2,
             }}
           >
             {renderElement(element)}
@@ -295,7 +308,7 @@ export function SlideRenderer({
             fontSize: 13,
             fontWeight: 700,
             lineHeight: 1,
-            cursor: "pointer"
+            cursor: "pointer",
           }}
         >
           {pointer.label}

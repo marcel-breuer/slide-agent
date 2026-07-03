@@ -7,7 +7,7 @@ export function GET() {
     preferredCurrency: "EUR",
     personalMaxSlideCount: 50,
     warningThresholdPercentage: 80,
-    hardStopEnabled: true
+    hardStopEnabled: true,
   });
 }
 

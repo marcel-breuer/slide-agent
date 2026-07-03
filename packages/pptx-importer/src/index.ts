@@ -46,6 +46,10 @@ export async function inspectPptxPackage(bytes: Uint8Array): Promise<PptxImportR
     fullyEditableElementCount: 0,
     partiallyEditableElementCount: 0,
     unsupportedElementCount: 0,
-    warnings: parsed ? ["Initial package inspection completed; detailed element conversion is limited in this MVP slice."] : []
+    warnings: parsed
+      ? [
+          "Initial package inspection completed; detailed element conversion is limited in this MVP slice.",
+        ]
+      : [],
   };
 }

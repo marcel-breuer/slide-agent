@@ -4,12 +4,15 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createDemoPresentationDocument, type PresentationDocument } from "@slide-agent/presentation-schema";
+import {
+  createDemoPresentationDocument,
+  type PresentationDocument,
+} from "@slide-agent/presentation-schema";
 
 import {
   PresentationPreview,
   getPreviewNavigationSlideId,
-  resolveInitialPreviewSlideId
+  resolveInitialPreviewSlideId,
 } from "./presentation-preview";
 
 afterEach(() => {
@@ -25,7 +28,7 @@ describe("PresentationPreview", () => {
         initialSlideId={requestedSlide.id}
         onClose={() => undefined}
         presentation={presentation}
-      />
+      />,
     );
 
     expect(screen.getByRole("dialog", { name: "Presentation preview" })).toBeTruthy();
@@ -42,7 +45,7 @@ describe("PresentationPreview", () => {
         initialSlideId={presentation.slides[0]!.id}
         onClose={onClose}
         presentation={presentation}
-      />
+      />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Next slide" }));
@@ -61,7 +64,7 @@ describe("PresentationPreview", () => {
         initialSlideId={presentation.slides[0]!.id}
         onClose={onClose}
         presentation={presentation}
-      />
+      />,
     );
 
     fireEvent.keyDown(globalThis.window, { key: "ArrowRight" });
@@ -79,18 +82,20 @@ describe("preview navigation helpers", () => {
   it("uses the first slide when the requested slide is unavailable", () => {
     const presentation = createPreviewTestDocument();
 
-    expect(resolveInitialPreviewSlideId(presentation.slides, "missing-slide")).toBe(presentation.slides[0]!.id);
+    expect(resolveInitialPreviewSlideId(presentation.slides, "missing-slide")).toBe(
+      presentation.slides[0]!.id,
+    );
   });
 
   it("clamps previous and next navigation to the deck bounds", () => {
     const presentation = createPreviewTestDocument();
 
     expect(getPreviewNavigationSlideId(presentation.slides, presentation.slides[0]!.id, -1)).toBe(
-      presentation.slides[0]!.id
+      presentation.slides[0]!.id,
     );
-    expect(getPreviewNavigationSlideId(presentation.slides, presentation.slides.at(-1)!.id, 1)).toBe(
-      presentation.slides.at(-1)!.id
-    );
+    expect(
+      getPreviewNavigationSlideId(presentation.slides, presentation.slides.at(-1)!.id, 1),
+    ).toBe(presentation.slides.at(-1)!.id);
   });
 });
 
@@ -103,7 +108,7 @@ function createPreviewTestDocument(): PresentationDocument {
     slides: [
       firstSlide,
       { ...firstSlide, id: "slide-2", order: 2, title: "Financial outlook" },
-      { ...firstSlide, id: "slide-3", order: 3, title: "Delivery plan" }
-    ]
+      { ...firstSlide, id: "slide-3", order: 3, title: "Delivery plan" },
+    ],
   };
 }

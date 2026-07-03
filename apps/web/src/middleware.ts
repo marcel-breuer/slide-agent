@@ -5,7 +5,7 @@ import {
   isProtectedPath,
   isPublicAuthPath,
   sanitizeNextPath,
-  SESSION_COOKIE_NAME
+  SESSION_COOKIE_NAME,
 } from "@/lib/auth-session";
 
 export function middleware(request: NextRequest) {
@@ -24,12 +24,23 @@ export function middleware(request: NextRequest) {
   }
 
   if (isPublicAuthPath(pathname) && hasSession) {
-    return NextResponse.redirect(new URL(sanitizeNextPath(request.nextUrl.searchParams.get("next")), request.url));
+    return NextResponse.redirect(
+      new URL(sanitizeNextPath(request.nextUrl.searchParams.get("next")), request.url),
+    );
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/", "/app/:path*", "/admin/:path*", "/login", "/register", "/forgot-password", "/reset-password", "/verify-email"]
+  matcher: [
+    "/",
+    "/app/:path*",
+    "/admin/:path*",
+    "/login",
+    "/register",
+    "/forgot-password",
+    "/reset-password",
+    "/verify-email",
+  ],
 };

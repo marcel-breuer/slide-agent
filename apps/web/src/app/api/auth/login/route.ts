@@ -9,7 +9,7 @@ import { sanitizeNextPath, SESSION_COOKIE_NAME } from "@/lib/auth-session";
 const LoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
-  next: z.string().optional()
+  next: z.string().optional(),
 });
 
 export async function POST(request: Request) {
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 24 * 7
+    maxAge: 60 * 60 * 24 * 7,
   });
 
   return response;

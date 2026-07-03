@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { createDemoPresentationDocument, validatePresentation, type PresentationDocument } from "@slide-agent/presentation-schema";
+import {
+  createDemoPresentationDocument,
+  validatePresentation,
+  type PresentationDocument,
+} from "@slide-agent/presentation-schema";
 
 import {
   addSlideAfter,
@@ -18,7 +22,7 @@ import {
   moveSlide,
   redoEditorCommand,
   renameSlide,
-  undoEditorCommand
+  undoEditorCommand,
 } from "./index";
 
 describe("slide pointers", () => {
@@ -28,7 +32,7 @@ describe("slide pointers", () => {
       slideId: "slide-1",
       x: 1200,
       y: -40,
-      instruction: "Change the headline"
+      instruction: "Change the headline",
     });
 
     expect(pointer).toMatchObject({
@@ -36,7 +40,7 @@ describe("slide pointers", () => {
       slideId: "slide-1",
       x: 1000,
       y: 0,
-      instruction: "Change the headline"
+      instruction: "Change the headline",
     });
   });
 
@@ -47,18 +51,20 @@ describe("slide pointers", () => {
         slideId: "slide-1",
         x: 250,
         y: 281.25,
-        instruction: "Make this number more prominent"
+        instruction: "Make this number more prominent",
       }),
       createSlidePointer({
         id: "pointer-2",
         slideId: "slide-2",
         x: 100,
         y: 100,
-        instruction: "Ignore other slides"
-      })
+        instruction: "Ignore other slides",
+      }),
     ]);
 
-    expect(context).toBe("Slide AI pointers:\n1. pointer 1 at x 25%, y 50%: Make this number more prominent");
+    expect(context).toBe(
+      "Slide AI pointers:\n1. pointer 1 at x 25%, y 50%: Make this number more prominent",
+    );
   });
 });
 
@@ -67,7 +73,7 @@ describe("slide structure editing", () => {
     const document = withSlides(2);
     const next = addSlideAfter(document, {
       afterSlideId: "slide-1",
-      slide: createBlankSlide({ id: "slide-new", title: "New topic" })
+      slide: createBlankSlide({ id: "slide-new", title: "New topic" }),
     });
 
     expect(next.slides.map((slide) => slide.id)).toEqual(["slide-1", "slide-new", "slide-2"]);
@@ -83,7 +89,7 @@ describe("slide structure editing", () => {
     expect(next.slides[1]).toMatchObject({
       id: "slide-copy",
       order: 2,
-      title: "Executive summary copy"
+      title: "Executive summary copy",
     });
     expect(next.slides[1]?.elements).not.toBe(document.slides[0]?.elements);
     expect(validatePresentation(next).slides).toHaveLength(3);
@@ -96,7 +102,7 @@ describe("slide structure editing", () => {
     expect(next.slides.map((slide) => `${slide.order}:${slide.id}`)).toEqual([
       "1:slide-3",
       "2:slide-1",
-      "3:slide-2"
+      "3:slide-2",
     ]);
   });
 
@@ -104,7 +110,7 @@ describe("slide structure editing", () => {
     const document = withSlides(3);
     const selection = getSlideSelectionAfterDelete(document, {
       selectedSlideId: "slide-2",
-      slideId: "slide-2"
+      slideId: "slide-2",
     });
     const next = deleteSlide(document, "slide-2");
 
@@ -117,7 +123,7 @@ describe("slide structure editing", () => {
     const document = withSlides(1);
     const selection = getSlideSelectionAfterDelete(document, {
       selectedSlideId: "slide-1",
-      slideId: "slide-1"
+      slideId: "slide-1",
     });
 
     expect(deleteSlide(document, "slide-1")).toBe(document);
@@ -127,10 +133,14 @@ describe("slide structure editing", () => {
   it("renames the slide title and the visible title text", () => {
     const document = withSlides(1);
     const next = renameSlide(document, { slideId: "slide-1", title: " Revised title " });
-    const titleElement = next.slides[0]?.elements.find((element) => element.id === "title" && element.type === "text");
+    const titleElement = next.slides[0]?.elements.find(
+      (element) => element.id === "title" && element.type === "text",
+    );
 
     expect(next.slides[0]?.title).toBe("Revised title");
-    expect(titleElement?.type === "text" ? titleElement.paragraphs[0]?.runs[0]?.text : "").toBe("Revised title");
+    expect(titleElement?.type === "text" ? titleElement.paragraphs[0]?.runs[0]?.text : "").toBe(
+      "Revised title",
+    );
   });
 });
 
@@ -141,7 +151,7 @@ describe("editor command history", () => {
     const next = dispatchEditorCommand(state, {
       type: "RENAME_SLIDE",
       slideId: "slide-1",
-      title: "Command title"
+      title: "Command title",
     });
 
     expect(next.document.slides[0]?.title).toBe("Command title");
@@ -153,7 +163,7 @@ describe("editor command history", () => {
     const document = withSlides(1);
     const changed = dispatchEditorCommand(createEditorState(document), {
       type: "UPDATE_THEME_ACCENT",
-      color: "#123456"
+      color: "#123456",
     });
     const undone = undoEditorCommand(changed);
     const redone = redoEditorCommand(undone);
@@ -171,13 +181,13 @@ describe("editor command history", () => {
     const changed = dispatchEditorCommand(createEditorState(document), {
       type: "RENAME_SLIDE",
       slideId: "slide-1",
-      title: "First"
+      title: "First",
     });
     const undone = undoEditorCommand(changed);
     const next = dispatchEditorCommand(undone, {
       type: "RENAME_SLIDE",
       slideId: "slide-1",
-      title: "Second"
+      title: "Second",
     });
 
     expect(next.document.slides[0]?.title).toBe("Second");
@@ -191,7 +201,7 @@ describe("editor command history", () => {
     const next = dispatchEditorCommand(state, {
       type: "MOVE_SLIDE",
       slideId: "slide-1",
-      toIndex: 0
+      toIndex: 0,
     });
 
     expect(next).toBe(state);
@@ -203,10 +213,14 @@ describe("editor command history", () => {
     const next = applyCommand(document, {
       type: "ADD_SLIDE_AFTER",
       afterSlideId: "slide-1",
-      slide
+      slide,
     });
 
-    expect(next.slides.map((candidate) => candidate.id)).toEqual(["slide-1", "slide-new", "slide-2"]);
+    expect(next.slides.map((candidate) => candidate.id)).toEqual([
+      "slide-1",
+      "slide-new",
+      "slide-2",
+    ]);
   });
 });
 
@@ -224,11 +238,11 @@ describe("pointer-driven edit proposals", () => {
           label: "1",
           slideId: "slide-1",
           x: 200,
-          y: 150
-        })
+          y: 150,
+        }),
       ],
       prompt: "Use #f8fafc for the area near the pointer.",
-      slideId: "slide-1"
+      slideId: "slide-1",
     });
 
     expect(proposal).toMatchObject({
@@ -238,13 +252,13 @@ describe("pointer-driven edit proposals", () => {
       metadata: {
         operationId: "ai-edit-test",
         provider: "mock",
-        promptVersion: "pointer-edit-v1"
-      }
+        promptVersion: "pointer-edit-v1",
+      },
     });
     expect(proposal.commands[0]?.command).toEqual({
       color: "#f8fafc",
       slideId: "slide-1",
-      type: "UPDATE_SLIDE_BACKGROUND"
+      type: "UPDATE_SLIDE_BACKGROUND",
     });
   });
 
@@ -256,7 +270,7 @@ describe("pointer-driven edit proposals", () => {
       operationId: "ai-edit-test",
       pointers: [],
       prompt: "Refresh the background",
-      slideId: "slide-1"
+      slideId: "slide-1",
     });
     const next = applyCommands(document, [
       ...proposal.commands.map((entry) => entry.command),
@@ -264,18 +278,18 @@ describe("pointer-driven edit proposals", () => {
         metadata: {
           generatedAt: proposal.metadata.generatedAt,
           operationId: proposal.metadata.operationId,
-          promptVersion: proposal.metadata.promptVersion
+          promptVersion: proposal.metadata.promptVersion,
         },
         slideId: proposal.slideId,
-        type: "SET_SLIDE_AI_METADATA"
-      }
+        type: "SET_SLIDE_AI_METADATA",
+      },
     ]);
 
     expect(next.slides[0]?.background.color).not.toBe(document.slides[0]?.background.color);
     expect(next.slides[0]?.aiMetadata).toEqual({
       generatedAt: "2026-07-02T12:00:00.000Z",
       operationId: "ai-edit-test",
-      promptVersion: "pointer-edit-v1"
+      promptVersion: "pointer-edit-v1",
     });
   });
 });
@@ -290,7 +304,7 @@ function withSlides(count: number): PresentationDocument {
       ...source,
       id: `slide-${index + 1}`,
       order: index + 1,
-      title: `Slide ${index + 1}`
+      title: `Slide ${index + 1}`,
     };
   });
 

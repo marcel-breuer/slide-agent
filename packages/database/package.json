@@ -16,9 +16,14 @@
     "prisma:seed": "tsx src/seed.ts"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "7.8.0",
+    "@prisma/client": "7.8.0",
     "@slide-agent/presentation-schema": "workspace:*",
-    "@prisma/client": "6.2.1",
-    "prisma": "6.2.1",
-    "tsx": "4.19.2"
+    "pg": "8.22.0",
+    "prisma": "7.8.0",
+    "tsx": "4.22.5"
+  },
+  "devDependencies": {
+    "@types/pg": "8.20.0"
   }
 }

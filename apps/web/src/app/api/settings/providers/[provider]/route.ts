@@ -10,7 +10,7 @@ import { getAuthenticatedUserId } from "@/lib/server-session";
 const ProviderCredentialSchema = z.object({
   apiKey: z.string().optional(),
   baseUrl: z.string().url().optional(),
-  enabled: z.boolean().default(true)
+  enabled: z.boolean().default(true),
 });
 
 export async function POST(request: Request, context: { params: Promise<{ provider: string }> }) {
@@ -36,13 +36,16 @@ export async function POST(request: Request, context: { params: Promise<{ provid
 
   const validation = await provider.validateCredential({
     ...(parsed.data.apiKey ? { apiKey: parsed.data.apiKey } : {}),
-    ...(parsed.data.baseUrl ? { baseUrl: parsed.data.baseUrl } : {})
+    ...(parsed.data.baseUrl ? { baseUrl: parsed.data.baseUrl } : {}),
   });
   if (!validation.valid) {
     return fail("PROVIDER_CREDENTIAL_INVALID", "Provider credential could not be validated.", 409);
   }
 
-  const encrypted = encryptCredential(credentialValue, process.env.CREDENTIAL_ENCRYPTION_KEY ?? "local-dev-encryption-key");
+  const encrypted = encryptCredential(
+    credentialValue,
+    process.env.CREDENTIAL_ENCRYPTION_KEY ?? "local-dev-encryption-key",
+  );
   await prisma.providerCredential.upsert({
     where: { userId_provider: { userId, provider: params.provider } },
     update: {
@@ -52,7 +55,7 @@ export async function POST(request: Request, context: { params: Promise<{ provid
       authTag: encrypted.authTag,
       keyVersion: encrypted.keyVersion,
       maskedValue: encrypted.metadata.maskedValue,
-      metadata: encrypted.metadata
+      metadata: encrypted.metadata,
     },
     create: {
       userId,
@@ -63,8 +66,8 @@ export async function POST(request: Request, context: { params: Promise<{ provid
       authTag: encrypted.authTag,
       keyVersion: encrypted.keyVersion,
       maskedValue: encrypted.metadata.maskedValue,
-      metadata: encrypted.metadata
-    }
+      metadata: encrypted.metadata,
+    },
   });
   await saveProviderConfiguration(params.provider, parsed.data.baseUrl, parsed.data.enabled);
 
@@ -72,28 +75,35 @@ export async function POST(request: Request, context: { params: Promise<{ provid
     provider: params.provider,
     enabled: parsed.data.enabled,
     maskedValue: encrypted.metadata.maskedValue,
-    valid: true
+    valid: true,
   });
 }
 
-export async function DELETE(_request: Request, context: { params: Promise<{ provider: string }> }) {
+export async function DELETE(
+  _request: Request,
+  context: { params: Promise<{ provider: string }> },
+) {
   const userId = await getAuthenticatedUserId();
   if (!userId) return fail("UNAUTHORIZED", "A valid session is required.", 401);
 
   const params = await context.params;
   await prisma.providerCredential.updateMany({
     where: { userId, provider: params.provider },
-    data: { enabled: false }
+    data: { enabled: false },
   });
   await prisma.providerConfiguration.updateMany({
     where: { provider: params.provider },
-    data: { enabled: false }
+    data: { enabled: false },
   });
 
   return ok({ provider: params.provider, deleted: true });
 }
 
-async function saveProviderConfiguration(provider: string, baseUrl: string | undefined, enabled: boolean): Promise<void> {
+async function saveProviderConfiguration(
+  provider: string,
+  baseUrl: string | undefined,
+  enabled: boolean,
+): Promise<void> {
   const existing = await prisma.providerConfiguration.findFirst({ where: { provider } });
 
   if (existing) {
@@ -101,8 +111,8 @@ async function saveProviderConfiguration(provider: string, baseUrl: string | und
       where: { id: existing.id },
       data: {
         baseUrl: baseUrl ?? null,
-        enabled
-      }
+        enabled,
+      },
     });
     return;
   }
@@ -111,7 +121,7 @@ async function saveProviderConfiguration(provider: string, baseUrl: string | und
     data: {
       provider,
       baseUrl: baseUrl ?? null,
-      enabled
-    }
+      enabled,
+    },
   });
 }

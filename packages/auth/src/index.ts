@@ -1,4 +1,10 @@
-import { randomBytes, scryptSync, timingSafeEqual, createCipheriv, createDecipheriv } from "node:crypto";
+import {
+  randomBytes,
+  scryptSync,
+  timingSafeEqual,
+  createCipheriv,
+  createDecipheriv,
+} from "node:crypto";
 
 export type EncryptedCredential = {
   ciphertext: string;
@@ -18,7 +24,7 @@ export function assertStrongPassword(password: string): void {
     /[a-z]/.test(password),
     /[A-Z]/.test(password),
     /\d/.test(password),
-    /[^a-zA-Z0-9]/.test(password)
+    /[^a-zA-Z0-9]/.test(password),
   ];
 
   if (!checks.every(Boolean)) {
@@ -53,7 +59,11 @@ export function maskSecret(value: string): string {
   return `${value.slice(0, 3)}••••••••••••${value.slice(-4)}`;
 }
 
-export function encryptCredential(value: string, secret: string, keyVersion = "v1"): EncryptedCredential {
+export function encryptCredential(
+  value: string,
+  secret: string,
+  keyVersion = "v1",
+): EncryptedCredential {
   const key = encryptionKeyFromSecret(secret);
   const nonce = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", key, nonce);
@@ -68,8 +78,8 @@ export function encryptCredential(value: string, secret: string, keyVersion = "v
     algorithm: "aes-256-gcm",
     metadata: {
       maskedValue: maskSecret(value),
-      createdAt: new Date().toISOString()
-    }
+      createdAt: new Date().toISOString(),
+    },
   };
 }
 
@@ -79,7 +89,7 @@ export function decryptCredential(value: EncryptedCredential, secret: string): s
   decipher.setAuthTag(Buffer.from(value.authTag, "base64"));
   return Buffer.concat([
     decipher.update(Buffer.from(value.ciphertext, "base64")),
-    decipher.final()
+    decipher.final(),
   ]).toString("utf8");
 }
 

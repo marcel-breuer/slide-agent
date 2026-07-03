@@ -1,8 +1,7 @@
-import { PrismaClient } from "@prisma/client";
-
+import { createPrismaClient } from "./client";
 import { ensureDemoPresentation } from "./presentations";
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 async function main(): Promise<void> {
   await ensureDemoPresentation(prisma);
@@ -10,21 +9,21 @@ async function main(): Promise<void> {
   await prisma.providerCatalogEntry.upsert({
     where: { provider: "openai" },
     update: { enabled: true },
-    create: { provider: "openai", enabled: true }
+    create: { provider: "openai", enabled: true },
   });
 
   await prisma.exchangeRate.create({
     data: {
       base: "USD",
       quote: "EUR",
-      rate: 0.92
-    }
+      rate: 0.92,
+    },
   });
 
   await prisma.adminSetting.upsert({
     where: { key: "GLOBAL_MAX_SLIDES" },
     update: { value: 50 },
-    create: { key: "GLOBAL_MAX_SLIDES", value: 50 }
+    create: { key: "GLOBAL_MAX_SLIDES", value: 50 },
   });
 }
 

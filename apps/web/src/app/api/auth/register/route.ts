@@ -6,7 +6,7 @@ import { fail, ok } from "@/lib/api";
 
 const RegisterSchema = z.object({
   email: z.string().email(),
-  password: z.string()
+  password: z.string(),
 });
 
 export async function POST(request: Request) {

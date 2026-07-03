@@ -20,11 +20,15 @@ async function createTempStorage(): Promise<{ rootDir: string; storage: LocalObj
 describe("LocalObjectStorage", () => {
   it("writes and reads objects below the storage root", async () => {
     const { rootDir, storage } = await createTempStorage();
-    const bytes = new Uint8Array([112, 114, 101, 115, 101, 110, 116, 97, 116, 105, 111, 110, 32, 97, 115, 115, 101, 116]);
+    const bytes = new Uint8Array([
+      112, 114, 101, 115, 101, 110, 116, 97, 116, 105, 111, 110, 32, 97, 115, 115, 101, 116,
+    ]);
 
     await storage.putObject({ key: "assets/example.txt", mimeType: "text/plain", bytes });
 
-    await expect(readFile(path.join(rootDir, "assets/example.txt"), "utf8")).resolves.toBe("presentation asset");
+    await expect(readFile(path.join(rootDir, "assets/example.txt"), "utf8")).resolves.toBe(
+      "presentation asset",
+    );
     const storedBytes = await storage.readObject({ key: "assets/example.txt" });
     expect(Array.from(storedBytes)).toEqual(Array.from(bytes));
   });
@@ -36,8 +40,8 @@ describe("LocalObjectStorage", () => {
       storage.putObject({
         key: "../outside.txt",
         mimeType: "text/plain",
-        bytes: new Uint8Array()
-      })
+        bytes: new Uint8Array(),
+      }),
     ).rejects.toThrow("path traversal");
   });
 });

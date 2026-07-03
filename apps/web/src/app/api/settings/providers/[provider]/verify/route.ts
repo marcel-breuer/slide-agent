@@ -9,7 +9,7 @@ import { getAuthenticatedUserId } from "@/lib/server-session";
 
 const ProviderVerificationSchema = z.object({
   apiKey: z.string().optional(),
-  baseUrl: z.string().url().optional()
+  baseUrl: z.string().url().optional(),
 });
 
 export async function POST(request: Request, context: { params: Promise<{ provider: string }> }) {
@@ -24,10 +24,10 @@ export async function POST(request: Request, context: { params: Promise<{ provid
   if (!parsed.success) return fail("VALIDATION_FAILED", "Provider verification input is invalid.");
 
   const storedCredential = await prisma.providerCredential.findUnique({
-    where: { userId_provider: { userId, provider: params.provider } }
+    where: { userId_provider: { userId, provider: params.provider } },
   });
   const configuration = await prisma.providerConfiguration.findFirst({
-    where: { provider: params.provider, enabled: true }
+    where: { provider: params.provider, enabled: true },
   });
   const apiKey =
     parsed.data.apiKey ??
@@ -41,24 +41,24 @@ export async function POST(request: Request, context: { params: Promise<{ provid
             nonce: storedCredential.nonce,
             metadata: {
               createdAt: storedCredential.createdAt.toISOString(),
-              maskedValue: storedCredential.maskedValue
-            }
+              maskedValue: storedCredential.maskedValue,
+            },
           },
-          process.env.CREDENTIAL_ENCRYPTION_KEY ?? "local-dev-encryption-key"
+          process.env.CREDENTIAL_ENCRYPTION_KEY ?? "local-dev-encryption-key",
         )
       : undefined);
 
   const baseUrl = parsed.data.baseUrl ?? configuration?.baseUrl;
   const validation = await provider.validateCredential({
     ...(apiKey ? { apiKey } : {}),
-    ...(baseUrl ? { baseUrl } : {})
+    ...(baseUrl ? { baseUrl } : {}),
   });
 
   return ok({
     provider: params.provider,
     valid: validation.valid,
     maskedIdentifier: validation.maskedIdentifier ?? storedCredential?.maskedValue ?? null,
-    errorCategory: validation.errorCategory ?? null
+    errorCategory: validation.errorCategory ?? null,
   });
 }
 

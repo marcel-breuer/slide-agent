@@ -8,10 +8,10 @@ export const tokens = {
     primary: "#9333ea",
     primaryStrong: "#7e22ce",
     accent: "#7c3aed",
-    warning: "#a16207"
+    warning: "#a16207",
   },
   radii: {
     control: 8,
-    panel: 8
-  }
+    panel: 8,
+  },
 } as const;

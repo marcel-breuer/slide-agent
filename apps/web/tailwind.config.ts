@@ -12,14 +12,14 @@ const config: Config = {
         primary: "#9333ea",
         "primary-strong": "#7e22ce",
         accent: "#7c3aed",
-        warning: "#a16207"
+        warning: "#a16207",
       },
       borderRadius: {
-        app: "8px"
-      }
-    }
+        app: "8px",
+      },
+    },
   },
-  plugins: []
+  plugins: [],
 };
 
 export default config;

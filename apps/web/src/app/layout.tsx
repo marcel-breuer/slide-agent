@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Slide Agent",
-  description: "AI-assisted PowerPoint creation and editing"
+  description: "AI-assisted PowerPoint creation and editing",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

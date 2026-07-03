@@ -14,7 +14,7 @@ const messages = {
     editorProperties: "Properties",
     editorLayers: "Layers",
     editorDesign: "Design",
-    editorAssets: "Assets"
+    editorAssets: "Assets",
   },
   de: {
     appName: "Slide Agent",
@@ -26,8 +26,8 @@ const messages = {
     editorProperties: "Eigenschaften",
     editorLayers: "Ebenen",
     editorDesign: "Design",
-    editorAssets: "Assets"
-  }
+    editorAssets: "Assets",
+  },
 } as const;
 
 export type MessageKey = keyof typeof messages.en;
@@ -36,10 +36,14 @@ export function t(locale: SupportedLocale, key: MessageKey): string {
   return messages[locale][key];
 }
 
-export function formatCurrency(value: number, currency: "EUR" | "USD", locale: SupportedLocale): string {
+export function formatCurrency(
+  value: number,
+  currency: "EUR" | "USD",
+  locale: SupportedLocale,
+): string {
   return new Intl.NumberFormat(locale === "de" ? "de-DE" : "en-US", {
     style: "currency",
-    currency
+    currency,
   }).format(value);
 }
 

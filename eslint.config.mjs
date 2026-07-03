@@ -10,15 +10,15 @@ export default [
       "**/dist/**",
       "**/node_modules/**",
       "**/coverage/**",
-      "pnpm-lock.yaml"
-    ]
+      "pnpm-lock.yaml",
+    ],
   },
   {
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        project: false
+        project: false,
       },
       globals: {
         Buffer: "readonly",
@@ -29,18 +29,21 @@ export default [
         Response: "readonly",
         Request: "readonly",
         URL: "readonly",
-        fetch: "readonly"
-      }
+        fetch: "readonly",
+      },
     },
     plugins: {
-      "@typescript-eslint": tsPlugin
+      "@typescript-eslint": tsPlugin,
     },
     rules: {
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/consistent-type-imports": "error",
-      "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
       "no-unused-vars": "off",
-      "no-console": ["warn", { "allow": ["warn", "error"] }]
-    }
-  }
+      "no-console": ["warn", { allow: ["warn", "error"] }],
+    },
+  },
 ];

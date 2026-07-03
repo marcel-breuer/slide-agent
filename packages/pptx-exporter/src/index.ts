@@ -4,7 +4,7 @@ import {
   LOGICAL_SLIDE_HEIGHT,
   LOGICAL_SLIDE_WIDTH,
   type PresentationDocument,
-  type SlideElement
+  type SlideElement,
 } from "@slide-agent/presentation-schema";
 
 type PptxSlide = ReturnType<InstanceType<typeof pptxgen>["addSlide"]>;
@@ -30,13 +30,15 @@ function addElement(slide: PptxSlide, element: SlideElement, report: ExportRepor
     y: toInches(element.frame.y, "y"),
     w: toInches(element.frame.width, "x"),
     h: toInches(element.frame.height, "y"),
-    rotate: element.frame.rotation
+    rotate: element.frame.rotation,
   };
 
   if (element.type === "text") {
     slide.addText(
-      element.paragraphs.map((paragraph) => paragraph.runs.map((run) => run.text).join("")).join("\n"),
-      position
+      element.paragraphs
+        .map((paragraph) => paragraph.runs.map((run) => run.text).join(""))
+        .join("\n"),
+      position,
     );
     report.nativeEditableElementCount += 1;
     return;
@@ -46,7 +48,7 @@ function addElement(slide: PptxSlide, element: SlideElement, report: ExportRepor
     slide.addShape("rect", {
       ...position,
       fill: { color: element.fill.replace("#", "") },
-      line: { color: element.borderColor.replace("#", ""), width: element.borderWidth }
+      line: { color: element.borderColor.replace("#", ""), width: element.borderWidth },
     });
     report.nativeEditableElementCount += 1;
     return;
@@ -55,7 +57,7 @@ function addElement(slide: PptxSlide, element: SlideElement, report: ExportRepor
   if (element.type === "table") {
     slide.addTable(
       element.rows.map((row) => row.map((cell) => ({ text: cell }))),
-      position
+      position,
     );
     report.nativeEditableElementCount += 1;
     return;
@@ -67,12 +69,16 @@ function addElement(slide: PptxSlide, element: SlideElement, report: ExportRepor
     return;
   }
 
-  report.warnings.push(`${element.type} export uses a fallback or requires a stored asset resolver.`);
+  report.warnings.push(
+    `${element.type} export uses a fallback or requires a stored asset resolver.`,
+  );
   report.svgFallbackCount += element.type === "icon" ? 1 : 0;
   report.pngFallbackCount += element.type === "image" ? 1 : 0;
 }
 
-export async function exportPresentation(document: PresentationDocument): Promise<{ buffer: Buffer; report: ExportReport }> {
+export async function exportPresentation(
+  document: PresentationDocument,
+): Promise<{ buffer: Buffer; report: ExportReport }> {
   const pptx = new pptxgen();
   pptx.layout = "LAYOUT_WIDE";
   pptx.author = "Slide Agent";
@@ -86,7 +92,7 @@ export async function exportPresentation(document: PresentationDocument): Promis
     nativeEditableElementCount: 0,
     svgFallbackCount: 0,
     pngFallbackCount: 0,
-    warnings: []
+    warnings: [],
   };
 
   for (const sourceSlide of document.slides) {

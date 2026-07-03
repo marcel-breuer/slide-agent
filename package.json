@@ -4,7 +4,7 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "pnpm@11.9.0",
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev --parallel",
@@ -18,14 +18,17 @@
     "db:seed": "pnpm --filter @slide-agent/database prisma:seed"
   },
   "devDependencies": {
-    "@types/node": "22.10.7",
-    "@typescript-eslint/eslint-plugin": "8.32.1",
-    "@typescript-eslint/parser": "8.20.0",
-    "eslint": "9.18.0",
-    "eslint-config-next": "16.2.9",
-    "prettier": "3.4.2",
+    "@eslint/js": "9.39.4",
+    "@types/node": "24.13.2",
+    "@typescript-eslint/eslint-plugin": "8.62.1",
+    "@typescript-eslint/parser": "8.62.1",
+    "@vitejs/plugin-react": "6.0.3",
+    "eslint": "9.39.4",
+    "eslint-config-next": "16.2.10",
+    "prettier": "3.9.4",
     "turbo": "2.10.2",
-    "typescript": "5.7.3",
-    "vitest": "3.2.6"
+    "typescript": "6.0.3",
+    "vite": "8.1.3",
+    "vitest": "4.1.9"
   }
 }

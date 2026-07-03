@@ -9,6 +9,8 @@ coverage
 **/coverage
 .turbo
 **/.turbo
+.pnpm-store
+**/.pnpm-store
 postgres-data
 redis-data
 minio-data
