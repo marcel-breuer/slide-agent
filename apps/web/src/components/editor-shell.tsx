@@ -81,9 +81,33 @@ type PresentationSaveResponse = PresentationApiResponse;
 
 type SaveStatus = "saved" | "dirty" | "saving" | "failed";
 type AiProposalStatus = "idle" | "loading" | "ready" | "failed";
+type ExportStatus = "idle" | "exporting" | "ready" | "failed";
 
 type AiEditProposalApiResponse =
   | { ok: true; data: PointerDrivenEditProposal }
+  | { ok: false; error: { code: string; message: string } };
+
+type PresentationExportSummary = {
+  id: string;
+  presentationId: string;
+  jobId: string;
+  fileName: string;
+  mimeType: string;
+  byteSize: number;
+  downloadUrl: string;
+  report: {
+    slideCount: number;
+    elementCount: number;
+    nativeEditableElementCount: number;
+    svgFallbackCount: number;
+    pngFallbackCount: number;
+    warnings: string[];
+  };
+  createdAt: string;
+};
+
+type PresentationExportApiResponse =
+  | { ok: true; data: PresentationExportSummary }
   | { ok: false; error: { code: string; message: string } };
 
 type EditorSnapshot = {
@@ -266,6 +290,9 @@ function LoadedEditor({
   const [aiProposal, setAiProposal] = useState<PointerDrivenEditProposal | null>(null);
   const [aiProposalError, setAiProposalError] = useState<string | null>(null);
   const [aiProposalStatus, setAiProposalStatus] = useState<AiProposalStatus>("idle");
+  const [currentExport, setCurrentExport] = useState<PresentationExportSummary | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportStatus, setExportStatus] = useState<ExportStatus>("idle");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [pointerMode, setPointerMode] = useState(false);
   const [slidePointers, setSlidePointers] = useState<SlidePointer[]>(() =>
@@ -291,6 +318,7 @@ function LoadedEditor({
   const canRedo = editorHistory.redoStack.length > 0;
   const canUndo = editorHistory.undoStack.length > 0;
   const canRequestAiProposal = assistantText.trim().length > 0 && aiProposalStatus !== "loading";
+  const canStartExport = saveStatus === "saved" && exportStatus !== "exporting";
 
   const thumbnails = document.slides.map((slide) => slide.title ?? `Slide ${slide.order}`);
 
@@ -356,6 +384,9 @@ function LoadedEditor({
     setAiProposal(null);
     setAiProposalError(null);
     setAiProposalStatus("idle");
+    setCurrentExport(null);
+    setExportError(null);
+    setExportStatus("idle");
   }, [presentationId]);
 
   function currentSnapshot(): EditorSnapshot {
@@ -652,6 +683,43 @@ function LoadedEditor({
     setAiProposalStatus("idle");
   }
 
+  async function requestPresentationExport(): Promise<void> {
+    if (exportStatus === "exporting") return;
+
+    if (saveStatus !== "saved") {
+      setCurrentExport(null);
+      setExportError("Wait until the presentation is saved before exporting.");
+      setExportStatus("failed");
+      return;
+    }
+
+    setCurrentExport(null);
+    setExportError(null);
+    setExportStatus("exporting");
+
+    try {
+      const response = await fetch(
+        `/api/presentations/${encodeURIComponent(presentationId)}/exports`,
+        { method: "POST" },
+      );
+      const payload = (await response.json()) as PresentationExportApiResponse;
+
+      if (!response.ok || !payload.ok) {
+        throw new Error(
+          payload.ok ? "Presentation export could not be created." : payload.error.message,
+        );
+      }
+
+      setCurrentExport(payload.data);
+      setExportStatus("ready");
+    } catch (error) {
+      setExportError(
+        error instanceof Error ? error.message : "Presentation export could not be created.",
+      );
+      setExportStatus("failed");
+    }
+  }
+
   return (
     <main className="editor-grid">
       {isPreviewOpen ? (
@@ -738,27 +806,60 @@ function LoadedEditor({
               {saveError ? `: ${saveError}` : ""} · 16:9 widescreen · English output
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <IconButton label="Undo" disabled={!canUndo} onClick={undoEditorChange}>
-              <Undo2 size={17} />
-            </IconButton>
-            <IconButton label="Redo" disabled={!canRedo} onClick={redoEditorChange}>
-              <Redo2 size={17} />
-            </IconButton>
-            <IconButton label="Preview" onClick={() => setIsPreviewOpen(true)}>
-              <Eye size={17} />
-            </IconButton>
-            <button className="flex h-9 items-center gap-2 rounded-app bg-ink px-3 text-sm font-semibold text-white">
-              <Download size={16} />
-              Export
-            </button>
-            <button
-              type="button"
-              onClick={() => void signOut()}
-              className="h-9 rounded-app border border-line bg-white px-3 text-sm font-semibold text-ink hover:border-primary"
-            >
-              Sign out
-            </button>
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-2">
+              <IconButton label="Undo" disabled={!canUndo} onClick={undoEditorChange}>
+                <Undo2 size={17} />
+              </IconButton>
+              <IconButton label="Redo" disabled={!canRedo} onClick={redoEditorChange}>
+                <Redo2 size={17} />
+              </IconButton>
+              <IconButton label="Preview" onClick={() => setIsPreviewOpen(true)}>
+                <Eye size={17} />
+              </IconButton>
+              <button
+                type="button"
+                disabled={!canStartExport}
+                onClick={() => void requestPresentationExport()}
+                className={`flex h-9 items-center gap-2 rounded-app px-3 text-sm font-semibold ${
+                  canStartExport ? "bg-ink text-white" : "cursor-not-allowed bg-ink/50 text-white"
+                }`}
+              >
+                {exportStatus === "exporting" ? (
+                  <Loader2 className="animate-spin" size={16} />
+                ) : (
+                  <Download size={16} />
+                )}
+                {exportStatus === "exporting" ? "Exporting" : "Export"}
+              </button>
+              {exportStatus === "ready" && currentExport ? (
+                <a
+                  href={currentExport.downloadUrl}
+                  download={currentExport.fileName}
+                  className="flex h-9 items-center gap-2 rounded-app border border-line bg-white px-3 text-sm font-semibold text-ink hover:border-primary"
+                >
+                  <Download size={16} />
+                  PPTX
+                </a>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                className="h-9 rounded-app border border-line bg-white px-3 text-sm font-semibold text-ink hover:border-primary"
+              >
+                Sign out
+              </button>
+            </div>
+            {exportStatus !== "idle" ? (
+              <div
+                aria-live="polite"
+                className={`max-w-xl text-right text-xs font-medium ${
+                  exportStatus === "failed" ? "text-red-700" : "text-muted"
+                }`}
+              >
+                {exportStatusLabel(exportStatus, currentExport, exportError)}
+              </div>
+            ) : null}
           </div>
         </header>
 
@@ -1234,6 +1335,32 @@ function saveStatusLabel(status: SaveStatus): string {
     case "saved":
       return "Saved";
   }
+}
+
+function exportStatusLabel(
+  status: ExportStatus,
+  currentExport: PresentationExportSummary | null,
+  error: string | null,
+): string {
+  switch (status) {
+    case "exporting":
+      return "PowerPoint export is running.";
+    case "failed":
+      return error ?? "PowerPoint export failed.";
+    case "ready":
+      return currentExport
+        ? `PowerPoint ready: ${currentExport.fileName} (${formatBytes(currentExport.byteSize)}).`
+        : "PowerPoint export is ready.";
+    case "idle":
+      return "";
+  }
+}
+
+function formatBytes(byteSize: number): string {
+  if (byteSize < 1024) return `${byteSize} B`;
+  const kib = byteSize / 1024;
+  if (kib < 1024) return `${kib.toFixed(1)} KB`;
+  return `${(kib / 1024).toFixed(1)} MB`;
 }
 
 function selectedSlideStorageKey(presentationId: string): string {

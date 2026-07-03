@@ -64,6 +64,9 @@ importers:
       "@slide-agent/i18n":
         specifier: workspace:*
         version: link:../../packages/i18n
+      "@slide-agent/pptx-exporter":
+        specifier: workspace:*
+        version: link:../../packages/pptx-exporter
       "@slide-agent/presentation-renderer":
         specifier: workspace:*
         version: link:../../packages/presentation-renderer
@@ -76,6 +79,9 @@ importers:
       "@slide-agent/shared":
         specifier: workspace:*
         version: link:../../packages/shared
+      "@slide-agent/storage":
+        specifier: workspace:*
+        version: link:../../packages/storage
       lucide-react:
         specifier: 1.23.0
         version: 1.23.0(react@19.2.7)
