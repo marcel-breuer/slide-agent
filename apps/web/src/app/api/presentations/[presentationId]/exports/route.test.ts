@@ -1,79 +1,50 @@
+import { cookies } from "next/headers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
 
-import { ensureDemoPresentation, findPresentationDocument, prisma } from "@slide-agent/database";
-import { exportPresentation } from "@slide-agent/pptx-exporter";
-import { createDemoPresentationDocument } from "@slide-agent/presentation-schema";
-import { createLocalObjectStorageFromEnv } from "@slide-agent/storage";
+import { ensureDemoPresentation } from "@slide-agent/database";
 
+import {
+  createPptxExport,
+  PresentationExportFailedError,
+} from "../../../../../lib/presentation-exports";
 import { POST } from "./route";
 
+vi.mock("next/headers", () => ({
+  cookies: vi.fn(),
+}));
+
 vi.mock("@slide-agent/database", () => ({
+  DEMO_USER_ID: "demo-user",
   ensureDemoPresentation: vi.fn(),
-  findPresentationDocument: vi.fn(),
-  prisma: {
-    $transaction: vi.fn(),
-  },
+  prisma: {},
 }));
 
-vi.mock("@slide-agent/pptx-exporter", () => ({
-  exportPresentation: vi.fn(),
-}));
+vi.mock("../../../../../lib/presentation-exports", () => {
+  class PresentationExportNotFoundError extends Error {}
+  class PresentationExportForbiddenError extends Error {}
+  class PresentationExportFailedError extends Error {}
 
-vi.mock("@slide-agent/storage", () => ({
-  createLocalObjectStorageFromEnv: vi.fn(),
-}));
+  return {
+    createPptxExport: vi.fn(),
+    PresentationExportFailedError,
+    PresentationExportForbiddenError,
+    PresentationExportNotFoundError,
+  };
+});
 
-vi.mock("../../../../../lib/server-session", () => ({
-  getAuthenticatedUserId: vi.fn(),
-}));
-
+const mockedCookies = vi.mocked(cookies);
+const mockedCreatePptxExport = createPptxExport as unknown as Mock;
 const mockedEnsureDemoPresentation = vi.mocked(ensureDemoPresentation);
-const mockedFindPresentationDocument = vi.mocked(findPresentationDocument);
-const mockedExportPresentation = vi.mocked(exportPresentation);
-const mockedCreateLocalObjectStorageFromEnv = vi.mocked(createLocalObjectStorageFromEnv);
-const mockedTransaction = prisma.$transaction as unknown as Mock;
-const storage = {
-  putObject: vi.fn(),
-};
 
-describe("presentation exports API", () => {
-  beforeEach(async () => {
+describe("presentation export API", () => {
+  beforeEach(() => {
     vi.resetAllMocks();
-    const { getAuthenticatedUserId } = await import("../../../../../lib/server-session");
-    vi.mocked(getAuthenticatedUserId).mockResolvedValue("demo-user");
     mockedEnsureDemoPresentation.mockResolvedValue("demo-presentation");
-    mockedCreateLocalObjectStorageFromEnv.mockReturnValue(storage as never);
-    mockedExportPresentation.mockResolvedValue({
-      buffer: Buffer.from("pptx"),
-      report: {
-        elementCount: 2,
-        nativeEditableElementCount: 2,
-        pngFallbackCount: 0,
-        slideCount: 1,
-        svgFallbackCount: 0,
-        warnings: [],
-      },
-    });
-    mockedTransaction.mockImplementation(async (callback) =>
-      callback({
-        export: {
-          create: vi.fn().mockResolvedValue({
-            createdAt: new Date("2026-07-03T10:00:00.000Z"),
-            id: "export-1",
-            storageKey: "exports/demo-user/demo-presentation/export-1.pptx",
-          }),
-        },
-        presentation: {
-          update: vi.fn().mockResolvedValue({}),
-        },
-      }),
-    );
   });
 
   it("requires an authenticated session", async () => {
-    const { getAuthenticatedUserId } = await import("../../../../../lib/server-session");
-    vi.mocked(getAuthenticatedUserId).mockResolvedValue(null);
+    mockedCookies.mockResolvedValue({ get: () => undefined } as never);
 
     const response = await POST(new Request("http://test.local"), {
       params: Promise.resolve({ presentationId: "demo-presentation" }),
@@ -82,52 +53,60 @@ describe("presentation exports API", () => {
 
     expect(response.status).toBe(401);
     expect(payload.error.code).toBe("UNAUTHORIZED");
-    expect(mockedFindPresentationDocument).not.toHaveBeenCalled();
+    expect(mockedCreatePptxExport).not.toHaveBeenCalled();
   });
 
-  it("creates a stored PowerPoint export and returns a download URL", async () => {
-    const document = createDemoPresentationDocument({ ownerId: "demo-user" });
-    mockedFindPresentationDocument.mockResolvedValue(document);
+  it("creates a PowerPoint export for the persisted presentation", async () => {
+    mockedCookies.mockResolvedValue({ get: () => ({ value: "session" }) } as never);
+    mockedCreatePptxExport.mockResolvedValue({
+      id: "export-1",
+      presentationId: "demo-presentation",
+      jobId: "job-1",
+      fileName: "demo.pptx",
+      mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      byteSize: 4096,
+      downloadUrl: "/api/presentations/demo-presentation/exports/export-1/download",
+      report: {
+        slideCount: 3,
+        elementCount: 12,
+        nativeEditableElementCount: 12,
+        svgFallbackCount: 0,
+        pngFallbackCount: 0,
+        warnings: [],
+      },
+      createdAt: "2026-07-03T10:00:00.000Z",
+    });
+
+    const response = await POST(new Request("http://test.local", { method: "POST" }), {
+      params: Promise.resolve({ presentationId: "demo-presentation" }),
+    });
+    const payload = (await response.json()) as { ok: boolean; data: { id: string } };
+
+    expect(response.status).toBe(201);
+    expect(payload.ok).toBe(true);
+    expect(payload.data.id).toBe("export-1");
+    expect(mockedEnsureDemoPresentation).toHaveBeenCalled();
+    expect(mockedCreatePptxExport).toHaveBeenCalledWith({
+      client: {},
+      presentationId: "demo-presentation",
+      userId: "demo-user",
+    });
+  });
+
+  it("returns export failures as recoverable API errors", async () => {
+    mockedCookies.mockResolvedValue({ get: () => ({ value: "session" }) } as never);
+    mockedCreatePptxExport.mockRejectedValue(new PresentationExportFailedError("Render failed"));
 
     const response = await POST(new Request("http://test.local", { method: "POST" }), {
       params: Promise.resolve({ presentationId: "demo-presentation" }),
     });
     const payload = (await response.json()) as {
       ok: boolean;
-      data: {
-        downloadUrl: string;
-        fileName: string;
-        report: { slideCount: number };
-      };
+      error: { code: string; message: string };
     };
 
-    expect(response.status).toBe(201);
-    expect(payload.ok).toBe(true);
-    expect(payload.data.downloadUrl).toMatch(
-      /^\/api\/presentations\/demo-presentation\/exports\//,
-    );
-    expect(payload.data.fileName).toBe("Q3 Operating Review.pptx");
-    expect(payload.data.report.slideCount).toBe(1);
-    expect(mockedExportPresentation).toHaveBeenCalledWith(document);
-    expect(storage.putObject).toHaveBeenCalledWith(
-      expect.objectContaining({
-        bytes: Buffer.from("pptx"),
-        key: expect.stringMatching(/^exports\/demo-user\/demo-presentation\/.+\.pptx$/),
-      }),
-    );
-  });
-
-  it("rejects access to another user's presentation", async () => {
-    const document = createDemoPresentationDocument({ ownerId: "other-user" });
-    mockedFindPresentationDocument.mockResolvedValue(document);
-
-    const response = await POST(new Request("http://test.local", { method: "POST" }), {
-      params: Promise.resolve({ presentationId: "demo-presentation" }),
-    });
-    const payload = (await response.json()) as { ok: boolean; error: { code: string } };
-
-    expect(response.status).toBe(403);
-    expect(payload.error.code).toBe("FORBIDDEN");
-    expect(mockedExportPresentation).not.toHaveBeenCalled();
+    expect(response.status).toBe(500);
+    expect(payload.error.code).toBe("EXPORT_FAILED");
+    expect(payload.error.message).toBe("Render failed");
   });
 });

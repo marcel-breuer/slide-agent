@@ -18,10 +18,12 @@
       "@slide-agent/auth": ["../../packages/auth/src/index.ts"],
       "@slide-agent/database": ["../../packages/database/src/index.ts"],
       "@slide-agent/i18n": ["../../packages/i18n/src/index.ts"],
+      "@slide-agent/pptx-exporter": ["../../packages/pptx-exporter/src/index.ts"],
       "@slide-agent/presentation-renderer": ["../../packages/presentation-renderer/src/index.tsx"],
       "@slide-agent/presentation-schema": ["../../packages/presentation-schema/src/index.ts"],
       "@slide-agent/pricing": ["../../packages/pricing/src/index.ts"],
-      "@slide-agent/shared": ["../../packages/shared/src/index.ts"]
+      "@slide-agent/shared": ["../../packages/shared/src/index.ts"],
+      "@slide-agent/storage": ["../../packages/storage/src/index.ts"]
     },
     "incremental": true
   },
