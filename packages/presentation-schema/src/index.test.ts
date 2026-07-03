@@ -14,7 +14,7 @@ describe("presentation schema", () => {
       format: "WIDE_16_9",
       theme: {
         colors: { primary: "#9333ea", text: "#0f172a" },
-        fonts: { heading: "Inter", body: "Inter" }
+        fonts: { heading: "Inter", body: "Inter" },
       },
       metadata: { createdAt: now, updatedAt: now, ownerId: "user_1" },
       slides: [
@@ -28,8 +28,8 @@ describe("presentation schema", () => {
               label: "1",
               x: 250,
               y: 180,
-              instruction: "Make this metric stand out"
-            }
+              instruction: "Make this metric stand out",
+            },
           ],
           elements: [
             {
@@ -40,11 +40,11 @@ describe("presentation schema", () => {
               visible: true,
               locked: false,
               semanticRole: "title",
-              paragraphs: [{ runs: [{ text: "Quarterly Review" }] }]
-            }
-          ]
-        }
-      ]
+              paragraphs: [{ runs: [{ text: "Quarterly Review" }] }],
+            },
+          ],
+        },
+      ],
     });
 
     expect(document.slides).toHaveLength(1);

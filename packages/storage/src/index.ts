@@ -4,7 +4,7 @@ import { z } from "zod";
 
 export const StorageConfigSchema = z.object({
   driver: z.literal("local").default("local"),
-  rootDir: z.string().min(1).default("/app/storage")
+  rootDir: z.string().min(1).default("/app/storage"),
 });
 
 export type StorageConfig = z.infer<typeof StorageConfigSchema>;
@@ -44,10 +44,12 @@ export class LocalObjectStorage {
   }
 }
 
-export function createLocalObjectStorageFromEnv(env: Record<string, string | undefined> = process.env): LocalObjectStorage {
+export function createLocalObjectStorageFromEnv(
+  env: Record<string, string | undefined> = process.env,
+): LocalObjectStorage {
   const config = StorageConfigSchema.parse({
     driver: env.STORAGE_DRIVER ?? "local",
-    rootDir: env.STORAGE_ROOT ?? "/app/storage"
+    rootDir: env.STORAGE_ROOT ?? "/app/storage",
   });
 
   return new LocalObjectStorage(config);

@@ -17,9 +17,13 @@ export function LoginForm({ nextPath }: { nextPath: string }): ReactElement {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, next: nextPath })
+        body: JSON.stringify({ email, password, next: nextPath }),
       });
-      const payload = (await response.json()) as { ok: boolean; data?: { redirectTo?: string }; error?: { message: string } };
+      const payload = (await response.json()) as {
+        ok: boolean;
+        data?: { redirectTo?: string };
+        error?: { message: string };
+      };
 
       if (!response.ok || !payload.ok) {
         setError(payload.error?.message ?? "Login failed.");
@@ -66,7 +70,9 @@ export function LoginForm({ nextPath }: { nextPath: string }): ReactElement {
         />
       </div>
 
-      {error ? <p className="rounded-app bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+      {error ? (
+        <p className="rounded-app bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+      ) : null}
 
       <button
         type="submit"

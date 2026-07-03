@@ -20,7 +20,7 @@ export const AiTaskTypeSchema = z.enum([
   "PRESENTATION_QA",
   "SLIDE_QA",
   "CLASSIFICATION",
-  "EMBEDDING"
+  "EMBEDDING",
 ]);
 export type AiTaskType = z.infer<typeof AiTaskTypeSchema>;
 
@@ -35,7 +35,7 @@ export const ProviderErrorCategorySchema = z.enum([
   "TIMEOUT",
   "PROVIDER_UNAVAILABLE",
   "NETWORK_ERROR",
-  "UNKNOWN"
+  "UNKNOWN",
 ]);
 export type ProviderErrorCategory = z.infer<typeof ProviderErrorCategorySchema>;
 
@@ -112,7 +112,9 @@ export interface AiProvider {
   validateCredential(input: ProviderCredentialInput): Promise<CredentialValidationResult>;
   listAvailableModels(context: ProviderContext): Promise<ProviderModel[]>;
   generateText(request: TextGenerationRequest): Promise<TextGenerationResult>;
-  generateStructured<T>(request: StructuredGenerationRequest<T>): Promise<StructuredGenerationResult<T>>;
+  generateStructured<T>(
+    request: StructuredGenerationRequest<T>,
+  ): Promise<StructuredGenerationResult<T>>;
   generateImage?(request: ImageGenerationRequest): Promise<ImageGenerationResult>;
   estimateUsage(request: TextGenerationRequest): Promise<UsageEstimate>;
 }
@@ -153,7 +155,10 @@ function qualityRank(value: "low" | "standard" | "high"): number {
   return value === "high" ? 3 : value === "standard" ? 2 : 1;
 }
 
-export function routeModel(input: RoutingInput, policies: readonly RoutingModelPolicy[]): RoutingDecision {
+export function routeModel(
+  input: RoutingInput,
+  policies: readonly RoutingModelPolicy[],
+): RoutingDecision {
   const candidates = policies
     .filter((policy) => policy.active)
     .filter((policy) => input.configuredProviders.includes(policy.provider))
@@ -165,12 +170,25 @@ export function routeModel(input: RoutingInput, policies: readonly RoutingModelP
     .filter((policy) => !input.localOnly || policy.local)
     .filter((policy) => qualityRank(policy.qualityTier) >= qualityRank(input.requestedQuality))
     .map((policy) => ({ policy, estimate: input.estimates[`${policy.provider}:${policy.model}`] }))
-    .filter((candidate): candidate is { policy: RoutingModelPolicy; estimate: CostEstimate } => Boolean(candidate.estimate))
-    .filter((candidate) => input.remainingBudget === null || candidate.estimate.displayCost <= input.remainingBudget)
-    .filter((candidate) => input.remainingTokens === null || candidate.estimate.totalTokens <= input.remainingTokens)
-    .filter((candidate) => input.maximumAcceptableCost === undefined || candidate.estimate.displayCost <= input.maximumAcceptableCost)
+    .filter((candidate): candidate is { policy: RoutingModelPolicy; estimate: CostEstimate } =>
+      Boolean(candidate.estimate),
+    )
+    .filter(
+      (candidate) =>
+        input.remainingBudget === null || candidate.estimate.displayCost <= input.remainingBudget,
+    )
+    .filter(
+      (candidate) =>
+        input.remainingTokens === null || candidate.estimate.totalTokens <= input.remainingTokens,
+    )
+    .filter(
+      (candidate) =>
+        input.maximumAcceptableCost === undefined ||
+        candidate.estimate.displayCost <= input.maximumAcceptableCost,
+    )
     .sort((left, right) => {
-      if (left.policy.priority !== right.policy.priority) return left.policy.priority - right.policy.priority;
+      if (left.policy.priority !== right.policy.priority)
+        return left.policy.priority - right.policy.priority;
       return left.estimate.displayCost - right.estimate.displayCost;
     });
 
@@ -183,6 +201,6 @@ export function routeModel(input: RoutingInput, policies: readonly RoutingModelP
     provider: selected.policy.provider,
     model: selected.policy.model,
     estimatedCost: selected.estimate,
-    reason: `${input.taskType} routed to ${selected.policy.displayLabel} because it satisfies capability, context, quality, availability, and budget constraints.`
+    reason: `${input.taskType} routed to ${selected.policy.displayLabel} because it satisfies capability, context, quality, availability, and budget constraints.`,
   };
 }

@@ -7,6 +7,6 @@ export function GET() {
     postgres: "configured",
     redis: "configured",
     objectStorage: "configured",
-    email: "configured"
+    email: "configured",
   });
 }

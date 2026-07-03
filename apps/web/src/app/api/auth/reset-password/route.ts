@@ -6,7 +6,7 @@ import { fail, ok } from "@/lib/api";
 
 const ResetPasswordSchema = z.object({
   token: z.string().min(1),
-  password: z.string()
+  password: z.string(),
 });
 
 export async function POST(request: Request) {

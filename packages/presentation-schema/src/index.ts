@@ -14,7 +14,7 @@ export const RectSchema = z.object({
   y: z.number().finite().min(0).max(LOGICAL_SLIDE_HEIGHT),
   width: z.number().finite().positive().max(LOGICAL_SLIDE_WIDTH),
   height: z.number().finite().positive().max(LOGICAL_SLIDE_HEIGHT),
-  rotation: z.number().finite().min(-360).max(360).default(0)
+  rotation: z.number().finite().min(-360).max(360).default(0),
 });
 export type Rect = z.infer<typeof RectSchema>;
 
@@ -26,7 +26,7 @@ export const ElementBaseSchema = z.object({
   locked: z.boolean().default(false),
   semanticRole: z.string().min(1).default("content"),
   accessibilityLabel: z.string().optional(),
-  opacity: z.number().min(0).max(1).default(1)
+  opacity: z.number().min(0).max(1).default(1),
 });
 
 export const ColorSchema = z
@@ -41,7 +41,7 @@ export const TextRunSchema = z.object({
   italic: z.boolean().default(false),
   underline: z.boolean().default(false),
   color: ColorSchema.default("#0f172a"),
-  hyperlink: z.string().url().optional()
+  hyperlink: z.string().url().optional(),
 });
 export type TextRun = z.infer<typeof TextRunSchema>;
 
@@ -51,7 +51,7 @@ export const ParagraphSchema = z.object({
   lineHeight: z.number().min(0.8).max(3).default(1.15),
   spacingAfter: z.number().min(0).default(0),
   list: z.enum(["none", "bullet", "number"]).default("none"),
-  indent: z.number().min(0).default(0)
+  indent: z.number().min(0).default(0),
 });
 export type Paragraph = z.infer<typeof ParagraphSchema>;
 
@@ -63,17 +63,25 @@ const TextElementSchema = ElementBaseSchema.extend({
     .object({
       enabled: z.boolean().default(true),
       minFontSize: z.number().min(6).max(160).default(10),
-      maxFontSize: z.number().min(6).max(160).default(48)
+      maxFontSize: z.number().min(6).max(160).default(48),
     })
-    .default({ enabled: true, minFontSize: 10, maxFontSize: 48 })
+    .default({ enabled: true, minFontSize: 10, maxFontSize: 48 }),
 });
 
 const ShapeElementSchema = ElementBaseSchema.extend({
   type: z.literal("shape"),
-  shape: z.enum(["rectangle", "roundedRectangle", "ellipse", "triangle", "chevron", "callout", "hexagon"]),
+  shape: z.enum([
+    "rectangle",
+    "roundedRectangle",
+    "ellipse",
+    "triangle",
+    "chevron",
+    "callout",
+    "hexagon",
+  ]),
   fill: ColorSchema.default("#ffffff"),
   borderColor: ColorSchema.default("#e2e8f0"),
-  borderWidth: z.number().min(0).max(20).default(1)
+  borderWidth: z.number().min(0).max(20).default(1),
 });
 
 const ImageElementSchema = ElementBaseSchema.extend({
@@ -86,9 +94,9 @@ const ImageElementSchema = ElementBaseSchema.extend({
       x: z.number().min(0).max(1),
       y: z.number().min(0).max(1),
       width: z.number().min(0).max(1),
-      height: z.number().min(0).max(1)
+      height: z.number().min(0).max(1),
     })
-    .optional()
+    .optional(),
 });
 
 const IconElementSchema = ElementBaseSchema.extend({
@@ -96,7 +104,7 @@ const IconElementSchema = ElementBaseSchema.extend({
   icon: z.string().min(1),
   svg: z.string().optional(),
   color: ColorSchema.default("#0f172a"),
-  strokeWidth: z.number().min(0.5).max(6).default(2)
+  strokeWidth: z.number().min(0.5).max(6).default(2),
 });
 
 const LineElementSchema = ElementBaseSchema.extend({
@@ -104,26 +112,35 @@ const LineElementSchema = ElementBaseSchema.extend({
   stroke: ColorSchema.default("#0f172a"),
   strokeWidth: z.number().min(0.5).max(20).default(2),
   start: z.object({ x: z.number(), y: z.number() }),
-  end: z.object({ x: z.number(), y: z.number() })
+  end: z.object({ x: z.number(), y: z.number() }),
 });
 
 const TableElementSchema = ElementBaseSchema.extend({
   type: z.literal("table"),
   rows: z.array(z.array(z.string())).min(1),
   headerRows: z.number().int().min(0).default(1),
-  borderColor: ColorSchema.default("#e2e8f0")
+  borderColor: ColorSchema.default("#e2e8f0"),
 });
 
 const ChartElementSchema = ElementBaseSchema.extend({
   type: z.literal("chart"),
-  chartType: z.enum(["bar", "column", "line", "pie", "doughnut", "area", "stackedBar", "stackedColumn"]),
+  chartType: z.enum([
+    "bar",
+    "column",
+    "line",
+    "pie",
+    "doughnut",
+    "area",
+    "stackedBar",
+    "stackedColumn",
+  ]),
   categories: z.array(z.string()).min(1),
-  series: z.array(z.object({ name: z.string(), values: z.array(z.number()) })).min(1)
+  series: z.array(z.object({ name: z.string(), values: z.array(z.number()) })).min(1),
 });
 
 const GroupElementSchema = ElementBaseSchema.extend({
   type: z.literal("group"),
-  children: z.array(z.string()).min(1)
+  children: z.array(z.string()).min(1),
 });
 
 export const SlideElementSchema = z.discriminatedUnion("type", [
@@ -134,14 +151,14 @@ export const SlideElementSchema = z.discriminatedUnion("type", [
   LineElementSchema,
   TableElementSchema,
   ChartElementSchema,
-  GroupElementSchema
+  GroupElementSchema,
 ]);
 export type SlideElement = z.infer<typeof SlideElementSchema>;
 
 export const SlideBackgroundSchema = z.object({
   type: z.enum(["solid", "gradient", "image"]).default("solid"),
   color: ColorSchema.default("#ffffff"),
-  assetId: z.string().optional()
+  assetId: z.string().optional(),
 });
 
 export const SlidePointerMarkerSchema = z.object({
@@ -149,7 +166,7 @@ export const SlidePointerMarkerSchema = z.object({
   label: z.string().min(1).max(12),
   x: z.number().finite().min(0).max(LOGICAL_SLIDE_WIDTH),
   y: z.number().finite().min(0).max(LOGICAL_SLIDE_HEIGHT),
-  instruction: z.string().min(1).max(1000)
+  instruction: z.string().min(1).max(1000),
 });
 export type SlidePointerMarker = z.infer<typeof SlidePointerMarkerSchema>;
 
@@ -169,15 +186,15 @@ export const SlideDocumentSchema = z.object({
     .object({
       operationId: z.string(),
       promptVersion: z.string(),
-      generatedAt: z.string().datetime()
+      generatedAt: z.string().datetime(),
     })
     .optional(),
   validation: z
     .object({
       status: z.enum(["passed", "warning", "failed"]),
-      warnings: z.array(z.string()).default([])
+      warnings: z.array(z.string()).default([]),
     })
-    .optional()
+    .optional(),
 });
 export type SlideDocument = z.infer<typeof SlideDocumentSchema>;
 
@@ -188,18 +205,18 @@ export const PresentationDocumentSchema = z.object({
   locale: LocaleSchema.default("en"),
   format: z.literal(SLIDE_FORMAT),
   theme: z.object({
-    colors: z.record(ColorSchema),
+    colors: z.record(z.string(), ColorSchema),
     fonts: z.object({
       heading: z.string(),
-      body: z.string()
-    })
+      body: z.string(),
+    }),
   }),
   metadata: z.object({
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
-    ownerId: z.string()
+    ownerId: z.string(),
   }),
-  slides: z.array(SlideDocumentSchema).max(GLOBAL_MAX_SLIDES)
+  slides: z.array(SlideDocumentSchema).max(GLOBAL_MAX_SLIDES),
 });
 export type PresentationDocument = z.infer<typeof PresentationDocumentSchema>;
 
@@ -207,7 +224,11 @@ export function validatePresentation(input: unknown): PresentationDocument {
   return PresentationDocumentSchema.parse(input);
 }
 
-export function enforceSlideLimit(requested: number, adminMaximum: number, userMaximum: number): number {
+export function enforceSlideLimit(
+  requested: number,
+  adminMaximum: number,
+  userMaximum: number,
+): number {
   return Math.max(1, Math.min(GLOBAL_MAX_SLIDES, adminMaximum, userMaximum, requested));
 }
 
@@ -226,7 +247,7 @@ export const DEMO_PRESENTATION_TITLE = "Q3 Operating Review";
 
 export function createDemoPresentationDocument({
   ownerId = "demo-user",
-  now = new Date().toISOString()
+  now = new Date().toISOString(),
 }: {
   ownerId?: string;
   now?: string;
@@ -242,17 +263,17 @@ export function createDemoPresentationDocument({
         text: "#0f172a",
         primary: "#9333ea",
         accent: "#7c3aed",
-        muted: "#64748b"
+        muted: "#64748b",
       },
       fonts: {
         heading: "Inter",
-        body: "Inter"
-      }
+        body: "Inter",
+      },
     },
     metadata: {
       createdAt: now,
       updatedAt: now,
-      ownerId
+      ownerId,
     },
     slides: [
       {
@@ -280,11 +301,11 @@ export function createDemoPresentationDocument({
                     text: "Revenue quality improved; delivery risk remains",
                     fontSize: 31,
                     fontWeight: "700",
-                    color: "#0f172a"
-                  }
-                ]
-              }
-            ]
+                    color: "#0f172a",
+                  },
+                ],
+              },
+            ],
           },
           {
             id: "accent-shape",
@@ -297,7 +318,7 @@ export function createDemoPresentationDocument({
             semanticRole: "metric-card",
             fill: "#f3e8ff",
             borderColor: "#d8b4fe",
-            borderWidth: 1
+            borderWidth: 1,
           },
           {
             id: "metric-text",
@@ -309,9 +330,13 @@ export function createDemoPresentationDocument({
             semanticRole: "metric",
             paragraphs: [
               { runs: [{ text: "+18%", fontSize: 38, fontWeight: "700", color: "#9333ea" }] },
-              { runs: [{ text: "qualified pipeline", fontSize: 16, fontWeight: "600", color: "#0f172a" }] },
-              { runs: [{ text: "Driven by enterprise renewals", fontSize: 12, color: "#64748b" }] }
-            ]
+              {
+                runs: [
+                  { text: "qualified pipeline", fontSize: 16, fontWeight: "600", color: "#0f172a" },
+                ],
+              },
+              { runs: [{ text: "Driven by enterprise renewals", fontSize: 12, color: "#64748b" }] },
+            ],
           },
           {
             id: "chart",
@@ -323,7 +348,7 @@ export function createDemoPresentationDocument({
             locked: false,
             semanticRole: "chart",
             categories: ["Jul", "Aug", "Sep"],
-            series: [{ name: "Pipeline", values: [42, 58, 76] }]
+            series: [{ name: "Pipeline", values: [42, 58, 76] }],
           },
           {
             id: "callout",
@@ -336,7 +361,7 @@ export function createDemoPresentationDocument({
             semanticRole: "risk-card",
             fill: "#faf5ff",
             borderColor: "#e9d5ff",
-            borderWidth: 1
+            borderWidth: 1,
           },
           {
             id: "risk-text",
@@ -347,17 +372,21 @@ export function createDemoPresentationDocument({
             locked: false,
             semanticRole: "callout",
             paragraphs: [
-              { runs: [{ text: "Delivery risk", fontSize: 22, fontWeight: "700", color: "#7e22ce" }] },
+              {
+                runs: [
+                  { text: "Delivery risk", fontSize: 22, fontWeight: "700", color: "#7e22ce" },
+                ],
+              },
               {
                 runs: [
                   {
                     text: "Three critical dependencies need executive attention before October.",
                     fontSize: 15,
-                    color: "#0f172a"
-                  }
-                ]
-              }
-            ]
+                    color: "#0f172a",
+                  },
+                ],
+              },
+            ],
           },
           {
             id: "bottom-line",
@@ -370,7 +399,7 @@ export function createDemoPresentationDocument({
             stroke: "#e2e8f0",
             strokeWidth: 2,
             start: { x: 0, y: 50 },
-            end: { x: 100, y: 50 }
+            end: { x: 100, y: 50 },
           },
           {
             id: "next-steps",
@@ -381,20 +410,29 @@ export function createDemoPresentationDocument({
             locked: false,
             semanticRole: "body",
             paragraphs: [
-              { runs: [{ text: "Recommended next steps", fontSize: 18, fontWeight: "700", color: "#0f172a" }] },
+              {
+                runs: [
+                  {
+                    text: "Recommended next steps",
+                    fontSize: 18,
+                    fontWeight: "700",
+                    color: "#0f172a",
+                  },
+                ],
+              },
               {
                 runs: [
                   {
                     text: "Approve incremental delivery support, keep marketing spend flat, and revisit forecast confidence in two weeks.",
                     fontSize: 17,
-                    color: "#334155"
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      }
-    ]
+                    color: "#334155",
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
   });
 }

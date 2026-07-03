@@ -7,7 +7,7 @@ import {
   PresentationNotFoundError,
   PresentationVersionConflictError,
   prisma,
-  savePresentationDocument
+  savePresentationDocument,
 } from "@slide-agent/database";
 import { DEMO_PRESENTATION_ID, PresentationDocumentSchema } from "@slide-agent/presentation-schema";
 
@@ -22,7 +22,7 @@ type RouteContext = {
 
 const PresentationUpdateSchema = z.object({
   expectedUpdatedAt: z.string().datetime(),
-  document: PresentationDocumentSchema
+  document: PresentationDocumentSchema,
 });
 
 export async function GET(_request: Request, context: RouteContext) {
@@ -59,13 +59,14 @@ export async function PUT(request: Request, context: RouteContext) {
   }
 
   const parsed = PresentationUpdateSchema.safeParse(body);
-  if (!parsed.success) return fail("VALIDATION_FAILED", "Presentation document update is invalid.", 400);
+  if (!parsed.success)
+    return fail("VALIDATION_FAILED", "Presentation document update is invalid.", 400);
 
   try {
     const document = await savePresentationDocument(prisma, {
       presentationId,
       expectedUpdatedAt: parsed.data.expectedUpdatedAt,
-      document: parsed.data.document
+      document: parsed.data.document,
     });
 
     return ok(document);
@@ -75,7 +76,11 @@ export async function PUT(request: Request, context: RouteContext) {
     }
 
     if (error instanceof PresentationVersionConflictError) {
-      return fail("PRESENTATION_VERSION_CONFLICT", "Presentation changed since it was loaded.", 409);
+      return fail(
+        "PRESENTATION_VERSION_CONFLICT",
+        "Presentation changed since it was loaded.",
+        409,
+      );
     }
 
     if (error instanceof Error) {

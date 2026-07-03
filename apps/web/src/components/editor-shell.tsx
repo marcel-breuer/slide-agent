@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
 import {
   AlignCenter,
   ArrowDown,
@@ -29,7 +37,7 @@ import {
   Trash2,
   Type,
   Undo2,
-  X
+  X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -41,7 +49,7 @@ import {
   getSlideSelectionAfterDelete,
   type EditorCommand,
   type PointerDrivenEditProposal,
-  type SlidePointer
+  type SlidePointer,
 } from "@slide-agent/editor-core";
 import { SlideRenderer } from "@slide-agent/presentation-renderer";
 import { validatePresentation, type PresentationDocument } from "@slide-agent/presentation-schema";
@@ -51,13 +59,16 @@ import { PresentationPreview } from "./presentation-preview";
 const navProjects = ["Board reporting", "Product launch", "Banking pitch"];
 
 type InspectorTab = "properties" | "layers" | "design" | "assets";
-type TextElement = Extract<PresentationDocument["slides"][number]["elements"][number], { type: "text" }>;
+type TextElement = Extract<
+  PresentationDocument["slides"][number]["elements"][number],
+  { type: "text" }
+>;
 
 const inspectorTabs: [InspectorTab, LucideIcon][] = [
   ["properties", PanelRight],
   ["layers", Layers],
   ["design", Palette],
-  ["assets", Image]
+  ["assets", Image],
 ];
 
 type LoadState = "loading" | "loaded" | "not-found" | "error";
@@ -94,7 +105,7 @@ function IconButton({
   children,
   active = false,
   disabled = false,
-  onClick
+  onClick,
 }: {
   label: string;
   children: ReactNode;
@@ -126,7 +137,7 @@ function RailIconButton({
   label,
   children,
   disabled = false,
-  onClick
+  onClick,
 }: {
   label: string;
   children: ReactNode;
@@ -202,11 +213,18 @@ export function EditorShell({ presentationId }: { presentationId: string }) {
   }, [presentationId]);
 
   if (loadState === "loading") {
-    return <EditorStateMessage title="Loading presentation" message="Preparing the editor document." />;
+    return (
+      <EditorStateMessage title="Loading presentation" message="Preparing the editor document." />
+    );
   }
 
   if (loadState === "not-found") {
-    return <EditorStateMessage title="Presentation not found" message="The requested presentation does not exist." />;
+    return (
+      <EditorStateMessage
+        title="Presentation not found"
+        message="The requested presentation does not exist."
+      />
+    );
   }
 
   if (loadState === "error" || !document) {
@@ -219,16 +237,23 @@ export function EditorShell({ presentationId }: { presentationId: string }) {
   }
 
   if (document.slides.length === 0) {
-    return <EditorStateMessage title="No slides available" message="This presentation does not contain slides yet." />;
+    return (
+      <EditorStateMessage
+        title="No slides available"
+        message="This presentation does not contain slides yet."
+      />
+    );
   }
 
-  return <LoadedEditor document={document} presentationId={presentationId} setDocument={setDocument} />;
+  return (
+    <LoadedEditor document={document} presentationId={presentationId} setDocument={setDocument} />
+  );
 }
 
 function LoadedEditor({
   document,
   presentationId,
-  setDocument
+  setDocument,
 }: {
   document: PresentationDocument;
   presentationId: string;
@@ -243,16 +268,22 @@ function LoadedEditor({
   const [aiProposalStatus, setAiProposalStatus] = useState<AiProposalStatus>("idle");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [pointerMode, setPointerMode] = useState(false);
-  const [slidePointers, setSlidePointers] = useState<SlidePointer[]>(() => readDocumentSlidePointers(document));
+  const [slidePointers, setSlidePointers] = useState<SlidePointer[]>(() =>
+    readDocumentSlidePointers(document),
+  );
   const [selectedPointerId, setSelectedPointerId] = useState<string | null>(null);
-  const [editorHistory, setEditorHistory] = useState<EditorHistory>({ redoStack: [], undoStack: [] });
+  const [editorHistory, setEditorHistory] = useState<EditorHistory>({
+    redoStack: [],
+    undoStack: [],
+  });
   const restoredSlideSelectionRef = useRef<string | null>(null);
   const { error: saveError, status: saveStatus } = usePresentationAutosave({
     document,
     presentationId,
-    setDocument
+    setDocument,
   });
-  const activeSlide = document.slides.find((slide) => slide.id === selectedSlideId) ?? document.slides[0]!;
+  const activeSlide =
+    document.slides.find((slide) => slide.id === selectedSlideId) ?? document.slides[0]!;
   const activeSlideIndex = document.slides.findIndex((slide) => slide.id === activeSlide.id);
   const canDeleteSlide = document.slides.length > 1;
   const canMoveSlideDown = activeSlideIndex >= 0 && activeSlideIndex < document.slides.length - 1;
@@ -265,26 +296,26 @@ function LoadedEditor({
 
   const selectedElement = useMemo(
     () => activeSlide.elements.find((element) => element.id === selectedElementId),
-    [activeSlide.elements, selectedElementId]
+    [activeSlide.elements, selectedElementId],
   );
   const titleElement = useMemo(
     () =>
       activeSlide.elements.find(
-        (element): element is TextElement => element.id === "title" && element.type === "text"
+        (element): element is TextElement => element.id === "title" && element.type === "text",
       ),
-    [activeSlide.elements]
+    [activeSlide.elements],
   );
   const activeSlidePointers = useMemo(
     () => slidePointers.filter((pointer) => pointer.slideId === activeSlide.id),
-    [activeSlide.id, slidePointers]
+    [activeSlide.id, slidePointers],
   );
   const selectedPointer = useMemo(
     () => activeSlidePointers.find((pointer) => pointer.id === selectedPointerId),
-    [activeSlidePointers, selectedPointerId]
+    [activeSlidePointers, selectedPointerId],
   );
   const pointerContext = useMemo(
     () => buildSlidePointerContext(activeSlide.id, activeSlidePointers),
-    [activeSlide.id, activeSlidePointers]
+    [activeSlide.id, activeSlidePointers],
   );
   const assistantPreview = [assistantText.trim(), pointerContext].filter(Boolean).join("\n\n");
   const selectedShapeFill = selectedElement?.type === "shape" ? selectedElement.fill : undefined;
@@ -334,7 +365,7 @@ function LoadedEditor({
       selectedElementId,
       selectedPointerId,
       selectedSlideId,
-      slidePointers
+      slidePointers,
     };
   }
 
@@ -353,21 +384,27 @@ function LoadedEditor({
 
     setEditorHistory((current) => ({
       redoStack: [],
-      undoStack: [...current.undoStack, cloneEditorSnapshot(before)]
+      undoStack: [...current.undoStack, cloneEditorSnapshot(before)],
     }));
     restoreSnapshot(after);
   }
 
-  function commitDocumentCommand(command: EditorCommand, overrides: Partial<Omit<EditorSnapshot, "document">> = {}): void {
+  function commitDocumentCommand(
+    command: EditorCommand,
+    overrides: Partial<Omit<EditorSnapshot, "document">> = {},
+  ): void {
     commitDocumentCommands([command], overrides);
   }
 
   function commitDocumentCommands(
     commands: readonly EditorCommand[],
-    overrides: Partial<Omit<EditorSnapshot, "document">> = {}
+    overrides: Partial<Omit<EditorSnapshot, "document">> = {},
   ): void {
     const nextSlidePointers = normalizeSlidePointers(overrides.slidePointers ?? slidePointers);
-    const nextDocument = syncDocumentSlidePointers(applyCommands(document, commands), nextSlidePointers);
+    const nextDocument = syncDocumentSlidePointers(
+      applyCommands(document, commands),
+      nextSlidePointers,
+    );
 
     commitSnapshot({
       assistantText,
@@ -376,7 +413,7 @@ function LoadedEditor({
       selectedPointerId,
       selectedSlideId,
       ...overrides,
-      slidePointers: nextSlidePointers
+      slidePointers: nextSlidePointers,
     });
   }
 
@@ -386,7 +423,7 @@ function LoadedEditor({
 
     setEditorHistory((current) => ({
       redoStack: [...current.redoStack, cloneEditorSnapshot(currentSnapshot())],
-      undoStack: current.undoStack.slice(0, -1)
+      undoStack: current.undoStack.slice(0, -1),
     }));
     restoreSnapshot(previous);
   }
@@ -397,7 +434,7 @@ function LoadedEditor({
 
     setEditorHistory((current) => ({
       redoStack: current.redoStack.slice(0, -1),
-      undoStack: [...current.undoStack, cloneEditorSnapshot(currentSnapshot())]
+      undoStack: [...current.undoStack, cloneEditorSnapshot(currentSnapshot())],
     }));
     restoreSnapshot(next);
   }
@@ -412,12 +449,16 @@ function LoadedEditor({
         elementId: selectedElement.id,
         fill: nextColor,
         slideId: activeSlide.id,
-        type: "UPDATE_SHAPE_FILL"
+        type: "UPDATE_SHAPE_FILL",
       });
       return;
     }
 
-    commitDocumentCommand({ color: nextColor, slideId: activeSlide.id, type: "UPDATE_SLIDE_BACKGROUND" });
+    commitDocumentCommand({
+      color: nextColor,
+      slideId: activeSlide.id,
+      type: "UPDATE_SLIDE_BACKGROUND",
+    });
   }
 
   function updateAccentColor(nextColor: string): void {
@@ -430,7 +471,7 @@ function LoadedEditor({
       label: String(activeSlidePointers.length + 1),
       slideId: activeSlide.id,
       x: point.x,
-      y: point.y
+      y: point.y,
     });
     const nextAssistantText = assistantText || "Use the slide pointers to propose precise edits.";
     const nextSlidePointers = normalizeSlidePointers([...slidePointers, pointer]);
@@ -441,14 +482,16 @@ function LoadedEditor({
       selectedElementId,
       selectedPointerId: pointer.id,
       selectedSlideId,
-      slidePointers: nextSlidePointers
+      slidePointers: nextSlidePointers,
     });
   }
 
   function updateSelectedPointerInstruction(instruction: string): void {
     if (!selectedPointerId) return;
     const nextSlidePointers = normalizeSlidePointers(
-      slidePointers.map((pointer) => (pointer.id === selectedPointerId ? { ...pointer, instruction } : pointer))
+      slidePointers.map((pointer) =>
+        pointer.id === selectedPointerId ? { ...pointer, instruction } : pointer,
+      ),
     );
 
     commitSnapshot({
@@ -457,13 +500,15 @@ function LoadedEditor({
       selectedElementId,
       selectedPointerId,
       selectedSlideId,
-      slidePointers: nextSlidePointers
+      slidePointers: nextSlidePointers,
     });
   }
 
   function removeSelectedPointer(): void {
     if (!selectedPointerId) return;
-    const nextSlidePointers = normalizeSlidePointers(slidePointers.filter((pointer) => pointer.id !== selectedPointerId));
+    const nextSlidePointers = normalizeSlidePointers(
+      slidePointers.filter((pointer) => pointer.id !== selectedPointerId),
+    );
 
     commitSnapshot({
       assistantText,
@@ -471,7 +516,7 @@ function LoadedEditor({
       selectedElementId,
       selectedPointerId: null,
       selectedSlideId,
-      slidePointers: nextSlidePointers
+      slidePointers: nextSlidePointers,
     });
   }
 
@@ -481,7 +526,7 @@ function LoadedEditor({
       accentColor: document.theme.colors.primary ?? "#9333ea",
       id: slideId,
       textColor: document.theme.colors.text ?? "#0f172a",
-      title: `Slide ${document.slides.length + 1}`
+      title: `Slide ${document.slides.length + 1}`,
     });
 
     commitDocumentCommand(
@@ -489,8 +534,8 @@ function LoadedEditor({
       {
         selectedElementId: "title",
         selectedPointerId: null,
-        selectedSlideId: slideId
-      }
+        selectedSlideId: slideId,
+      },
     );
   }
 
@@ -502,15 +547,15 @@ function LoadedEditor({
       {
         selectedElementId: "title",
         selectedPointerId: null,
-        selectedSlideId: slideId
-      }
+        selectedSlideId: slideId,
+      },
     );
   }
 
   function deleteActiveSlide(): void {
     const selection = getSlideSelectionAfterDelete(document, {
       selectedSlideId,
-      slideId: activeSlide.id
+      slideId: activeSlide.id,
     });
     if (!selection.deleted) return;
 
@@ -520,13 +565,17 @@ function LoadedEditor({
         selectedElementId: "title",
         selectedPointerId: null,
         selectedSlideId: selection.selectedSlideId,
-        slidePointers: slidePointers.filter((pointer) => pointer.slideId !== activeSlide.id)
-      }
+        slidePointers: slidePointers.filter((pointer) => pointer.slideId !== activeSlide.id),
+      },
     );
   }
 
   function moveActiveSlide(delta: number): void {
-    commitDocumentCommand({ slideId: activeSlide.id, toIndex: activeSlideIndex + delta, type: "MOVE_SLIDE" });
+    commitDocumentCommand({
+      slideId: activeSlide.id,
+      toIndex: activeSlideIndex + delta,
+      type: "MOVE_SLIDE",
+    });
   }
 
   async function requestAiEditProposal(): Promise<void> {
@@ -544,26 +593,30 @@ function LoadedEditor({
         pointers: activeSlidePointers,
         prompt,
         slideId: activeSlide.id,
-        ...(selectedElementId ? { selectedElementId } : {})
+        ...(selectedElementId ? { selectedElementId } : {}),
       };
       const response = await fetch(
         `/api/presentations/${encodeURIComponent(presentationId)}/ai-edit-proposals`,
         {
           body: JSON.stringify(requestBody),
           headers: { "Content-Type": "application/json" },
-          method: "POST"
-        }
+          method: "POST",
+        },
       );
       const payload = (await response.json()) as AiEditProposalApiResponse;
 
       if (!response.ok || !payload.ok) {
-        throw new Error(payload.ok ? "AI edit proposal could not be created." : payload.error.message);
+        throw new Error(
+          payload.ok ? "AI edit proposal could not be created." : payload.error.message,
+        );
       }
 
       setAiProposal(payload.data);
       setAiProposalStatus("ready");
     } catch (error) {
-      setAiProposalError(error instanceof Error ? error.message : "AI edit proposal could not be created.");
+      setAiProposalError(
+        error instanceof Error ? error.message : "AI edit proposal could not be created.",
+      );
       setAiProposalStatus("failed");
     }
   }
@@ -578,15 +631,15 @@ function LoadedEditor({
           metadata: {
             generatedAt: aiProposal.metadata.generatedAt,
             operationId: aiProposal.metadata.operationId,
-            promptVersion: aiProposal.metadata.promptVersion
+            promptVersion: aiProposal.metadata.promptVersion,
           },
           slideId: aiProposal.slideId,
-          type: "SET_SLIDE_AI_METADATA"
-        }
+          type: "SET_SLIDE_AI_METADATA",
+        },
       ],
       {
-        selectedSlideId: aiProposal.slideId
-      }
+        selectedSlideId: aiProposal.slideId,
+      },
     );
     setAiProposal(null);
     setAiProposalError(null);
@@ -645,7 +698,9 @@ function LoadedEditor({
         </nav>
 
         <div className="mt-7">
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Presentations</div>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+            Presentations
+          </div>
           <div className="space-y-2">
             {thumbnails.slice(0, 3).map((item, index) => (
               <button
@@ -668,7 +723,9 @@ function LoadedEditor({
             <Settings size={16} />
             Settings
           </button>
-          <span className="rounded bg-warning/10 px-2 py-1 text-xs font-semibold text-warning">ADMIN</span>
+          <span className="rounded bg-warning/10 px-2 py-1 text-xs font-semibold text-warning">
+            ADMIN
+          </span>
         </div>
       </aside>
 
@@ -714,14 +771,26 @@ function LoadedEditor({
               <RailIconButton label="Duplicate slide" onClick={duplicateActiveSlide}>
                 <Copy size={16} />
               </RailIconButton>
-              <RailIconButton label="Move slide up" disabled={!canMoveSlideUp} onClick={() => moveActiveSlide(-1)}>
+              <RailIconButton
+                label="Move slide up"
+                disabled={!canMoveSlideUp}
+                onClick={() => moveActiveSlide(-1)}
+              >
                 <ArrowUp size={16} />
               </RailIconButton>
-              <RailIconButton label="Move slide down" disabled={!canMoveSlideDown} onClick={() => moveActiveSlide(1)}>
+              <RailIconButton
+                label="Move slide down"
+                disabled={!canMoveSlideDown}
+                onClick={() => moveActiveSlide(1)}
+              >
                 <ArrowDown size={16} />
               </RailIconButton>
               <div className="col-span-2">
-                <RailIconButton label="Delete slide" disabled={!canDeleteSlide} onClick={deleteActiveSlide}>
+                <RailIconButton
+                  label="Delete slide"
+                  disabled={!canDeleteSlide}
+                  onClick={deleteActiveSlide}
+                >
                   <Trash2 size={16} />
                 </RailIconButton>
               </div>
@@ -732,7 +801,9 @@ function LoadedEditor({
                   key={slide.id}
                   onClick={() => setSelectedSlideId(slide.id)}
                   className={`w-full rounded-app border p-1 text-left ${
-                    slide.id === activeSlide.id ? "border-primary bg-primary/5" : "border-line bg-white"
+                    slide.id === activeSlide.id
+                      ? "border-primary bg-primary/5"
+                      : "border-line bg-white"
                   }`}
                 >
                   <div className="aspect-video rounded bg-white shadow-sm" />
@@ -759,7 +830,11 @@ function LoadedEditor({
                 <IconButton label="Lock">
                   <Lock size={17} />
                 </IconButton>
-                <IconButton label="AI pointer" active={pointerMode} onClick={() => setPointerMode((current) => !current)}>
+                <IconButton
+                  label="AI pointer"
+                  active={pointerMode}
+                  onClick={() => setPointerMode((current) => !current)}
+                >
                   <MapPin size={17} />
                 </IconButton>
               </div>
@@ -787,7 +862,7 @@ function LoadedEditor({
                     y: pointer.y,
                     label: pointer.label || String(index + 1),
                     instruction: pointer.instruction,
-                    selected: pointer.id === selectedPointerId
+                    selected: pointer.id === selectedPointerId,
                   }))}
                   interactionMode={pointerMode ? "pointer" : "select"}
                   onElementPointerDown={setSelectedElementId}
@@ -819,7 +894,9 @@ function LoadedEditor({
 
         <div className="space-y-5 p-4">
           <div>
-            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Selected</div>
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+              Selected
+            </div>
             <div className="rounded-app border border-line bg-canvas p-3 text-sm font-semibold">
               {selectedElement?.semanticRole ?? "None"}
             </div>
@@ -829,9 +906,7 @@ function LoadedEditor({
             <span className="mb-1 block text-xs font-semibold text-muted">Slide title</span>
             <textarea
               className="min-h-24 w-full resize-none rounded-app border border-line bg-white p-3 text-sm"
-              value={
-                titleElement?.paragraphs[0]?.runs[0]?.text ?? ""
-              }
+              value={titleElement?.paragraphs[0]?.runs[0]?.text ?? ""}
               onChange={(event) => updateTitleText(event.target.value)}
             />
           </label>
@@ -858,7 +933,9 @@ function LoadedEditor({
           </div>
 
           <div>
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Layer order</div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+              Layer order
+            </div>
             {activeSlide.elements
               .slice()
               .sort((left, right) => right.zIndex - left.zIndex)
@@ -878,7 +955,9 @@ function LoadedEditor({
 
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <div className="text-xs font-semibold uppercase tracking-wide text-muted">AI pointers</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted">
+                AI pointers
+              </div>
               <span className="rounded bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
                 {activeSlidePointers.length}
               </span>
@@ -896,7 +975,9 @@ function LoadedEditor({
                     {index + 1}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium text-ink">{pointer.instruction}</span>
+                    <span className="block truncate font-medium text-ink">
+                      {pointer.instruction}
+                    </span>
                     <span className="text-xs text-muted">
                       {Math.round(pointer.x)}, {Math.round(pointer.y)}
                     </span>
@@ -907,7 +988,9 @@ function LoadedEditor({
             {selectedPointer ? (
               <div className="mt-3 space-y-2">
                 <label className="block">
-                  <span className="mb-1 block text-xs font-semibold text-muted">Pointer instruction</span>
+                  <span className="mb-1 block text-xs font-semibold text-muted">
+                    Pointer instruction
+                  </span>
                   <textarea
                     className="min-h-20 w-full resize-none rounded-app border border-line bg-white p-3 text-sm"
                     value={selectedPointer.instruction}
@@ -940,9 +1023,12 @@ function LoadedEditor({
                 "slide 1",
                 "executive tone",
                 "within budget",
-                `${activeSlidePointers.length} pointers`
+                `${activeSlidePointers.length} pointers`,
               ].map((chip) => (
-                <span key={chip} className="rounded-app border border-line px-2 py-1 text-xs font-medium text-muted">
+                <span
+                  key={chip}
+                  className="rounded-app border border-line px-2 py-1 text-xs font-medium text-muted"
+                >
                   {chip}
                 </span>
               ))}
@@ -964,7 +1050,11 @@ function LoadedEditor({
                     : "cursor-not-allowed bg-primary/40 text-white"
                 }`}
               >
-                {aiProposalStatus === "loading" ? <Loader2 className="animate-spin" size={16} /> : <ClipboardList size={16} />}
+                {aiProposalStatus === "loading" ? (
+                  <Loader2 className="animate-spin" size={16} />
+                ) : (
+                  <ClipboardList size={16} />
+                )}
                 {aiProposalStatus === "loading" ? "Building" : "Preview ops"}
               </button>
             </div>
@@ -1008,7 +1098,10 @@ function LoadedEditor({
                 </div>
                 <div className="mt-2 space-y-1">
                   {aiProposal.commands.map((entry, index) => (
-                    <div key={`${entry.command.type}-${index}`} className="text-xs leading-5 text-muted">
+                    <div
+                      key={`${entry.command.type}-${index}`}
+                      className="text-xs leading-5 text-muted"
+                    >
                       {index + 1}. {entry.description}
                     </div>
                   ))}
@@ -1036,7 +1129,7 @@ function EditorStateMessage({ title, message }: { title: string; message: string
 function usePresentationAutosave({
   document,
   presentationId,
-  setDocument
+  setDocument,
 }: {
   document: PresentationDocument;
   presentationId: string;
@@ -1070,7 +1163,7 @@ function usePresentationAutosave({
       void savePresentation({
         document,
         expectedUpdatedAt: savedUpdatedAtRef.current,
-        presentationId
+        presentationId,
       })
         .then((savedDocument) => {
           if (sequence !== saveSequenceRef.current) return;
@@ -1093,7 +1186,9 @@ function usePresentationAutosave({
         .catch((saveError: unknown) => {
           if (sequence !== saveSequenceRef.current) return;
           setStatus("failed");
-          setError(saveError instanceof Error ? saveError.message : "Presentation could not be saved.");
+          setError(
+            saveError instanceof Error ? saveError.message : "Presentation could not be saved.",
+          );
         });
     }, 800);
 
@@ -1108,7 +1203,7 @@ function usePresentationAutosave({
 async function savePresentation({
   document,
   expectedUpdatedAt,
-  presentationId
+  presentationId,
 }: {
   document: PresentationDocument;
   expectedUpdatedAt: string;
@@ -1117,7 +1212,7 @@ async function savePresentation({
   const response = await fetch(`/api/presentations/${encodeURIComponent(presentationId)}`, {
     body: JSON.stringify({ document, expectedUpdatedAt }),
     headers: { "Content-Type": "application/json" },
-    method: "PUT"
+    method: "PUT",
   });
   const payload = (await response.json()) as PresentationSaveResponse;
 
@@ -1173,9 +1268,9 @@ function readDocumentSlidePointers(document: PresentationDocument): SlidePointer
         label: pointer.label,
         slideId: slide.id,
         x: pointer.x,
-        y: pointer.y
-      }))
-    )
+        y: pointer.y,
+      })),
+    ),
   );
 }
 
@@ -1189,18 +1284,21 @@ function normalizeSlidePointers(pointers: readonly SlidePointer[]): SlidePointer
     return {
       ...pointer,
       instruction: pointer.instruction.trim() || "Describe the requested change here",
-      label: String(nextCount)
+      label: String(nextCount),
     };
   });
 }
 
 function syncDocumentSlidePointers(
   document: PresentationDocument,
-  pointers: readonly SlidePointer[]
+  pointers: readonly SlidePointer[],
 ): PresentationDocument {
   const pointersBySlide = new Map<string, SlidePointer[]>();
   for (const pointer of normalizeSlidePointers(pointers)) {
-    pointersBySlide.set(pointer.slideId, [...(pointersBySlide.get(pointer.slideId) ?? []), pointer]);
+    pointersBySlide.set(pointer.slideId, [
+      ...(pointersBySlide.get(pointer.slideId) ?? []),
+      pointer,
+    ]);
   }
 
   return {
@@ -1212,16 +1310,16 @@ function syncDocumentSlidePointers(
         instruction: pointer.instruction,
         label: pointer.label,
         x: pointer.x,
-        y: pointer.y
-      }))
-    }))
+        y: pointer.y,
+      })),
+    })),
   };
 }
 
 function cloneEditorSnapshot(snapshot: EditorSnapshot): EditorSnapshot {
   return {
     ...snapshot,
-    slidePointers: snapshot.slidePointers.map((pointer) => ({ ...pointer }))
+    slidePointers: snapshot.slidePointers.map((pointer) => ({ ...pointer })),
   };
 }
 

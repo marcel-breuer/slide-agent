@@ -1,5 +1,13 @@
-import type { PresentationDocument, SlideDocument, SlideElement } from "@slide-agent/presentation-schema";
-import { GLOBAL_MAX_SLIDES, LOGICAL_SLIDE_HEIGHT, LOGICAL_SLIDE_WIDTH } from "@slide-agent/presentation-schema";
+import type {
+  PresentationDocument,
+  SlideDocument,
+  SlideElement,
+} from "@slide-agent/presentation-schema";
+import {
+  GLOBAL_MAX_SLIDES,
+  LOGICAL_SLIDE_HEIGHT,
+  LOGICAL_SLIDE_WIDTH,
+} from "@slide-agent/presentation-schema";
 
 export type EditorCommand =
   | { type: "MOVE_ELEMENT"; slideId: string; elementId: string; dx: number; dy: number }
@@ -14,7 +22,11 @@ export type EditorCommand =
   | { type: "ADD_SLIDE"; slide: SlideDocument }
   | { type: "DELETE_SLIDE"; slideId: string }
   | { type: "MOVE_SLIDE"; slideId: string; toIndex: number }
-  | { type: "SET_SLIDE_AI_METADATA"; slideId: string; metadata: NonNullable<SlideDocument["aiMetadata"]> };
+  | {
+      type: "SET_SLIDE_AI_METADATA";
+      slideId: string;
+      metadata: NonNullable<SlideDocument["aiMetadata"]>;
+    };
 
 export type EditorHistoryEntry = {
   command: EditorCommand;
@@ -104,7 +116,7 @@ export function createEditorState(document: PresentationDocument): EditorState {
   return {
     document,
     redoStack: [],
-    undoStack: []
+    undoStack: [],
   };
 }
 
@@ -115,7 +127,7 @@ export function dispatchEditorCommand(state: EditorState, command: EditorCommand
   return {
     document: after,
     redoStack: [],
-    undoStack: [...state.undoStack, { after, before: state.document, command }]
+    undoStack: [...state.undoStack, { after, before: state.document, command }],
   };
 }
 
@@ -126,7 +138,7 @@ export function undoEditorCommand(state: EditorState): EditorState {
   return {
     document: entry.before,
     redoStack: [...state.redoStack, entry],
-    undoStack: state.undoStack.slice(0, -1)
+    undoStack: state.undoStack.slice(0, -1),
   };
 }
 
@@ -137,7 +149,7 @@ export function redoEditorCommand(state: EditorState): EditorState {
   return {
     document: entry.after,
     redoStack: state.redoStack.slice(0, -1),
-    undoStack: [...state.undoStack, entry]
+    undoStack: [...state.undoStack, entry],
   };
 }
 
@@ -190,11 +202,14 @@ export function createSlidePointer(input: CreateSlidePointerInput): SlidePointer
     label: input.label?.trim() || "1",
     x: clampCoordinate(input.x, LOGICAL_SLIDE_WIDTH),
     y: clampCoordinate(input.y, LOGICAL_SLIDE_HEIGHT),
-    instruction: input.instruction?.trim() || "Describe the requested change here"
+    instruction: input.instruction?.trim() || "Describe the requested change here",
   };
 }
 
-export function buildSlidePointerContext(slideId: string, pointers: readonly SlidePointer[]): string {
+export function buildSlidePointerContext(
+  slideId: string,
+  pointers: readonly SlidePointer[],
+): string {
   const slidePointers = pointers.filter((pointer) => pointer.slideId === slideId);
   if (slidePointers.length === 0) return "";
 
@@ -208,7 +223,7 @@ export function buildSlidePointerContext(slideId: string, pointers: readonly Sli
 }
 
 export function createPointerDrivenEditProposal(
-  input: CreatePointerDrivenEditProposalInput
+  input: CreatePointerDrivenEditProposalInput,
 ): PointerDrivenEditProposal {
   const prompt = input.prompt.trim();
   if (!prompt) throw new Error("Prompt is required.");
@@ -223,28 +238,39 @@ export function createPointerDrivenEditProposal(
   const pointerContext = buildSlidePointerContext(slide.id, slidePointers);
   const fullInstruction = [prompt, pointerContext].filter(Boolean).join("\n").toLowerCase();
   const color = extractHexColor(fullInstruction);
-  const operationId = input.operationId ?? `ai-edit-${Math.abs(hashText(`${slide.id}:${prompt}:${pointerContext}`))}`;
+  const operationId =
+    input.operationId ?? `ai-edit-${Math.abs(hashText(`${slide.id}:${prompt}:${pointerContext}`))}`;
   const generatedAt = input.now ?? new Date().toISOString();
   const commands: PointerDrivenEditProposalCommand[] = [];
 
   if (selectedElement?.type === "shape") {
-    const fill = color ?? input.document.theme.colors.accent ?? input.document.theme.colors.primary ?? "#2563eb";
+    const fill =
+      color ??
+      input.document.theme.colors.accent ??
+      input.document.theme.colors.primary ??
+      "#2563eb";
     commands.push({
-      command: { elementId: selectedElement.id, fill, slideId: slide.id, type: "UPDATE_SHAPE_FILL" },
-      description: `Update the selected ${selectedElement.semanticRole} shape fill to ${fill}.`
+      command: {
+        elementId: selectedElement.id,
+        fill,
+        slideId: slide.id,
+        type: "UPDATE_SHAPE_FILL",
+      },
+      description: `Update the selected ${selectedElement.semanticRole} shape fill to ${fill}.`,
     });
   } else if (mentionsTitle(fullInstruction) && slide.title) {
     const title = buildProposedTitle(slide.title, prompt);
     commands.push({
       command: { slideId: slide.id, title, type: "RENAME_SLIDE" },
-      description: `Rename the slide title to "${title}".`
+      description: `Rename the slide title to "${title}".`,
     });
   } else {
     const currentColor = slide.background.color ?? "#ffffff";
-    const backgroundColor = color ?? (currentColor.toLowerCase() === "#f8fafc" ? "#eef2ff" : "#f8fafc");
+    const backgroundColor =
+      color ?? (currentColor.toLowerCase() === "#f8fafc" ? "#eef2ff" : "#f8fafc");
     commands.push({
       command: { color: backgroundColor, slideId: slide.id, type: "UPDATE_SLIDE_BACKGROUND" },
-      description: `Update the slide background color to ${backgroundColor}.`
+      description: `Update the slide background color to ${backgroundColor}.`,
     });
   }
 
@@ -267,13 +293,16 @@ export function createPointerDrivenEditProposal(
       usage: input.usage ?? {
         inputTokens: estimateTokens(`${prompt}\n${JSON.stringify(slide)}\n${pointerContext}`),
         outputTokens: estimateTokens(JSON.stringify(commands)),
-        imageGenerations: 0
-      }
-    }
+        imageGenerations: 0,
+      },
+    },
   };
 }
 
-export function applyCommands(document: PresentationDocument, commands: readonly EditorCommand[]): PresentationDocument {
+export function applyCommands(
+  document: PresentationDocument,
+  commands: readonly EditorCommand[],
+): PresentationDocument {
   return commands.reduce((current, command) => applyCommand(current, command), document);
 }
 
@@ -310,18 +339,18 @@ export function createBlankSlide(input: CreateBlankSlideInput): SlideDocument {
                 fontWeight: "700",
                 italic: false,
                 underline: false,
-                color: input.textColor ?? "#0f172a"
-              }
+                color: input.textColor ?? "#0f172a",
+              },
             ],
             align: "left",
             lineHeight: 1.15,
             spacingAfter: 0,
             list: "none",
-            indent: 0
-          }
+            indent: 0,
+          },
         ],
         verticalAlign: "top",
-        autoFit: { enabled: true, minFontSize: 10, maxFontSize: 48 }
+        autoFit: { enabled: true, minFontSize: 10, maxFontSize: 48 },
       },
       {
         id: "accent-line",
@@ -335,9 +364,9 @@ export function createBlankSlide(input: CreateBlankSlideInput): SlideDocument {
         shape: "roundedRectangle",
         fill: input.accentColor ?? "#9333ea",
         borderColor: input.accentColor ?? "#9333ea",
-        borderWidth: 0
-      }
-    ]
+        borderWidth: 0,
+      },
+    ],
   };
 }
 
@@ -345,17 +374,23 @@ export function addSlideAfter(
   document: PresentationDocument,
   {
     afterSlideId,
-    slide
+    slide,
   }: {
     afterSlideId?: string;
     slide: SlideDocument;
-  }
+  },
 ): PresentationDocument {
   if (document.slides.length >= GLOBAL_MAX_SLIDES) return document;
 
-  const afterIndex = afterSlideId ? document.slides.findIndex((candidate) => candidate.id === afterSlideId) : -1;
+  const afterIndex = afterSlideId
+    ? document.slides.findIndex((candidate) => candidate.id === afterSlideId)
+    : -1;
   const insertIndex = afterIndex >= 0 ? afterIndex + 1 : document.slides.length;
-  const slides = [...document.slides.slice(0, insertIndex), slide, ...document.slides.slice(insertIndex)];
+  const slides = [
+    ...document.slides.slice(0, insertIndex),
+    slide,
+    ...document.slides.slice(insertIndex),
+  ];
 
   return { ...document, slides: normalizeSlideOrder(slides) };
 }
@@ -364,11 +399,11 @@ export function duplicateSlide(
   document: PresentationDocument,
   {
     newSlideId,
-    slideId
+    slideId,
   }: {
     newSlideId: string;
     slideId: string;
-  }
+  },
 ): PresentationDocument {
   if (document.slides.length >= GLOBAL_MAX_SLIDES) return document;
 
@@ -379,13 +414,13 @@ export function duplicateSlide(
   const duplicated: SlideDocument = {
     ...structuredCloneSlide(source),
     id: newSlideId,
-    title: source.title ? `${source.title} copy` : "Slide copy"
+    title: source.title ? `${source.title} copy` : "Slide copy",
   };
 
   const slides = [
     ...document.slides.slice(0, sourceIndex + 1),
     duplicated,
-    ...document.slides.slice(sourceIndex + 1)
+    ...document.slides.slice(sourceIndex + 1),
   ];
 
   return { ...document, slides: normalizeSlideOrder(slides) };
@@ -404,11 +439,11 @@ export function getSlideSelectionAfterDelete(
   document: PresentationDocument,
   {
     selectedSlideId,
-    slideId
+    slideId,
   }: {
     selectedSlideId: string;
     slideId: string;
-  }
+  },
 ): SlideSelectionAfterDelete {
   const deleteIndex = document.slides.findIndex((slide) => slide.id === slideId);
   if (document.slides.length <= 1 || deleteIndex < 0) {
@@ -427,11 +462,11 @@ export function moveSlide(
   document: PresentationDocument,
   {
     slideId,
-    toIndex
+    toIndex,
   }: {
     slideId: string;
     toIndex: number;
-  }
+  },
 ): PresentationDocument {
   const fromIndex = document.slides.findIndex((slide) => slide.id === slideId);
   if (fromIndex < 0) return document;
@@ -450,11 +485,11 @@ export function renameSlide(
   document: PresentationDocument,
   {
     slideId,
-    title
+    title,
   }: {
     slideId: string;
     title: string;
-  }
+  },
 ): PresentationDocument {
   const nextTitle = title.trim() || "Untitled slide";
 
@@ -465,21 +500,30 @@ export function renameSlide(
         ? {
             ...slide,
             title: nextTitle,
-            elements: slide.elements.map((element) => renameTitleElement(element, nextTitle))
+            elements: slide.elements.map((element) => renameTitleElement(element, nextTitle)),
           }
-        : slide
-    )
+        : slide,
+    ),
   };
 }
 
-function mapElement(slide: SlideDocument, elementId: string, update: (element: SlideElement) => SlideElement): SlideDocument {
+function mapElement(
+  slide: SlideDocument,
+  elementId: string,
+  update: (element: SlideElement) => SlideElement,
+): SlideDocument {
   return {
     ...slide,
-    elements: slide.elements.map((element) => (element.id === elementId ? update(element) : element))
+    elements: slide.elements.map((element) =>
+      element.id === elementId ? update(element) : element,
+    ),
   };
 }
 
-export function applyCommand(document: PresentationDocument, command: EditorCommand): PresentationDocument {
+export function applyCommand(
+  document: PresentationDocument,
+  command: EditorCommand,
+): PresentationDocument {
   switch (command.type) {
     case "MOVE_ELEMENT":
       return {
@@ -491,11 +535,11 @@ export function applyCommand(document: PresentationDocument, command: EditorComm
                 frame: {
                   ...element.frame,
                   x: element.frame.x + command.dx,
-                  y: element.frame.y + command.dy
-                }
+                  y: element.frame.y + command.dy,
+                },
               }))
-            : slide
-        )
+            : slide,
+        ),
       };
     case "RESIZE_ELEMENT":
       return {
@@ -507,20 +551,23 @@ export function applyCommand(document: PresentationDocument, command: EditorComm
                 frame: {
                   ...element.frame,
                   width: command.width,
-                  height: command.height
-                }
+                  height: command.height,
+                },
               }))
-            : slide
-        )
+            : slide,
+        ),
       };
     case "DELETE_ELEMENT":
       return {
         ...document,
         slides: document.slides.map((slide) =>
           slide.id === command.slideId
-            ? { ...slide, elements: slide.elements.filter((element) => element.id !== command.elementId) }
-            : slide
-        )
+            ? {
+                ...slide,
+                elements: slide.elements.filter((element) => element.id !== command.elementId),
+              }
+            : slide,
+        ),
       };
     case "RENAME_SLIDE":
       return renameSlide(document, { slideId: command.slideId, title: command.title });
@@ -530,10 +577,10 @@ export function applyCommand(document: PresentationDocument, command: EditorComm
         slides: document.slides.map((slide) =>
           slide.id === command.slideId
             ? mapElement(slide, command.elementId, (element) =>
-                element.type === "shape" ? { ...element, fill: command.fill } : element
+                element.type === "shape" ? { ...element, fill: command.fill } : element,
               )
-            : slide
-        )
+            : slide,
+        ),
       };
     case "UPDATE_SLIDE_BACKGROUND":
       return {
@@ -544,11 +591,11 @@ export function applyCommand(document: PresentationDocument, command: EditorComm
                 ...slide,
                 background: {
                   ...slide.background,
-                  color: command.color
-                }
+                  color: command.color,
+                },
               }
-            : slide
-        )
+            : slide,
+        ),
       };
     case "UPDATE_THEME_ACCENT":
       return {
@@ -558,9 +605,9 @@ export function applyCommand(document: PresentationDocument, command: EditorComm
           colors: {
             ...document.theme.colors,
             accent: command.color,
-            primary: command.color
-          }
-        }
+            primary: command.color,
+          },
+        },
       };
     case "DUPLICATE_SLIDE": {
       return duplicateSlide(document, { newSlideId: command.newSlideId, slideId: command.slideId });
@@ -568,7 +615,9 @@ export function applyCommand(document: PresentationDocument, command: EditorComm
     case "ADD_SLIDE_AFTER":
       return addSlideAfter(
         document,
-        command.afterSlideId ? { afterSlideId: command.afterSlideId, slide: command.slide } : { slide: command.slide }
+        command.afterSlideId
+          ? { afterSlideId: command.afterSlideId, slide: command.slide }
+          : { slide: command.slide },
       );
     case "ADD_SLIDE":
       return addSlideAfter(document, { slide: command.slide });
@@ -580,8 +629,8 @@ export function applyCommand(document: PresentationDocument, command: EditorComm
       return {
         ...document,
         slides: document.slides.map((slide) =>
-          slide.id === command.slideId ? { ...slide, aiMetadata: command.metadata } : slide
-        )
+          slide.id === command.slideId ? { ...slide, aiMetadata: command.metadata } : slide,
+        ),
       };
   }
 }
@@ -602,10 +651,10 @@ function renameTitleElement(element: SlideElement, title: string): SlideElement 
     paragraphs: [
       {
         ...firstParagraph,
-        runs: [{ ...firstRun, text: title }]
+        runs: [{ ...firstRun, text: title }],
       },
-      ...element.paragraphs.slice(1)
-    ]
+      ...element.paragraphs.slice(1),
+    ],
   };
 }
 

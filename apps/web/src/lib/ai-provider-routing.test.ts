@@ -6,7 +6,7 @@ import {
   aiProviderModeFromEnv,
   resolveAiEditRouting,
   type AiRoutingConfigurationError,
-  type StoredProviderCredential
+  type StoredProviderCredential,
 } from "./ai-provider-routing";
 
 describe("AI provider routing", () => {
@@ -25,7 +25,7 @@ describe("AI provider routing", () => {
       prompt: "Use #f8fafc near pointer 1.",
       remainingBudget: null,
       remainingTokens: null,
-      userId: "demo-user"
+      userId: "demo-user",
     });
 
     expect(routing.decision.provider).toBe("mock");
@@ -44,11 +44,11 @@ describe("AI provider routing", () => {
         prompt: "Use #f8fafc near pointer 1.",
         remainingBudget: null,
         remainingTokens: null,
-        userId: "demo-user"
-      })
+        userId: "demo-user",
+      }),
     ).rejects.toMatchObject({
       code: "AI_PROVIDER_NOT_CONFIGURED",
-      status: 409
+      status: 409,
     } satisfies Partial<AiRoutingConfigurationError>);
   });
 
@@ -61,7 +61,7 @@ describe("AI provider routing", () => {
       keyVersion: encrypted.keyVersion,
       maskedValue: encrypted.metadata.maskedValue,
       nonce: encrypted.nonce,
-      provider: "openai"
+      provider: "openai",
     };
     const routing = await resolveAiEditRouting({
       configurations: [{ baseUrl: null, enabled: true, provider: "openai" }],
@@ -72,7 +72,7 @@ describe("AI provider routing", () => {
       prompt: "Use #f8fafc near pointer 1.",
       remainingBudget: null,
       remainingTokens: null,
-      userId: "demo-user"
+      userId: "demo-user",
     });
 
     expect(routing.decision.provider).toBe("openai");

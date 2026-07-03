@@ -14,8 +14,8 @@ export async function POST(request: Request) {
       id: crypto.randomUUID(),
       ...parsed.data,
       requestedSlideCount: enforceSlideLimit(parsed.data.requestedSlideCount, 50, 50),
-      status: "DRAFT"
+      status: "DRAFT",
     },
-    201
+    201,
   );
 }

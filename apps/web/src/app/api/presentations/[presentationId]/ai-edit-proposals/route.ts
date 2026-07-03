@@ -2,17 +2,18 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import { createPointerDrivenEditProposal } from "@slide-agent/editor-core";
+import { ensureDemoPresentation, findPresentationDocument, prisma } from "@slide-agent/database";
 import {
-  ensureDemoPresentation,
-  findPresentationDocument,
-  prisma
-} from "@slide-agent/database";
-import { DEMO_PRESENTATION_ID, LOGICAL_SLIDE_HEIGHT, LOGICAL_SLIDE_WIDTH, PresentationDocumentSchema } from "@slide-agent/presentation-schema";
+  DEMO_PRESENTATION_ID,
+  LOGICAL_SLIDE_HEIGHT,
+  LOGICAL_SLIDE_WIDTH,
+  PresentationDocumentSchema,
+} from "@slide-agent/presentation-schema";
 
 import {
   AiRoutingConfigurationError,
   aiProviderModeFromEnv,
-  resolveAiEditRouting
+  resolveAiEditRouting,
 } from "../../../../../lib/ai-provider-routing";
 import { fail, ok } from "../../../../../lib/api";
 import { getAuthenticatedUserId } from "../../../../../lib/server-session";
@@ -29,7 +30,7 @@ const SlidePointerRequestSchema = z.object({
   label: z.string().min(1).max(12),
   x: z.number().finite().min(0).max(LOGICAL_SLIDE_WIDTH),
   y: z.number().finite().min(0).max(LOGICAL_SLIDE_HEIGHT),
-  instruction: z.string().min(1).max(1000)
+  instruction: z.string().min(1).max(1000),
 });
 
 const AiEditProposalRequestSchema = z.object({
@@ -37,7 +38,7 @@ const AiEditProposalRequestSchema = z.object({
   pointers: z.array(SlidePointerRequestSchema).max(25),
   prompt: z.string().trim().min(1).max(4000),
   selectedElementId: z.string().min(1).optional(),
-  slideId: z.string().min(1)
+  slideId: z.string().min(1),
 });
 
 export async function POST(request: Request, context: RouteContext) {
@@ -78,7 +79,7 @@ export async function POST(request: Request, context: RouteContext) {
       prompt: buildRoutingPrompt(parsed.data),
       remainingBudget: null,
       remainingTokens: null,
-      userId
+      userId,
     });
     const operationId = randomUUID();
     const proposalInput = {
@@ -90,7 +91,9 @@ export async function POST(request: Request, context: RouteContext) {
       provider: routing.decision.provider,
       slideId: parsed.data.slideId,
       usage: routing.usage,
-      ...(parsed.data.selectedElementId ? { selectedElementId: parsed.data.selectedElementId } : {})
+      ...(parsed.data.selectedElementId
+        ? { selectedElementId: parsed.data.selectedElementId }
+        : {}),
     };
     const proposal = createPointerDrivenEditProposal(proposalInput);
 
@@ -109,8 +112,8 @@ export async function POST(request: Request, context: RouteContext) {
         estimatedCost: routing.decision.estimatedCost.displayCost,
         status: "SUCCEEDED",
         promptVersion: proposal.metadata.promptVersion,
-        schemaVersion: parsed.data.document.schemaVersion
-      }
+        schemaVersion: parsed.data.document.schemaVersion,
+      },
     });
 
     return ok(proposal);
@@ -122,7 +125,7 @@ export async function POST(request: Request, context: RouteContext) {
     return fail(
       "PROPOSAL_FAILED",
       error instanceof Error ? error.message : "AI edit proposal could not be created.",
-      400
+      400,
     );
   }
 }
@@ -138,17 +141,17 @@ async function loadProviderContext(userId: string) {
         nonce: true,
         authTag: true,
         keyVersion: true,
-        maskedValue: true
-      }
+        maskedValue: true,
+      },
     }),
     prisma.providerConfiguration.findMany({
       where: { enabled: true },
       select: {
         provider: true,
         enabled: true,
-        baseUrl: true
-      }
-    })
+        baseUrl: true,
+      },
+    }),
   ]);
 
   return { credentials, configurations };
@@ -161,6 +164,6 @@ function buildRoutingPrompt(input: z.infer<typeof AiEditProposalRequestSchema>):
     prompt: input.prompt,
     slide,
     pointers: input.pointers,
-    selectedElementId: input.selectedElementId ?? null
+    selectedElementId: input.selectedElementId ?? null,
   });
 }

@@ -9,7 +9,7 @@ import {
   PresentationVersionConflictError,
   savePresentationDocument,
   type PresentationLookupClient,
-  type PresentationSaveClient
+  type PresentationSaveClient,
 } from "./presentations";
 
 describe("presentation document lookup", () => {
@@ -18,8 +18,8 @@ describe("presentation document lookup", () => {
       presentation: {
         async findUnique() {
           return null;
-        }
-      }
+        },
+      },
     };
 
     await expect(findPresentationDocument(client, "missing")).resolves.toBeNull();
@@ -43,11 +43,11 @@ describe("presentation document lookup", () => {
             slides: demo.slides.map((slide) => ({
               id: slide.id,
               order: slide.order,
-              document: slide
-            }))
+              document: slide,
+            })),
           };
-        }
-      }
+        },
+      },
     };
 
     const document = await findPresentationDocument(client, demo.id);
@@ -74,8 +74,8 @@ describe("presentation document lookup", () => {
       slides: demo.slides.map((slide) => ({
         id: slide.id,
         order: slide.order,
-        document: slide
-      }))
+        document: slide,
+      })),
     });
 
     expect(document.format).toBe("WIDE_16_9");
@@ -98,34 +98,37 @@ describe("presentation document lookup", () => {
                   instruction: "Make the metric clearer",
                   label: "1",
                   x: 240,
-                  y: 180
-                }
+                  y: 180,
+                },
               ],
-              title: "Updated title"
+              title: "Updated title",
             }
-          : slide
-      )
+          : slide,
+      ),
     };
-    const client = createInMemorySaveClient({
-      createdAt: now,
-      designContext: { theme: demo.theme },
-      format: demo.format,
-      id: demo.id,
-      outputLanguage: demo.locale,
-      ownerId: "user-1",
-      slides: demo.slides.map((slide) => ({
-        document: slide,
-        id: slide.id,
-        order: slide.order
-      })),
-      title: demo.title,
-      updatedAt: now
-    }, later);
+    const client = createInMemorySaveClient(
+      {
+        createdAt: now,
+        designContext: { theme: demo.theme },
+        format: demo.format,
+        id: demo.id,
+        outputLanguage: demo.locale,
+        ownerId: "user-1",
+        slides: demo.slides.map((slide) => ({
+          document: slide,
+          id: slide.id,
+          order: slide.order,
+        })),
+        title: demo.title,
+        updatedAt: now,
+      },
+      later,
+    );
 
     const saved = await savePresentationDocument(client, {
       document: updatedDocument,
       expectedUpdatedAt: now.toISOString(),
-      presentationId: demo.id
+      presentationId: demo.id,
     });
 
     expect(saved.metadata.updatedAt).toBe(later.toISOString());
@@ -136,8 +139,8 @@ describe("presentation document lookup", () => {
         instruction: "Make the metric clearer",
         label: "1",
         x: 240,
-        y: 180
-      }
+        y: 180,
+      },
     ]);
   });
 
@@ -155,25 +158,25 @@ describe("presentation document lookup", () => {
       slides: demo.slides.map((slide) => ({
         document: slide,
         id: slide.id,
-        order: slide.order
+        order: slide.order,
       })),
       title: demo.title,
-      updatedAt: now
+      updatedAt: now,
     });
 
     await expect(
       savePresentationDocument(client, {
         document: demo,
         expectedUpdatedAt: stale.toISOString(),
-        presentationId: demo.id
-      })
+        presentationId: demo.id,
+      }),
     ).rejects.toBeInstanceOf(PresentationVersionConflictError);
   });
 });
 
 function createInMemorySaveClient(
   initial: Awaited<ReturnType<PresentationLookupClient["presentation"]["findUnique"]>>,
-  nextUpdatedAt = new Date("2026-07-02T10:01:00.000Z")
+  nextUpdatedAt = new Date("2026-07-02T10:01:00.000Z"),
 ): PresentationSaveClient {
   if (!initial) throw new Error("Initial record is required.");
   let record = initial;
@@ -197,10 +200,10 @@ function createInMemorySaveClient(
           format: args.data.format,
           outputLanguage: args.data.outputLanguage,
           title: args.data.title,
-          updatedAt: nextUpdatedAt
+          updatedAt: nextUpdatedAt,
         };
         return { count: 1 };
-      }
+      },
     },
     slide: {
       async createMany(args) {
@@ -209,17 +212,17 @@ function createInMemorySaveClient(
           slides: args.data.map((slide) => ({
             document: slide.document as Prisma.JsonValue,
             id: slide.id,
-            order: slide.order
-          }))
+            order: slide.order,
+          })),
         };
       },
       async deleteMany() {
         record = {
           ...record,
-          slides: []
+          slides: [],
         };
-      }
-    }
+      },
+    },
   };
 
   return client;

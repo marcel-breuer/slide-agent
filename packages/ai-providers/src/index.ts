@@ -8,14 +8,14 @@ import type {
   StructuredGenerationResult,
   TextGenerationRequest,
   TextGenerationResult,
-  UsageEstimate
+  UsageEstimate,
 } from "@slide-agent/ai-core";
 
 function estimateFromPrompt(prompt: string, maxOutputTokens: number): UsageEstimate {
   return {
     inputTokens: Math.ceil(prompt.length / 4),
     outputTokens: maxOutputTokens,
-    imageGenerations: 0
+    imageGenerations: 0,
   };
 }
 
@@ -27,7 +27,9 @@ abstract class BaseProvider implements AiProvider {
     if (!input.apiKey && this.id !== "local-openai-compatible") {
       return { valid: false, errorCategory: "AUTHENTICATION_FAILED" };
     }
-    const maskedIdentifier = input.apiKey ? `${input.apiKey.slice(0, 3)}••••${input.apiKey.slice(-4)}` : input.baseUrl;
+    const maskedIdentifier = input.apiKey
+      ? `${input.apiKey.slice(0, 3)}••••${input.apiKey.slice(-4)}`
+      : input.baseUrl;
     return maskedIdentifier ? { valid: true, maskedIdentifier } : { valid: true };
   }
 
@@ -39,16 +41,18 @@ abstract class BaseProvider implements AiProvider {
     return {
       text: `Mock ${this.id} response for ${request.model}`,
       usage: estimateFromPrompt(request.prompt, request.maxOutputTokens),
-      finishReason: "stop"
+      finishReason: "stop",
     };
   }
 
-  async generateStructured<T>(request: StructuredGenerationRequest<T>): Promise<StructuredGenerationResult<T>> {
+  async generateStructured<T>(
+    request: StructuredGenerationRequest<T>,
+  ): Promise<StructuredGenerationResult<T>> {
     const parsed = request.schema.parse({});
     return {
       value: parsed,
       usage: estimateFromPrompt(request.prompt, request.maxOutputTokens),
-      finishReason: "stop"
+      finishReason: "stop",
     };
   }
 
@@ -69,7 +73,7 @@ export class OpenAiProvider extends BaseProvider {
       vision: true,
       imageGeneration: false,
       qualityTier: "high",
-      latencyTier: "standard"
+      latencyTier: "standard",
     },
     {
       provider: this.id,
@@ -80,8 +84,8 @@ export class OpenAiProvider extends BaseProvider {
       vision: true,
       imageGeneration: true,
       qualityTier: "high",
-      latencyTier: "slow"
-    }
+      latencyTier: "slow",
+    },
   ];
 }
 
@@ -97,8 +101,8 @@ export class AnthropicProvider extends BaseProvider {
       vision: true,
       imageGeneration: false,
       qualityTier: "high",
-      latencyTier: "standard"
-    }
+      latencyTier: "standard",
+    },
   ];
 }
 
@@ -114,8 +118,8 @@ export class GeminiProvider extends BaseProvider {
       vision: true,
       imageGeneration: false,
       qualityTier: "high",
-      latencyTier: "standard"
-    }
+      latencyTier: "standard",
+    },
   ];
 }
 
@@ -131,11 +135,16 @@ export class LocalOpenAiCompatibleProvider extends BaseProvider {
       vision: false,
       imageGeneration: false,
       qualityTier: "standard",
-      latencyTier: "low"
-    }
+      latencyTier: "low",
+    },
   ];
 }
 
 export function createDefaultProviders(): AiProvider[] {
-  return [new OpenAiProvider(), new AnthropicProvider(), new GeminiProvider(), new LocalOpenAiCompatibleProvider()];
+  return [
+    new OpenAiProvider(),
+    new AnthropicProvider(),
+    new GeminiProvider(),
+    new LocalOpenAiCompatibleProvider(),
+  ];
 }

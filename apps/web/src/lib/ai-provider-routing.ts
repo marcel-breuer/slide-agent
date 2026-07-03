@@ -1,8 +1,18 @@
-import type { AiProvider, RoutingDecision, RoutingModelPolicy, UsageEstimate } from "@slide-agent/ai-core";
+import type {
+  AiProvider,
+  RoutingDecision,
+  RoutingModelPolicy,
+  UsageEstimate,
+} from "@slide-agent/ai-core";
 import { routeModel } from "@slide-agent/ai-core";
 import { createDefaultProviders } from "@slide-agent/ai-providers";
 import { decryptCredential, type EncryptedCredential } from "@slide-agent/auth";
-import { estimateCost, type CostEstimate, type Currency, type PricingEntry } from "@slide-agent/pricing";
+import {
+  estimateCost,
+  type CostEstimate,
+  type Currency,
+  type PricingEntry,
+} from "@slide-agent/pricing";
 
 export type AiProviderMode = "configured" | "mock";
 
@@ -46,7 +56,7 @@ export class AiRoutingConfigurationError extends Error {
   constructor(
     public readonly code: string,
     message: string,
-    public readonly status = 400
+    public readonly status = 400,
   ) {
     super(message);
     this.name = "AiRoutingConfigurationError";
@@ -60,7 +70,7 @@ const mockEstimate: CostEstimate = {
   displayCurrency: "EUR",
   totalTokens: 1,
   uncertaintyLow: 0,
-  uncertaintyHigh: 0
+  uncertaintyHigh: 0,
 };
 
 const mockPolicy: RoutingModelPolicy = {
@@ -75,16 +85,21 @@ const mockPolicy: RoutingModelPolicy = {
   provider: "mock",
   qualityTier: "standard",
   structuredOutput: true,
-  vision: false
+  vision: false,
 };
 
 export function aiProviderModeFromEnv(env: Record<string, string | undefined>): AiProviderMode {
   return env.AI_PROVIDER_MODE === "configured" ? "configured" : "mock";
 }
 
-export async function resolveAiEditRouting(input: AiEditRoutingRequest): Promise<AiEditRoutingResult> {
+export async function resolveAiEditRouting(
+  input: AiEditRoutingRequest,
+): Promise<AiEditRoutingResult> {
   if (input.mode === "mock") {
-    const usage = estimateUsageFromPrompt(input.prompt, maxOutputTokensFromEnv(process.env.AI_MAX_OUTPUT_TOKENS));
+    const usage = estimateUsageFromPrompt(
+      input.prompt,
+      maxOutputTokensFromEnv(process.env.AI_MAX_OUTPUT_TOKENS),
+    );
     return {
       decision: routeModel(
         {
@@ -102,27 +117,36 @@ export async function resolveAiEditRouting(input: AiEditRoutingRequest): Promise
           providerHealth: { mock: "healthy" },
           retryAttempt: 0,
           localOnly: true,
-          estimates: { "mock:deterministic-pointer-proposal": { ...mockEstimate, totalTokens: usage.inputTokens + usage.outputTokens } }
+          estimates: {
+            "mock:deterministic-pointer-proposal": {
+              ...mockEstimate,
+              totalTokens: usage.inputTokens + usage.outputTokens,
+            },
+          },
         },
-        [mockPolicy]
+        [mockPolicy],
       ),
       mode: "mock",
-      usage
+      usage,
     };
   }
 
   const providers = createDefaultProviders();
   const providerById = new Map(providers.map((provider) => [provider.id, provider]));
   const enabledConfigurations = new Map(
-    input.configurations.filter((configuration) => configuration.enabled).map((configuration) => [configuration.provider, configuration])
+    input.configurations
+      .filter((configuration) => configuration.enabled)
+      .map((configuration) => [configuration.provider, configuration]),
   );
-  const enabledCredentials = input.credentials.filter((credential) => credential.enabled && providerById.has(credential.provider));
+  const enabledCredentials = input.credentials.filter(
+    (credential) => credential.enabled && providerById.has(credential.provider),
+  );
 
   if (enabledCredentials.length === 0) {
     throw new AiRoutingConfigurationError(
       "AI_PROVIDER_NOT_CONFIGURED",
       "Configure at least one AI provider before requesting an edit proposal.",
-      409
+      409,
     );
   }
 
@@ -135,14 +159,14 @@ export async function resolveAiEditRouting(input: AiEditRoutingRequest): Promise
     const apiKey = decryptCredential(toEncryptedCredential(credential), input.encryptionKey);
     const validation = await provider.validateCredential({
       apiKey,
-      ...(configuration?.baseUrl ? { baseUrl: configuration.baseUrl } : {})
+      ...(configuration?.baseUrl ? { baseUrl: configuration.baseUrl } : {}),
     });
 
     if (!validation.valid) {
       throw new AiRoutingConfigurationError(
         "AI_PROVIDER_CREDENTIAL_INVALID",
         `${credential.provider} credentials are not valid.`,
-        409
+        409,
       );
     }
 
@@ -153,15 +177,29 @@ export async function resolveAiEditRouting(input: AiEditRoutingRequest): Promise
     throw new AiRoutingConfigurationError(
       "AI_PROVIDER_NOT_CONFIGURED",
       "No enabled AI provider is available for edit proposals.",
-      409
+      409,
     );
   }
 
-  const usage = estimateUsageFromPrompt(input.prompt, maxOutputTokensFromEnv(process.env.AI_MAX_OUTPUT_TOKENS));
-  const policies = await buildRoutingPolicies(validatedProviders, input.userId, input.presentationId);
-  const estimates = buildEstimates(policies, usage, envCurrency(process.env.DEFAULT_CURRENCY), Number(process.env.USD_TO_EUR_EXCHANGE_RATE ?? 0.92));
+  const usage = estimateUsageFromPrompt(
+    input.prompt,
+    maxOutputTokensFromEnv(process.env.AI_MAX_OUTPUT_TOKENS),
+  );
+  const policies = await buildRoutingPolicies(
+    validatedProviders,
+    input.userId,
+    input.presentationId,
+  );
+  const estimates = buildEstimates(
+    policies,
+    usage,
+    envCurrency(process.env.DEFAULT_CURRENCY),
+    Number(process.env.USD_TO_EUR_EXCHANGE_RATE ?? 0.92),
+  );
   const configuredProviders = validatedProviders.map((provider) => provider.id);
-  const providerHealth = Object.fromEntries(configuredProviders.map((provider) => [provider, "healthy" as const]));
+  const providerHealth = Object.fromEntries(
+    configuredProviders.map((provider) => [provider, "healthy" as const]),
+  );
 
   return {
     decision: routeModel(
@@ -180,19 +218,19 @@ export async function resolveAiEditRouting(input: AiEditRoutingRequest): Promise
         providerHealth,
         retryAttempt: 0,
         localOnly: input.localOnly ?? false,
-        estimates
+        estimates,
       },
-      policies
+      policies,
     ),
     mode: "configured",
-    usage
+    usage,
   };
 }
 
 async function buildRoutingPolicies(
   providers: readonly AiProvider[],
   userId: string,
-  presentationId: string
+  presentationId: string,
 ): Promise<RoutingModelPolicy[]> {
   const policies: RoutingModelPolicy[] = [];
 
@@ -203,7 +241,7 @@ async function buildRoutingPolicies(
         ...model,
         active: true,
         local: provider.id === "local-openai-compatible",
-        priority: providerIndex * 100 + modelIndex + 1
+        priority: providerIndex * 100 + modelIndex + 1,
       });
     }
   }
@@ -215,7 +253,7 @@ function buildEstimates(
   policies: readonly RoutingModelPolicy[],
   usage: UsageEstimate,
   displayCurrency: Currency,
-  usdToEurRate: number
+  usdToEurRate: number,
 ): Record<string, CostEstimate> {
   return Object.fromEntries(
     policies.map((policy) => {
@@ -227,13 +265,13 @@ function buildEstimates(
           {
             inputTokens: usage.inputTokens,
             outputTokens: usage.outputTokens,
-            imageGenerations: usage.imageGenerations
+            imageGenerations: usage.imageGenerations,
           },
           displayCurrency,
-          usdToEurRate
-        )
+          usdToEurRate,
+        ),
       ];
-    })
+    }),
   );
 }
 
@@ -247,7 +285,7 @@ function pricingForPolicy(policy: RoutingModelPolicy): PricingEntry {
       inputPerMillion: 5,
       model: policy.model,
       outputPerMillion: 15,
-      provider: policy.provider
+      provider: policy.provider,
     };
   }
 
@@ -259,7 +297,7 @@ function pricingForPolicy(policy: RoutingModelPolicy): PricingEntry {
     inputPerMillion: policy.qualityTier === "high" ? 5 : 1,
     model: policy.model,
     outputPerMillion: policy.qualityTier === "high" ? 15 : 3,
-    provider: policy.provider
+    provider: policy.provider,
   };
 }
 
@@ -267,7 +305,7 @@ function estimateUsageFromPrompt(prompt: string, maxOutputTokens: number): Usage
   return {
     inputTokens: Math.max(1, Math.ceil(prompt.length / 4)),
     outputTokens: Math.max(1, maxOutputTokens),
-    imageGenerations: 0
+    imageGenerations: 0,
   };
 }
 
@@ -289,7 +327,7 @@ function toEncryptedCredential(credential: StoredProviderCredential): EncryptedC
     nonce: credential.nonce,
     metadata: {
       createdAt: new Date(0).toISOString(),
-      maskedValue: credential.maskedValue
-    }
+      maskedValue: credential.maskedValue,
+    },
   };
 }

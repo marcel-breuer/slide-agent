@@ -13,11 +13,11 @@ describe("pricing", () => {
         outputPerMillion: 8,
         imageGenerationUnit: 0,
         effectiveDate: new Date().toISOString(),
-        active: true
+        active: true,
       },
       { inputTokens: 100_000, outputTokens: 50_000 },
       "EUR",
-      0.92
+      0.92,
     );
 
     expect(estimate.totalTokens).toBe(150_000);

@@ -15,12 +15,14 @@ export type PresentationPreviewProps = {
 export function PresentationPreview({
   initialSlideId,
   onClose,
-  presentation
+  presentation,
 }: PresentationPreviewProps) {
-  const [previewSlideId, setPreviewSlideId] = useState(() => resolveInitialPreviewSlideId(presentation.slides, initialSlideId));
+  const [previewSlideId, setPreviewSlideId] = useState(() =>
+    resolveInitialPreviewSlideId(presentation.slides, initialSlideId),
+  );
   const activeSlideIndex = Math.max(
     0,
-    presentation.slides.findIndex((slide) => slide.id === previewSlideId)
+    presentation.slides.findIndex((slide) => slide.id === previewSlideId),
   );
   const activeSlide = presentation.slides[activeSlideIndex] ?? presentation.slides[0];
   const canGoPrevious = activeSlideIndex > 0;
@@ -55,13 +57,17 @@ export function PresentationPreview({
 
       if (["ArrowRight", "PageDown", " "].includes(key)) {
         event.preventDefault();
-        setPreviewSlideId((current) => getPreviewNavigationSlideId(presentation.slides, current, 1));
+        setPreviewSlideId((current) =>
+          getPreviewNavigationSlideId(presentation.slides, current, 1),
+        );
         return;
       }
 
       if (["ArrowLeft", "PageUp"].includes(key)) {
         event.preventDefault();
-        setPreviewSlideId((current) => getPreviewNavigationSlideId(presentation.slides, current, -1));
+        setPreviewSlideId((current) =>
+          getPreviewNavigationSlideId(presentation.slides, current, -1),
+        );
       }
     }
 
@@ -84,8 +90,12 @@ export function PresentationPreview({
     >
       <header className="flex min-h-16 items-center justify-between border-b border-white/10 px-4 py-3">
         <div className="min-w-0">
-          <div className="text-xs font-semibold uppercase tracking-wide text-white/60">{slideLabel}</div>
-          <h2 className="truncate text-base font-bold">{activeSlide.title ?? presentation.title}</h2>
+          <div className="text-xs font-semibold uppercase tracking-wide text-white/60">
+            {slideLabel}
+          </div>
+          <h2 className="truncate text-base font-bold">
+            {activeSlide.title ?? presentation.title}
+          </h2>
         </div>
         <button
           type="button"
@@ -102,21 +112,33 @@ export function PresentationPreview({
         <PreviewNavigationButton
           label="Previous slide"
           disabled={!canGoPrevious}
-          onClick={() => setPreviewSlideId((current) => getPreviewNavigationSlideId(presentation.slides, current, -1))}
+          onClick={() =>
+            setPreviewSlideId((current) =>
+              getPreviewNavigationSlideId(presentation.slides, current, -1),
+            )
+          }
         >
           <ChevronLeft size={24} />
         </PreviewNavigationButton>
 
         <div className="grid min-h-0 place-items-center">
           <div className="max-w-6xl" style={{ width: "min(100%, calc((100vh - 7rem) * 16 / 9))" }}>
-            <SlideRenderer interactionMode="preview" presentation={presentation} slide={activeSlide} />
+            <SlideRenderer
+              interactionMode="preview"
+              presentation={presentation}
+              slide={activeSlide}
+            />
           </div>
         </div>
 
         <PreviewNavigationButton
           label="Next slide"
           disabled={!canGoNext}
-          onClick={() => setPreviewSlideId((current) => getPreviewNavigationSlideId(presentation.slides, current, 1))}
+          onClick={() =>
+            setPreviewSlideId((current) =>
+              getPreviewNavigationSlideId(presentation.slides, current, 1),
+            )
+          }
         >
           <ChevronRight size={24} />
         </PreviewNavigationButton>
@@ -129,7 +151,7 @@ function PreviewNavigationButton({
   children,
   disabled,
   label,
-  onClick
+  onClick,
 }: {
   children: ReactNode;
   disabled: boolean;
@@ -154,20 +176,25 @@ function PreviewNavigationButton({
   );
 }
 
-export function resolveInitialPreviewSlideId(slides: readonly SlideDocument[], requestedSlideId: string): string {
-  return slides.some((slide) => slide.id === requestedSlideId) ? requestedSlideId : (slides[0]?.id ?? "");
+export function resolveInitialPreviewSlideId(
+  slides: readonly SlideDocument[],
+  requestedSlideId: string,
+): string {
+  return slides.some((slide) => slide.id === requestedSlideId)
+    ? requestedSlideId
+    : (slides[0]?.id ?? "");
 }
 
 export function getPreviewNavigationSlideId(
   slides: readonly SlideDocument[],
   currentSlideId: string,
-  delta: -1 | 1
+  delta: -1 | 1,
 ): string {
   if (slides.length === 0) return "";
 
   const currentIndex = Math.max(
     0,
-    slides.findIndex((slide) => slide.id === currentSlideId)
+    slides.findIndex((slide) => slide.id === currentSlideId),
   );
   const nextIndex = Math.min(slides.length - 1, Math.max(0, currentIndex + delta));
 

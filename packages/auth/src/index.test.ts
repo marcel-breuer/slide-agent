@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { decryptCredential, encryptCredential, hashPassword, maskSecret, verifyPassword } from "./index";
+import {
+  decryptCredential,
+  encryptCredential,
+  hashPassword,
+  maskSecret,
+  verifyPassword,
+} from "./index";
 
 describe("auth security helpers", () => {
   it("encrypts credentials without exposing plaintext", () => {
