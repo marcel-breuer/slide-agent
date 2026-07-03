@@ -4,9 +4,11 @@ This document tracks the remaining editor work for turning Slide Agent into a co
 
 ## Current State
 
-The editor loads persisted presentation documents, autosaves durable edits, supports slide structure editing, provides session-scoped undo/redo, creates pointer-driven edit proposals, opens a read-only preview, and exports the persisted document as a downloadable PowerPoint file with export metadata.
+The editor loads persisted presentation documents, autosaves durable edits, supports slide structure editing, provides session-scoped undo/redo, creates pointer-driven edit proposals, opens a read-only preview, imports uploaded `.pptx` files into editable structured decks, and exports the persisted document as a downloadable PowerPoint file with export metadata.
 
-The browser-rendered deck and exported `.pptx` file are generated from the same structured presentation schema. The remaining roadmap focuses on import, full account authorization, workspace management, and production operations.
+The browser-rendered deck, imported `.pptx` files, and exported `.pptx` files are connected through the same structured presentation schema. The remaining roadmap focuses on full account authorization, workspace management, and production operations.
+
+The detailed list of remaining app subpages is tracked in [App Subpages Implementation Plan](./app-subpages-implementation-plan.md).
 
 ## Delivery Rules
 
@@ -15,30 +17,6 @@ The browser-rendered deck and exported `.pptx` file are generated from the same 
 - Validate rendered editor behavior in the browser for every UI-affecting package.
 - Keep feature flags or temporary demo fallbacks explicit when a package cannot yet be fully production-backed.
 - Update this document when scope or sequencing changes.
-
-## Work Package 9: Import Flow
-
-Goal: Let users upload an existing `.pptx` and convert it into an editable structured deck.
-
-Required functionality:
-
-- Add upload UI and API route.
-- Store uploaded files in local file storage.
-- Run the importer package and create a presentation document.
-- Show import report warnings and unsupported features.
-- Open the created presentation in the editor.
-
-Acceptance criteria:
-
-- A valid `.pptx` upload creates an editable presentation.
-- Unsupported content is reported clearly.
-- Invalid uploads are rejected safely.
-
-Suggested validation:
-
-- Importer tests with fixture files.
-- API tests for valid, invalid, and oversized uploads.
-- Browser QA for upload -> report -> open editor.
 
 ## Work Package 10: Full Authentication And Authorization
 
@@ -126,4 +104,4 @@ Suggested validation:
 
 ## Immediate Next Step
 
-Start with Work Package 9: Import Flow. Export is now connected to the persisted document path, so import is the next missing end-to-end presentation file workflow.
+Start with Work Package 10: Full Authentication And Authorization. Import and export are now connected to persisted presentation documents, so demo-only authentication is the next production blocker.

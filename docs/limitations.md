@@ -6,6 +6,6 @@ Known limitations:
 
 - Authentication endpoints are structural and do not yet persist sessions.
 - Provider adapters are contract-complete placeholders and do not call paid APIs.
-- PPTX import performs safe package inspection but not detailed element conversion.
+- PPTX import stores uploaded files, creates editable text-first decks, and reports unsupported source content; it does not preserve full OOXML layout fidelity.
 - PPTX export supports native text, basic shapes, tables, and notes, with fallback warnings for richer elements.
 - Visual regression, E2E, and compatibility testing still need to be expanded.

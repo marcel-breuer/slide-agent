@@ -67,6 +67,9 @@ importers:
       "@slide-agent/pptx-exporter":
         specifier: workspace:*
         version: link:../../packages/pptx-exporter
+      "@slide-agent/pptx-importer":
+        specifier: workspace:*
+        version: link:../../packages/pptx-importer
       "@slide-agent/presentation-renderer":
         specifier: workspace:*
         version: link:../../packages/presentation-renderer
