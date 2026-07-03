@@ -19,6 +19,7 @@
     "@slide-agent/editor-core": "workspace:*",
     "@slide-agent/i18n": "workspace:*",
     "@slide-agent/pptx-exporter": "workspace:*",
+    "@slide-agent/pptx-importer": "workspace:*",
     "@slide-agent/presentation-renderer": "workspace:*",
     "@slide-agent/presentation-schema": "workspace:*",
     "@slide-agent/pricing": "workspace:*",

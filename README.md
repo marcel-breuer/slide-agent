@@ -13,7 +13,7 @@ This repository contains the MVP foundation:
 - Provider abstraction, deterministic model router, and provider adapters.
 - Credential encryption helpers and budget estimation logic.
 - Prisma schema covering users, projects, presentations, credentials, jobs, usage, imports, exports, and admin settings.
-- Initial PPTX importer inspection and native-oriented PPTX exporter package.
+- PPTX importer for uploaded text-first editable decks and native-oriented PPTX exporter package.
 - English/German i18n helper package.
 
 ## Local Development
@@ -65,7 +65,7 @@ docker compose -f compose.yaml -f compose.dev.yaml run --rm web pnpm db:seed
 
 ## Known Limitations
 
-This is a functional foundation, not the complete production MVP. Advanced authentication persistence, full provider API calls, detailed OOXML import conversion, full template-preserving export, visual regression tests, provider-backed generation, and deployment release automation still need completion before a first stable release.
+This is a functional foundation, not the complete production MVP. Advanced authentication persistence, full provider API calls, full-fidelity OOXML import conversion, full template-preserving export, visual regression tests, provider-backed generation, and deployment release automation still need completion before a first stable release.
 
 ## License
 

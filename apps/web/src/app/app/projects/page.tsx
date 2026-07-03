@@ -1,11 +1,10 @@
-import { SimpleRoutePage } from "@/components/simple-route-page";
+import { AppShell } from "@/components/app-shell";
+import { PresentationImportPanel } from "@/components/presentation-import-panel";
 
 export default function ProjectsPage() {
   return (
-    <SimpleRoutePage
-      protectedRoute
-      title="Projects"
-      description="Private project list scoped to the current user."
-    />
+    <AppShell>
+      <PresentationImportPanel />
+    </AppShell>
   );
 }
