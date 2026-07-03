@@ -81,9 +81,31 @@ type PresentationSaveResponse = PresentationApiResponse;
 
 type SaveStatus = "saved" | "dirty" | "saving" | "failed";
 type AiProposalStatus = "idle" | "loading" | "ready" | "failed";
+type ExportStatus = "idle" | "loading" | "ready" | "failed";
+
+type PresentationExportReport = {
+  elementCount: number;
+  nativeEditableElementCount: number;
+  pngFallbackCount: number;
+  slideCount: number;
+  svgFallbackCount: number;
+  warnings: string[];
+};
 
 type AiEditProposalApiResponse =
   | { ok: true; data: PointerDrivenEditProposal }
+  | { ok: false; error: { code: string; message: string } };
+
+type ExportApiResponse =
+  | {
+      ok: true;
+      data: {
+        downloadUrl: string;
+        exportId: string;
+        fileName: string;
+        report: PresentationExportReport;
+      };
+    }
   | { ok: false; error: { code: string; message: string } };
 
 type EditorSnapshot = {
@@ -266,6 +288,9 @@ function LoadedEditor({
   const [aiProposal, setAiProposal] = useState<PointerDrivenEditProposal | null>(null);
   const [aiProposalError, setAiProposalError] = useState<string | null>(null);
   const [aiProposalStatus, setAiProposalStatus] = useState<AiProposalStatus>("idle");
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportReport, setExportReport] = useState<PresentationExportReport | null>(null);
+  const [exportStatus, setExportStatus] = useState<ExportStatus>("idle");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [pointerMode, setPointerMode] = useState(false);
   const [slidePointers, setSlidePointers] = useState<SlidePointer[]>(() =>
@@ -290,6 +315,7 @@ function LoadedEditor({
   const canMoveSlideUp = activeSlideIndex > 0;
   const canRedo = editorHistory.redoStack.length > 0;
   const canUndo = editorHistory.undoStack.length > 0;
+  const canExport = saveStatus === "saved" && exportStatus !== "loading";
   const canRequestAiProposal = assistantText.trim().length > 0 && aiProposalStatus !== "loading";
 
   const thumbnails = document.slides.map((slide) => slide.title ?? `Slide ${slide.order}`);
@@ -652,6 +678,35 @@ function LoadedEditor({
     setAiProposalStatus("idle");
   }
 
+  async function exportDeck(): Promise<void> {
+    if (!canExport) return;
+
+    setExportError(null);
+    setExportReport(null);
+    setExportStatus("loading");
+
+    try {
+      const response = await fetch(
+        `/api/presentations/${encodeURIComponent(presentationId)}/exports`,
+        { method: "POST" },
+      );
+      const payload = (await response.json()) as ExportApiResponse;
+
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.ok ? "Presentation export failed." : payload.error.message);
+      }
+
+      setExportReport(payload.data.report);
+      setExportStatus("ready");
+      triggerDownload(payload.data.downloadUrl, payload.data.fileName);
+    } catch (error) {
+      setExportError(
+        error instanceof Error ? error.message : "Presentation export could not be created.",
+      );
+      setExportStatus("failed");
+    }
+  }
+
   return (
     <main className="editor-grid">
       {isPreviewOpen ? (
@@ -748,9 +803,20 @@ function LoadedEditor({
             <IconButton label="Preview" onClick={() => setIsPreviewOpen(true)}>
               <Eye size={17} />
             </IconButton>
-            <button className="flex h-9 items-center gap-2 rounded-app bg-ink px-3 text-sm font-semibold text-white">
-              <Download size={16} />
-              Export
+            <button
+              type="button"
+              disabled={!canExport}
+              onClick={() => void exportDeck()}
+              className={`flex h-9 items-center gap-2 rounded-app px-3 text-sm font-semibold text-white ${
+                canExport ? "bg-ink" : "cursor-not-allowed bg-ink/45"
+              }`}
+            >
+              {exportStatus === "loading" ? (
+                <Loader2 className="animate-spin" size={16} />
+              ) : (
+                <Download size={16} />
+              )}
+              {exportStatus === "loading" ? "Exporting" : "Export"}
             </button>
             <button
               type="button"
@@ -761,6 +827,21 @@ function LoadedEditor({
             </button>
           </div>
         </header>
+        {exportStatus === "failed" && exportError ? (
+          <div className="border-b border-red-200 bg-red-50 px-4 py-2 text-xs font-medium text-red-700">
+            {exportError}
+          </div>
+        ) : null}
+        {exportStatus === "ready" && exportReport ? (
+          <div className="border-b border-line bg-white px-4 py-2 text-xs font-medium text-muted">
+            Export ready: {exportReport.slideCount} slides,{" "}
+            {exportReport.nativeEditableElementCount} editable elements
+            {exportReport.warnings.length > 0
+              ? `, ${exportReport.warnings.length} compatibility warnings`
+              : ""}
+            .
+          </div>
+        ) : null}
 
         <div className="flex min-h-0 flex-1">
           <div className="w-28 shrink-0 border-r border-line bg-white p-3">
@@ -1234,6 +1315,16 @@ function saveStatusLabel(status: SaveStatus): string {
     case "saved":
       return "Saved";
   }
+}
+
+function triggerDownload(downloadUrl: string, fileName: string): void {
+  const link = globalThis.document.createElement("a");
+  link.href = downloadUrl;
+  link.download = fileName;
+  link.rel = "noopener";
+  globalThis.document.body.append(link);
+  link.click();
+  link.remove();
 }
 
 function selectedSlideStorageKey(presentationId: string): string {
