@@ -702,6 +702,7 @@ a:focus-visible {
 }
 
 .workflow-form input,
+.workflow-form select,
 .workflow-form textarea {
   min-width: 0;
   border: 1px solid var(--line);
@@ -713,7 +714,8 @@ a:focus-visible {
   text-transform: none;
 }
 
-.workflow-form input {
+.workflow-form input,
+.workflow-form select {
   height: 42px;
   padding: 0 12px;
 }
@@ -723,6 +725,25 @@ a:focus-visible {
   resize: vertical;
   padding: 10px 12px;
   line-height: 1.5;
+}
+
+.settings-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-form .workspace-button {
+  width: fit-content;
+}
+
+.settings-success {
+  margin: 0 0 14px;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  background: #f0fdf4;
+  padding: 10px 12px;
+  color: #166534;
+  font-size: 14px;
+  font-weight: 800;
 }
 
 .import-page {
@@ -1067,6 +1088,10 @@ a:focus-visible {
   }
 
   .workflow-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-form {
     grid-template-columns: 1fr;
   }
 

@@ -36,6 +36,10 @@ type ProjectApiResponse =
 type PresentationApiResponse =
   { ok: true; data: PresentationSummary } | { ok: false; error: { code: string; message: string } };
 
+type SettingsApiResponse =
+  | { ok: true; data: { defaultSlideCount: number } }
+  | { ok: false; error: { code: string; message: string } };
+
 export function ProjectDetailWorkspace({ projectId }: { projectId: string }): ReactElement {
   const [createTitle, setCreateTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -61,6 +65,12 @@ export function ProjectDetailWorkspace({ projectId }: { projectId: string }): Re
       setProject(payload.data);
       setName(payload.data.name);
       setDescription(payload.data.description ?? "");
+
+      const settingsResponse = await fetch("/api/settings");
+      const settingsPayload = (await settingsResponse.json()) as SettingsApiResponse;
+      if (settingsResponse.ok && settingsPayload.ok) {
+        setRequestedSlideCount(settingsPayload.data.defaultSlideCount);
+      }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Project could not be loaded.");
     } finally {

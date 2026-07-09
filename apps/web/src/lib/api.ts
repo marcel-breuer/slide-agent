@@ -16,5 +16,5 @@ export const ProjectInputSchema = z.object({
 export const PresentationInputSchema = z.object({
   projectId: z.string().min(1),
   title: z.string().trim().min(1).max(180),
-  requestedSlideCount: z.number().int().min(1).max(50).default(10),
+  requestedSlideCount: z.number().int().min(1).max(50).optional(),
 });

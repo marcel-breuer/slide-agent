@@ -1,11 +1,10 @@
-import { SimpleRoutePage } from "@/components/simple-route-page";
+import { AppShell } from "@/components/app-shell";
+import { LanguageSettings } from "@/components/language-settings";
 
 export default function LanguageSettingsPage() {
   return (
-    <SimpleRoutePage
-      protectedRoute
-      title="Language settings"
-      description="Independent UI and presentation output language settings."
-    />
+    <AppShell>
+      <LanguageSettings />
+    </AppShell>
   );
 }

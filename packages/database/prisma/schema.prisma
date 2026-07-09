@@ -108,8 +108,14 @@ model UserSettings {
   monthlyTokenBudget         Int?
   warningThresholdPercentage Int     @default(80)
   hardStopEnabled            Boolean @default(true)
+  defaultSlideCount          Int     @default(10)
   defaultTone                String  @default("professional")
   defaultAudience            String  @default("business")
+  defaultDetailLevel         String  @default("balanced")
+  defaultSpeakerNotes        String  @default("talking-points")
+  defaultImageryStyle        String  @default("minimal")
+  defaultExportFormat        String  @default("pptx")
+  defaultExportCompatibility String  @default("modern")
   user                       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
