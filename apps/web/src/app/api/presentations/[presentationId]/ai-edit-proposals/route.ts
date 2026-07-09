@@ -16,6 +16,7 @@ import {
   resolveAiEditRouting,
 } from "../../../../../lib/ai-provider-routing";
 import { fail, ok } from "../../../../../lib/api";
+import { budgetRoutingLimits, loadBudgetUsageSnapshot } from "../../../../../lib/budget-usage";
 import { getAuthenticatedUserId } from "../../../../../lib/server-session";
 
 type RouteContext = {
@@ -70,15 +71,25 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   try {
+    const budgetSnapshot = await loadBudgetUsageSnapshot(userId);
+    if (budgetSnapshot.usage.hardStopReached) {
+      return fail(
+        "BUDGET_LIMIT_REACHED",
+        "Monthly budget limits are reached. Update budget settings or wait until the next month.",
+        409,
+      );
+    }
+
     const providerContext = await loadProviderContext(userId);
+    const routingLimits = budgetRoutingLimits(budgetSnapshot);
     const routing = await resolveAiEditRouting({
       ...providerContext,
       encryptionKey: process.env.CREDENTIAL_ENCRYPTION_KEY ?? "local-dev-encryption-key",
       mode: aiProviderModeFromEnv(process.env),
       presentationId,
       prompt: buildRoutingPrompt(parsed.data),
-      remainingBudget: null,
-      remainingTokens: null,
+      remainingBudget: routingLimits.remainingBudget,
+      remainingTokens: routingLimits.remainingTokens,
       userId,
     });
     const operationId = randomUUID();
@@ -120,6 +131,14 @@ export async function POST(request: Request, context: RouteContext) {
   } catch (error) {
     if (error instanceof AiRoutingConfigurationError) {
       return fail(error.code, error.message, error.status);
+    }
+
+    if (error instanceof Error && error.message.includes("budget constraints")) {
+      return fail(
+        "BUDGET_LIMIT_REACHED",
+        "No available model can run within the remaining monthly budget limits.",
+        409,
+      );
     }
 
     return fail(
