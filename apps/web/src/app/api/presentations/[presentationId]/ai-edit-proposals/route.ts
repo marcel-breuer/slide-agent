@@ -145,11 +145,12 @@ async function loadProviderContext(userId: string) {
       },
     }),
     prisma.providerConfiguration.findMany({
-      where: { enabled: true },
+      where: { userId, enabled: true },
       select: {
         provider: true,
         enabled: true,
         baseUrl: true,
+        defaultModel: true,
       },
     }),
   ]);

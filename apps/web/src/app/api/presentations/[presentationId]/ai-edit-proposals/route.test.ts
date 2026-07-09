@@ -114,6 +114,11 @@ describe("AI edit proposals API", () => {
         }),
       }),
     );
+    expect(mockedProviderConfigurationFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "demo-user", enabled: true },
+      }),
+    );
   });
 
   it("returns a clear error when configured mode has no credentials", async () => {

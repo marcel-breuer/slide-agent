@@ -8,8 +8,19 @@ import { fail, ok } from "@/lib/api";
 import { getAuthenticatedUserId } from "@/lib/server-session";
 
 const ProviderVerificationSchema = z.object({
-  apiKey: z.string().optional(),
-  baseUrl: z.string().url().optional(),
+  apiKey: z
+    .string()
+    .trim()
+    .min(1)
+    .max(4000)
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+  baseUrl: z
+    .string()
+    .trim()
+    .url()
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
 });
 
 export async function POST(request: Request, context: { params: Promise<{ provider: string }> }) {
@@ -27,7 +38,7 @@ export async function POST(request: Request, context: { params: Promise<{ provid
     where: { userId_provider: { userId, provider: params.provider } },
   });
   const configuration = await prisma.providerConfiguration.findFirst({
-    where: { provider: params.provider, enabled: true },
+    where: { userId, provider: params.provider, enabled: true },
   });
   const apiKey =
     parsed.data.apiKey ??

@@ -54,6 +54,7 @@ model User {
   sessions       Session[]
   settings       UserSettings?
   credentials    ProviderCredential[]
+  providerConfigurations ProviderConfiguration[]
   projects       Project[]
   auditLogs      AuditLog[]
 
@@ -140,11 +141,17 @@ model ProviderCredential {
 
 model ProviderConfiguration {
   id        String   @id @default(uuid())
+  userId    String?
   provider  String
   baseUrl   String?
+  defaultModel String?
   enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([userId, enabled])
 }
 
 model Project {
