@@ -1,21 +1,175 @@
+/* global structuredClone */
+
+import { randomUUID } from "node:crypto";
+
+import { prisma, type Prisma } from "@slide-agent/database";
 import { enforceSlideLimit } from "@slide-agent/presentation-schema";
+import {
+  createDemoPresentationDocument,
+  validatePresentation,
+} from "@slide-agent/presentation-schema";
 
 import { PresentationInputSchema, fail, ok } from "@/lib/api";
+import { getAuthenticatedUserId } from "@/lib/server-session";
 
-export function GET() {
-  return ok([{ id: "demo-presentation", title: "Q3 Operating Review", status: "EDITING" }]);
+export async function GET(request: Request) {
+  const userId = await getAuthenticatedUserId();
+  if (!userId) return fail("UNAUTHORIZED", "A valid session is required.", 401);
+
+  const searchParams = new URL(request.url).searchParams;
+  const projectId = searchParams.get("projectId")?.trim();
+  const includeArchived = searchParams.get("includeArchived") === "true";
+
+  if (projectId) {
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, ownerId: userId },
+      select: { id: true },
+    });
+    if (!project) return fail("PROJECT_NOT_FOUND", "Project was not found.", 404);
+  }
+
+  const presentations = await prisma.presentation.findMany({
+    where: {
+      ownerId: userId,
+      ...(projectId ? { projectId } : {}),
+      ...(includeArchived ? {} : { archivedAt: null }),
+    },
+    orderBy: [{ archivedAt: "asc" }, { updatedAt: "desc" }],
+    select: {
+      id: true,
+      projectId: true,
+      title: true,
+      status: true,
+      requestedSlideCount: true,
+      archivedAt: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  return ok(presentations.map(toPresentationSummary));
 }
 
 export async function POST(request: Request) {
-  const parsed = PresentationInputSchema.safeParse(await request.json());
-  if (!parsed.success) return fail("VALIDATION_FAILED", "Presentation input is invalid.");
-  return ok(
-    {
-      id: crypto.randomUUID(),
-      ...parsed.data,
-      requestedSlideCount: enforceSlideLimit(parsed.data.requestedSlideCount, 50, 50),
-      status: "DRAFT",
+  const userId = await getAuthenticatedUserId();
+  if (!userId) return fail("UNAUTHORIZED", "A valid session is required.", 401);
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return fail("VALIDATION_FAILED", "Request body must be valid JSON.", 400);
+  }
+
+  const parsed = PresentationInputSchema.safeParse(body);
+  if (!parsed.success) return fail("VALIDATION_FAILED", "Presentation input is invalid.", 400);
+
+  const project = await prisma.project.findFirst({
+    where: { id: parsed.data.projectId, ownerId: userId, archivedAt: null },
+    select: { id: true },
+  });
+  if (!project) return fail("PROJECT_NOT_FOUND", "Project was not found.", 404);
+
+  const requestedSlideCount = enforceSlideLimit(parsed.data.requestedSlideCount, 50, 50);
+  const document = createPresentationDocument({
+    ownerId: userId,
+    presentationId: randomUUID(),
+    slideCount: requestedSlideCount,
+    title: parsed.data.title,
+  });
+
+  const presentation = await prisma.presentation.create({
+    data: {
+      id: document.id,
+      ownerId: userId,
+      projectId: project.id,
+      title: document.title,
+      status: "EDITING",
+      requestedSlideCount,
+      format: document.format,
+      outputLanguage: document.locale,
+      designContext: { theme: document.theme },
+      slides: {
+        create: document.slides.map((slide) => ({
+          id: slide.id,
+          order: slide.order,
+          document: slide as Prisma.InputJsonValue,
+        })),
+      },
     },
-    201,
-  );
+    select: {
+      id: true,
+      projectId: true,
+      title: true,
+      status: true,
+      requestedSlideCount: true,
+      archivedAt: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  return ok(toPresentationSummary(presentation), 201);
+}
+
+type PresentationSummaryRecord = {
+  id: string;
+  projectId: string;
+  title: string;
+  status: string;
+  requestedSlideCount: number;
+  archivedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+function toPresentationSummary(presentation: PresentationSummaryRecord) {
+  return {
+    id: presentation.id,
+    projectId: presentation.projectId,
+    title: presentation.title,
+    status: presentation.status,
+    requestedSlideCount: presentation.requestedSlideCount,
+    archivedAt: presentation.archivedAt?.toISOString() ?? null,
+    createdAt: presentation.createdAt.toISOString(),
+    updatedAt: presentation.updatedAt.toISOString(),
+    editorUrl: `/app/presentations/${encodeURIComponent(presentation.id)}/editor`,
+  };
+}
+
+function createPresentationDocument({
+  ownerId,
+  presentationId,
+  slideCount,
+  title,
+}: {
+  ownerId: string;
+  presentationId: string;
+  slideCount: number;
+  title: string;
+}) {
+  const now = new Date().toISOString();
+  const base = createDemoPresentationDocument({ ownerId, now });
+  const templateSlide = base.slides[0];
+
+  return validatePresentation({
+    ...base,
+    id: presentationId,
+    title,
+    metadata: {
+      ...base.metadata,
+      createdAt: now,
+      updatedAt: now,
+      ownerId,
+    },
+    slides: Array.from({ length: slideCount }, (_value, index) => {
+      const slide = structuredClone(templateSlide);
+      return {
+        ...slide,
+        id: randomUUID(),
+        order: index + 1,
+        title: index === 0 ? title : `${title} ${index + 1}`,
+      };
+    }),
+  });
 }

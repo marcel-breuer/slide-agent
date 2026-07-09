@@ -4,11 +4,12 @@ import {
   ensureDemoPresentation,
   findPresentationDocument,
   savePresentationDocument,
+  prisma,
 } from "@slide-agent/database";
 import { createDemoPresentationDocument } from "@slide-agent/presentation-schema";
 
 import { getAuthenticatedUserId } from "../../../../lib/server-session";
-import { GET, PUT } from "./route";
+import { GET, PATCH, PUT } from "./route";
 
 vi.mock("@slide-agent/database", () => {
   class PresentationForbiddenError extends Error {}
@@ -21,7 +22,12 @@ vi.mock("@slide-agent/database", () => {
     PresentationForbiddenError,
     PresentationNotFoundError,
     PresentationVersionConflictError,
-    prisma: {},
+    prisma: {
+      presentation: {
+        findFirst: vi.fn(),
+        updateMany: vi.fn(),
+      },
+    },
     savePresentationDocument: vi.fn(),
   };
 });
@@ -34,6 +40,12 @@ const mockedGetAuthenticatedUserId = vi.mocked(getAuthenticatedUserId);
 const mockedEnsureDemoPresentation = vi.mocked(ensureDemoPresentation);
 const mockedFindPresentationDocument = vi.mocked(findPresentationDocument);
 const mockedSavePresentationDocument = vi.mocked(savePresentationDocument);
+const mockedFindPresentation = prisma.presentation.findFirst as unknown as {
+  mockResolvedValue(value: unknown): void;
+};
+const mockedUpdatePresentation = prisma.presentation.updateMany as unknown as {
+  mockResolvedValue(value: unknown): void;
+};
 
 describe("presentation document API", () => {
   beforeEach(() => {
@@ -89,14 +101,44 @@ describe("presentation document API", () => {
 
     expect(response.status).toBe(200);
     expect(payload.ok).toBe(true);
-    expect(mockedSavePresentationDocument).toHaveBeenCalledWith(
-      {},
+    expect(mockedSavePresentationDocument).toHaveBeenCalledWith(prisma, {
+      document,
+      expectedUpdatedAt: document.metadata.updatedAt,
+      ownerId: "user-1",
+      presentationId: document.id,
+    });
+  });
+
+  it("archives presentations with the authenticated owner id", async () => {
+    mockedUpdatePresentation.mockResolvedValue({ count: 1 });
+    mockedFindPresentation.mockResolvedValue({
+      id: "presentation-1",
+      projectId: "project-1",
+      title: "Q3 Review",
+      status: "ARCHIVED",
+      requestedSlideCount: 10,
+      archivedAt: new Date("2026-07-09T09:00:00.000Z"),
+      createdAt: new Date("2026-07-09T08:00:00.000Z"),
+      updatedAt: new Date("2026-07-09T09:00:00.000Z"),
+    });
+
+    const response = await PATCH(
+      new Request("http://test.local", {
+        body: JSON.stringify({ archived: true }),
+        method: "PATCH",
+      }),
       {
-        document,
-        expectedUpdatedAt: document.metadata.updatedAt,
-        ownerId: "user-1",
-        presentationId: document.id,
+        params: Promise.resolve({ presentationId: "presentation-1" }),
       },
+    );
+    const payload = (await response.json()) as { data: { archivedAt: string | null } };
+
+    expect(response.status).toBe(200);
+    expect(payload.data.archivedAt).toBe("2026-07-09T09:00:00.000Z");
+    expect(prisma.presentation.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "presentation-1", ownerId: "user-1" },
+      }),
     );
   });
 });

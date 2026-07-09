@@ -25,6 +25,13 @@ const PresentationUpdateSchema = z.object({
   document: PresentationDocumentSchema,
 });
 
+const PresentationMetadataUpdateSchema = z
+  .object({
+    archived: z.boolean().optional(),
+    title: z.string().trim().min(1).max(180).optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0);
+
 export async function GET(_request: Request, context: RouteContext) {
   const userId = await getAuthenticatedUserId();
   if (!userId) {
@@ -99,4 +106,67 @@ export async function PUT(request: Request, context: RouteContext) {
 
     return fail("SAVE_FAILED", "Presentation could not be saved.", 500);
   }
+}
+
+export async function PATCH(request: Request, context: RouteContext) {
+  const userId = await getAuthenticatedUserId();
+  if (!userId) {
+    return fail("UNAUTHORIZED", "A valid session is required.", 401);
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return fail("VALIDATION_FAILED", "Request body must be valid JSON.", 400);
+  }
+
+  const parsed = PresentationMetadataUpdateSchema.safeParse(body);
+  if (!parsed.success) return fail("VALIDATION_FAILED", "Presentation update is invalid.", 400);
+
+  const { presentationId } = await context.params;
+  const updateResult = await prisma.presentation.updateMany({
+    where: { id: presentationId, ownerId: userId },
+    data: {
+      ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
+      ...(parsed.data.archived !== undefined
+        ? {
+            archivedAt: parsed.data.archived ? new Date() : null,
+            status: parsed.data.archived ? "ARCHIVED" : "EDITING",
+          }
+        : {}),
+    },
+  });
+
+  if (updateResult.count !== 1) {
+    return fail("PRESENTATION_NOT_FOUND", "Presentation was not found.", 404);
+  }
+
+  const presentation = await prisma.presentation.findFirst({
+    where: { id: presentationId, ownerId: userId },
+    select: {
+      id: true,
+      projectId: true,
+      title: true,
+      status: true,
+      requestedSlideCount: true,
+      archivedAt: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  if (!presentation) return fail("PRESENTATION_NOT_FOUND", "Presentation was not found.", 404);
+
+  return ok({
+    id: presentation.id,
+    projectId: presentation.projectId,
+    title: presentation.title,
+    status: presentation.status,
+    requestedSlideCount: presentation.requestedSlideCount,
+    archivedAt: presentation.archivedAt?.toISOString() ?? null,
+    createdAt: presentation.createdAt.toISOString(),
+    updatedAt: presentation.updatedAt.toISOString(),
+    editorUrl: `/app/presentations/${encodeURIComponent(presentation.id)}/editor`,
+  });
 }

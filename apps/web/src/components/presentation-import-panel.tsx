@@ -30,11 +30,7 @@ type ImportSummary = {
 type ImportApiResponse =
   { ok: true; data: ImportSummary } | { ok: false; error: { code: string; message: string } };
 
-export function PresentationImportPanel({
-  projectId = "project-demo",
-}: {
-  projectId?: string;
-}): ReactElement {
+export function PresentationImportPanel({ projectId }: { projectId: string }): ReactElement {
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);

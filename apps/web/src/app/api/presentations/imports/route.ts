@@ -1,11 +1,6 @@
 /* global File, FormData */
 
-import {
-  DEMO_PROJECT_ID,
-  DEMO_USER_ID,
-  ensureDemoPresentation,
-  prisma,
-} from "@slide-agent/database";
+import { prisma } from "@slide-agent/database";
 
 import {
   createPptxImport,
@@ -49,9 +44,7 @@ export async function POST(request: Request) {
   }
 
   const projectId = getProjectId(formData);
-  if (userId === DEMO_USER_ID && projectId === DEMO_PROJECT_ID) {
-    await ensureDemoPresentation(prisma);
-  }
+  if (!projectId) return fail("VALIDATION_FAILED", "A project id is required.", 400);
 
   try {
     const summary = await createPptxImport({
@@ -77,9 +70,9 @@ export async function POST(request: Request) {
   }
 }
 
-function getProjectId(formData: FormData): string {
+function getProjectId(formData: FormData): string | null {
   const value = formData.get("projectId");
-  return typeof value === "string" && value.trim() ? value.trim() : DEMO_PROJECT_ID;
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 function isPptxFile(file: File): boolean {
