@@ -8,11 +8,15 @@ import {
   PresentationExportFailedError,
 } from "../../../../../lib/presentation-exports";
 import { getAuthenticatedUserId } from "../../../../../lib/server-session";
-import { POST } from "./route";
+import { GET, POST } from "./route";
 
 vi.mock("@slide-agent/database", () => ({
   ensureDemoPresentation: vi.fn(),
-  prisma: {},
+  prisma: {
+    presentation: {
+      findFirst: vi.fn(),
+    },
+  },
 }));
 
 vi.mock("../../../../../lib/presentation-exports", () => {
@@ -35,6 +39,8 @@ vi.mock("../../../../../lib/server-session", () => ({
 const mockedGetAuthenticatedUserId = vi.mocked(getAuthenticatedUserId);
 const mockedCreatePptxExport = createPptxExport as unknown as Mock;
 const mockedEnsureDemoPresentation = vi.mocked(ensureDemoPresentation);
+const mockedPrisma = await import("@slide-agent/database");
+const mockedFindPresentation = mockedPrisma.prisma.presentation.findFirst as unknown as Mock;
 
 describe("presentation export API", () => {
   beforeEach(() => {
@@ -86,7 +92,7 @@ describe("presentation export API", () => {
     expect(payload.data.id).toBe("export-1");
     expect(mockedEnsureDemoPresentation).toHaveBeenCalled();
     expect(mockedCreatePptxExport).toHaveBeenCalledWith({
-      client: {},
+      client: mockedPrisma.prisma,
       presentationId: "demo-presentation",
       userId: "demo-user",
     });
@@ -106,5 +112,40 @@ describe("presentation export API", () => {
     expect(response.status).toBe(500);
     expect(payload.error.code).toBe("EXPORT_FAILED");
     expect(payload.error.message).toBe("Render failed");
+  });
+
+  it("lists existing exports for the authenticated owner", async () => {
+    mockedFindPresentation.mockResolvedValue({
+      id: "presentation-1",
+      title: "Q3 Review",
+      exports: [
+        {
+          id: "export-1",
+          report: {
+            byteSize: 2048,
+            fileName: "q3-review.pptx",
+            slideCount: 3,
+          },
+          createdAt: new Date("2026-07-09T10:00:00.000Z"),
+        },
+      ],
+    });
+
+    const response = await GET(new Request("http://test.local"), {
+      params: Promise.resolve({ presentationId: "presentation-1" }),
+    });
+    const payload = (await response.json()) as {
+      ok: boolean;
+      data: Array<{ downloadUrl: string; fileName: string }>;
+    };
+
+    expect(response.status).toBe(200);
+    expect(payload.data[0]?.fileName).toBe("q3-review.pptx");
+    expect(payload.data[0]?.downloadUrl).toBe(
+      "/api/presentations/presentation-1/exports/export-1/download",
+    );
+    expect(mockedFindPresentation).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "presentation-1", ownerId: "demo-user" } }),
+    );
   });
 });

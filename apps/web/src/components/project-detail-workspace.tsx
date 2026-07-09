@@ -366,12 +366,13 @@ function PresentationList({
         <ul className="workspace-list">
           {presentations.map((presentation) => {
             const archived = Boolean(presentation.archivedAt);
+            const overviewUrl = `/app/presentations/${encodeURIComponent(presentation.id)}`;
 
             return (
               <li className="workspace-item" key={presentation.id}>
                 <div className="workspace-item-main">
                   <div className="workspace-item-title">
-                    <Link href={presentation.editorUrl as Route}>{presentation.title}</Link>
+                    <Link href={overviewUrl as Route}>{presentation.title}</Link>
                   </div>
                   <p className="workspace-meta">
                     {presentation.status} · {presentation.requestedSlideCount} slides
@@ -393,8 +394,13 @@ function PresentationList({
                 </div>
                 <div className="workspace-actions">
                   {!archived ? (
+                    <Link className="workspace-button" href={overviewUrl as Route}>
+                      Workflow
+                    </Link>
+                  ) : null}
+                  {!archived ? (
                     <Link className="workspace-button" href={presentation.editorUrl as Route}>
-                      Open
+                      Editor
                       <ExternalLink size={16} aria-hidden="true" />
                     </Link>
                   ) : null}

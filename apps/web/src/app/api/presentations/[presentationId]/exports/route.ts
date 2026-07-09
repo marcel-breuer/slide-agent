@@ -51,3 +51,54 @@ export async function POST(_request: Request, context: RouteContext) {
     return fail("EXPORT_FAILED", "Presentation export could not be created.", 500);
   }
 }
+
+export async function GET(_request: Request, context: RouteContext) {
+  const userId = await getAuthenticatedUserId();
+  if (!userId) {
+    return fail("UNAUTHORIZED", "A valid session is required.", 401);
+  }
+
+  const { presentationId } = await context.params;
+  const presentation = await prisma.presentation.findFirst({
+    where: { id: presentationId, ownerId: userId },
+    select: {
+      id: true,
+      title: true,
+      exports: {
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        select: {
+          id: true,
+          report: true,
+          createdAt: true,
+        },
+      },
+    },
+  });
+
+  if (!presentation) return fail("PRESENTATION_NOT_FOUND", "Presentation was not found.", 404);
+
+  return ok(
+    presentation.exports.map((exportRecord) => {
+      const report =
+        exportRecord.report !== null &&
+        typeof exportRecord.report === "object" &&
+        !Array.isArray(exportRecord.report)
+          ? (exportRecord.report as Record<string, unknown>)
+          : {};
+
+      return {
+        id: exportRecord.id,
+        presentationId,
+        fileName:
+          typeof report.fileName === "string" ? report.fileName : `${presentation.title}.pptx`,
+        byteSize: typeof report.byteSize === "number" ? report.byteSize : null,
+        slideCount: typeof report.slideCount === "number" ? report.slideCount : null,
+        createdAt: exportRecord.createdAt.toISOString(),
+        downloadUrl: `/api/presentations/${encodeURIComponent(
+          presentationId,
+        )}/exports/${encodeURIComponent(exportRecord.id)}/download`,
+      };
+    }),
+  );
+}
