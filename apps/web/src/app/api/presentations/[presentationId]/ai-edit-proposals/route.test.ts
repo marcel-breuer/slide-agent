@@ -1,15 +1,11 @@
-import { cookies } from "next/headers";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { Mock } from "vitest";
 
 import { findPresentationDocument, ensureDemoPresentation, prisma } from "@slide-agent/database";
 import { createDemoPresentationDocument } from "@slide-agent/presentation-schema";
 
+import { getAuthenticatedUserId } from "../../../../../lib/server-session";
 import { POST } from "./route";
-
-vi.mock("next/headers", () => ({
-  cookies: vi.fn(),
-}));
 
 vi.mock("@slide-agent/database", () => ({
   DEMO_USER_ID: "demo-user",
@@ -28,7 +24,11 @@ vi.mock("@slide-agent/database", () => ({
   },
 }));
 
-const mockedCookies = vi.mocked(cookies);
+vi.mock("../../../../../lib/server-session", () => ({
+  getAuthenticatedUserId: vi.fn(),
+}));
+
+const mockedGetAuthenticatedUserId = vi.mocked(getAuthenticatedUserId);
 const mockedEnsureDemoPresentation = vi.mocked(ensureDemoPresentation);
 const mockedFindPresentationDocument = vi.mocked(findPresentationDocument);
 const mockedAiOperationCreate = prisma.aiOperation.create as unknown as Mock;
@@ -40,6 +40,7 @@ describe("AI edit proposals API", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     process.env.AI_PROVIDER_MODE = "mock";
+    mockedGetAuthenticatedUserId.mockResolvedValue("demo-user");
     mockedEnsureDemoPresentation.mockResolvedValue("demo-presentation");
     mockedProviderCredentialFindMany.mockResolvedValue([]);
     mockedProviderConfigurationFindMany.mockResolvedValue([]);
@@ -47,7 +48,7 @@ describe("AI edit proposals API", () => {
   });
 
   it("requires an authenticated session", async () => {
-    mockedCookies.mockResolvedValue({ get: () => undefined } as never);
+    mockedGetAuthenticatedUserId.mockResolvedValue(null);
 
     const response = await POST(new Request("http://test.local"), {
       params: Promise.resolve({ presentationId: "demo-presentation" }),
@@ -61,7 +62,6 @@ describe("AI edit proposals API", () => {
 
   it("returns a deterministic proposal for pointer-guided input", async () => {
     const document = createDemoPresentationDocument({ now: "2026-07-02T12:00:00.000Z" });
-    mockedCookies.mockResolvedValue({ get: () => ({ value: "session" }) } as never);
     mockedFindPresentationDocument.mockResolvedValue(document);
 
     const response = await POST(
@@ -119,7 +119,6 @@ describe("AI edit proposals API", () => {
   it("returns a clear error when configured mode has no credentials", async () => {
     process.env.AI_PROVIDER_MODE = "configured";
     const document = createDemoPresentationDocument({ now: "2026-07-02T12:00:00.000Z" });
-    mockedCookies.mockResolvedValue({ get: () => ({ value: "session" }) } as never);
     mockedFindPresentationDocument.mockResolvedValue(document);
 
     const response = await POST(

@@ -43,7 +43,7 @@ export type PresentationLookupClient = {
 type PresentationMutationClient = PresentationLookupClient & {
   presentation: PresentationLookupClient["presentation"] & {
     updateMany(args: {
-      where: { id: string; updatedAt: Date };
+      where: { id: string; ownerId?: string; updatedAt: Date };
       data: {
         title: string;
         format: string;
@@ -83,6 +83,13 @@ export class PresentationVersionConflictError extends Error {
   }
 }
 
+export class PresentationForbiddenError extends Error {
+  constructor(presentationId: string) {
+    super(`Presentation is not available for this user: ${presentationId}`);
+    this.name = "PresentationForbiddenError";
+  }
+}
+
 export async function findPresentationDocument(
   client: PresentationLookupClient,
   presentationId: string,
@@ -102,10 +109,12 @@ export async function savePresentationDocument(
     presentationId,
     expectedUpdatedAt,
     document,
+    ownerId,
   }: {
     presentationId: string;
     expectedUpdatedAt: string;
     document: unknown;
+    ownerId?: string;
   },
 ): Promise<PresentationDocument> {
   const nextDocument = migratePresentationDocument(document);
@@ -128,8 +137,16 @@ export async function savePresentationDocument(
       throw new PresentationNotFoundError(presentationId);
     }
 
+    if (ownerId && existing.ownerId !== ownerId) {
+      throw new PresentationForbiddenError(presentationId);
+    }
+
+    const updateWhere = ownerId
+      ? { id: presentationId, ownerId, updatedAt: expectedUpdatedAtDate }
+      : { id: presentationId, updatedAt: expectedUpdatedAtDate };
+
     const updateResult = await transaction.presentation.updateMany({
-      where: { id: presentationId, updatedAt: expectedUpdatedAtDate },
+      where: updateWhere,
       data: {
         title: nextDocument.title,
         format: nextDocument.format,

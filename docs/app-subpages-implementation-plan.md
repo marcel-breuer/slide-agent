@@ -39,7 +39,7 @@ This plan tracks the application subpages that still need production-backed impl
    - Acceptance: saved defaults are applied when creating a new presentation and are visible when editing settings again.
 
 4. **Provider, budget, and security settings**
-   - Implement provider credentials, budget controls, and security settings after full authentication and authorization are in place.
+   - Implement provider credentials, budget controls, and security settings on top of the database-backed authentication and authorization foundation.
    - Acceptance: protected settings are user-owned, sensitive values are never returned in plaintext, and unauthorized API access is rejected.
 
 5. **Design profile management**
@@ -52,7 +52,7 @@ This plan tracks the application subpages that still need production-backed impl
 
 ## Dependencies
 
-- Full authentication and authorization must land before protected settings can be production-ready.
+- Database-backed authentication and authorization are available for protected app pages and API routes.
 - Project and presentation CRUD must land before contextual presentation pages can remove demo fallbacks.
 - Provider credentials must remain encrypted at rest and masked in every browser response.
 - External input for imported profiles, attachments, and presentation data must continue to pass runtime schema validation.

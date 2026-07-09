@@ -4,13 +4,16 @@ import {
   DEFAULT_AUTHENTICATED_PATH,
   isProtectedPath,
   isPublicAuthPath,
+  readSessionTokenFromCookie,
   sanitizeNextPath,
   SESSION_COOKIE_NAME,
 } from "@/lib/auth-session";
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const hasSession = Boolean(request.cookies.get(SESSION_COOKIE_NAME)?.value);
+  const hasSession = Boolean(
+    await readSessionTokenFromCookie(request.cookies.get(SESSION_COOKIE_NAME)?.value),
+  );
 
   if (isProtectedPath(pathname) && !hasSession) {
     const loginUrl = request.nextUrl.clone();

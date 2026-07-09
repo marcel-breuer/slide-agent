@@ -18,7 +18,7 @@ export default async function LoginPage({
           </p>
           <h1 className="text-2xl font-bold text-ink">Sign in</h1>
           <p className="mt-2 text-sm leading-6 text-muted">
-            Use the demo credentials to open the private workspace.
+            Sign in with your account to open the private workspace.
           </p>
         </div>
         <LoginForm nextPath={nextPath} />

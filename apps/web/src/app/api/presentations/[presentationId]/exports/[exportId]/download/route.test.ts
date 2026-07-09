@@ -1,18 +1,13 @@
-import { cookies } from "next/headers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
 
 import { ensureDemoPresentation } from "@slide-agent/database";
 
 import { readPptxExportDownload } from "../../../../../../../lib/presentation-exports";
+import { getAuthenticatedUserId } from "../../../../../../../lib/server-session";
 import { GET } from "./route";
 
-vi.mock("next/headers", () => ({
-  cookies: vi.fn(),
-}));
-
 vi.mock("@slide-agent/database", () => ({
-  DEMO_USER_ID: "demo-user",
   ensureDemoPresentation: vi.fn(),
   prisma: {},
 }));
@@ -29,18 +24,23 @@ vi.mock("../../../../../../../lib/presentation-exports", () => {
   };
 });
 
-const mockedCookies = vi.mocked(cookies);
+vi.mock("../../../../../../../lib/server-session", () => ({
+  getAuthenticatedUserId: vi.fn(),
+}));
+
+const mockedGetAuthenticatedUserId = vi.mocked(getAuthenticatedUserId);
 const mockedEnsureDemoPresentation = vi.mocked(ensureDemoPresentation);
 const mockedReadPptxExportDownload = readPptxExportDownload as unknown as Mock;
 
 describe("presentation export download API", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mockedGetAuthenticatedUserId.mockResolvedValue("demo-user");
     mockedEnsureDemoPresentation.mockResolvedValue("demo-presentation");
   });
 
   it("requires an authenticated session", async () => {
-    mockedCookies.mockResolvedValue({ get: () => undefined } as never);
+    mockedGetAuthenticatedUserId.mockResolvedValue(null);
 
     const response = await GET(new Request("http://test.local"), {
       params: Promise.resolve({ presentationId: "demo-presentation", exportId: "export-1" }),
@@ -53,7 +53,6 @@ describe("presentation export download API", () => {
   });
 
   it("streams a PowerPoint export download", async () => {
-    mockedCookies.mockResolvedValue({ get: () => ({ value: "session" }) } as never);
     mockedReadPptxExportDownload.mockResolvedValue({
       bytes: new Uint8Array([1, 2, 3]),
       fileName: "demo.pptx",
