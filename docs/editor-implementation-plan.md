@@ -4,9 +4,9 @@ This document tracks the remaining editor work for turning Slide Agent into a co
 
 ## Current State
 
-The editor loads persisted presentation documents, autosaves durable edits, supports slide structure editing, provides session-scoped undo/redo, creates pointer-driven edit proposals, opens a read-only preview, imports uploaded `.pptx` files into editable structured decks, exports the persisted document as a downloadable PowerPoint file with export metadata, and sits inside database-backed project, presentation, and workflow pages.
+The editor loads persisted presentation documents, autosaves durable edits, supports slide structure editing, provides session-scoped undo/redo, creates pointer-driven edit proposals, opens a read-only preview, imports uploaded `.pptx` files into editable structured decks, exports the persisted document as a downloadable PowerPoint file with export metadata, and sits inside database-backed project, presentation, workflow, and presentation-default settings pages.
 
-The browser-rendered deck, imported `.pptx` files, and exported `.pptx` files are connected through the same structured presentation schema. The remaining roadmap focuses on defaults, account settings, design profiles, and production operations.
+The browser-rendered deck, imported `.pptx` files, and exported `.pptx` files are connected through the same structured presentation schema. The remaining roadmap focuses on account settings, design profiles, and production operations.
 
 The detailed list of remaining app subpages is tracked in [App Subpages Implementation Plan](./app-subpages-implementation-plan.md).
 

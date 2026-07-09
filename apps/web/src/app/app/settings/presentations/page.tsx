@@ -1,11 +1,10 @@
-import { SimpleRoutePage } from "@/components/simple-route-page";
+import { AppShell } from "@/components/app-shell";
+import { PresentationDefaultsSettings } from "@/components/presentation-defaults-settings";
 
 export default function PresentationSettingsPage() {
   return (
-    <SimpleRoutePage
-      protectedRoute
-      title="Presentation defaults"
-      description="Default slide count, tone, audience, detail, notes, and images."
-    />
+    <AppShell>
+      <PresentationDefaultsSettings />
+    </AppShell>
   );
 }

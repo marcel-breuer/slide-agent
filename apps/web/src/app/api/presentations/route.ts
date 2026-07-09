@@ -70,8 +70,18 @@ export async function POST(request: Request) {
   });
   if (!project) return fail("PROJECT_NOT_FOUND", "Project was not found.", 404);
 
-  const requestedSlideCount = enforceSlideLimit(parsed.data.requestedSlideCount, 50, 50);
+  const settings = await prisma.userSettings.upsert({
+    where: { userId },
+    update: {},
+    create: { userId },
+  });
+  const requestedSlideCount = enforceSlideLimit(
+    parsed.data.requestedSlideCount ?? settings.defaultSlideCount,
+    50,
+    settings.personalMaxSlideCount,
+  );
   const document = createPresentationDocument({
+    locale: settings.presentationLocale,
     ownerId: userId,
     presentationId: randomUUID(),
     slideCount: requestedSlideCount,
@@ -88,7 +98,18 @@ export async function POST(request: Request) {
       requestedSlideCount,
       format: document.format,
       outputLanguage: document.locale,
-      designContext: { theme: document.theme },
+      designContext: {
+        defaults: {
+          audience: settings.defaultAudience,
+          detailLevel: settings.defaultDetailLevel,
+          exportCompatibility: settings.defaultExportCompatibility,
+          exportFormat: settings.defaultExportFormat,
+          imageryStyle: settings.defaultImageryStyle,
+          speakerNotes: settings.defaultSpeakerNotes,
+          tone: settings.defaultTone,
+        },
+        theme: document.theme,
+      },
       slides: {
         create: document.slides.map((slide) => ({
           id: slide.id,
@@ -138,11 +159,13 @@ function toPresentationSummary(presentation: PresentationSummaryRecord) {
 }
 
 function createPresentationDocument({
+  locale,
   ownerId,
   presentationId,
   slideCount,
   title,
 }: {
+  locale: string;
   ownerId: string;
   presentationId: string;
   slideCount: number;
@@ -155,6 +178,7 @@ function createPresentationDocument({
   return validatePresentation({
     ...base,
     id: presentationId,
+    locale,
     title,
     metadata: {
       ...base.metadata,

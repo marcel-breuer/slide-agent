@@ -16,6 +16,9 @@ vi.mock("@slide-agent/database", () => ({
     project: {
       findFirst: vi.fn(),
     },
+    userSettings: {
+      upsert: vi.fn(),
+    },
   },
 }));
 
@@ -27,11 +30,24 @@ const mockedCreatePresentation = prisma.presentation.create as unknown as Mock;
 const mockedFindPresentations = prisma.presentation.findMany as unknown as Mock;
 const mockedFindProject = prisma.project.findFirst as unknown as Mock;
 const mockedGetAuthenticatedUserId = vi.mocked(getAuthenticatedUserId);
+const mockedUpsertSettings = prisma.userSettings.upsert as unknown as Mock;
 
 describe("presentations API", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockedGetAuthenticatedUserId.mockResolvedValue("user-1");
+    mockedUpsertSettings.mockResolvedValue({
+      defaultAudience: "executives",
+      defaultDetailLevel: "detailed",
+      defaultExportCompatibility: "strict",
+      defaultExportFormat: "pptx",
+      defaultImageryStyle: "editorial",
+      defaultSlideCount: 8,
+      defaultSpeakerNotes: "full",
+      defaultTone: "executive",
+      personalMaxSlideCount: 40,
+      presentationLocale: "de",
+    });
   });
 
   it("lists user-owned presentations for a project", async () => {
@@ -95,9 +111,51 @@ describe("presentations API", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           ownerId: "user-1",
+          outputLanguage: "de",
           projectId: "project-1",
           requestedSlideCount: 3,
           status: "EDITING",
+        }),
+      }),
+    );
+  });
+
+  it("applies saved presentation defaults when slide count is omitted", async () => {
+    mockedFindProject.mockResolvedValue({ id: "project-1" });
+    mockedCreatePresentation.mockResolvedValue({
+      id: "presentation-1",
+      projectId: "project-1",
+      title: "Q3 Review",
+      status: "EDITING",
+      requestedSlideCount: 8,
+      archivedAt: null,
+      createdAt: new Date("2026-07-09T08:00:00.000Z"),
+      updatedAt: new Date("2026-07-09T08:00:00.000Z"),
+    });
+
+    const response = await POST(
+      new Request("http://test.local/api/presentations", {
+        body: JSON.stringify({
+          projectId: "project-1",
+          title: "Q3 Review",
+        }),
+        method: "POST",
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(mockedCreatePresentation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          designContext: expect.objectContaining({
+            defaults: expect.objectContaining({
+              audience: "executives",
+              detailLevel: "detailed",
+              tone: "executive",
+            }),
+          }),
+          outputLanguage: "de",
+          requestedSlideCount: 8,
         }),
       }),
     );
