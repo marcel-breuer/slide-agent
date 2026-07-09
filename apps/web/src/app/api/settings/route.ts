@@ -17,6 +17,8 @@ const PresentationSettingsSchema = z.object({
   defaultSpeakerNotes: z.enum(["none", "talking-points", "full"]).optional(),
   defaultTone: z.enum(["professional", "executive", "persuasive", "technical"]).optional(),
   hardStopEnabled: z.boolean().optional(),
+  monthlyMoneyBudget: z.number().finite().min(0).max(1_000_000).nullable().optional(),
+  monthlyTokenBudget: z.number().int().min(0).max(1_000_000_000).nullable().optional(),
   personalMaxSlideCount: z.number().int().min(1).max(50).optional(),
   preferredCurrency: z.enum(["EUR", "USD"]).optional(),
   presentationLocale: LocaleSchema.optional(),
@@ -97,6 +99,10 @@ function toSettingsUpdateData(
     updateData.defaultSpeakerNotes = data.defaultSpeakerNotes;
   if (data.defaultTone !== undefined) updateData.defaultTone = data.defaultTone;
   if (data.hardStopEnabled !== undefined) updateData.hardStopEnabled = data.hardStopEnabled;
+  if (data.monthlyMoneyBudget !== undefined)
+    updateData.monthlyMoneyBudget = data.monthlyMoneyBudget;
+  if (data.monthlyTokenBudget !== undefined)
+    updateData.monthlyTokenBudget = data.monthlyTokenBudget;
   if (data.personalMaxSlideCount !== undefined) {
     updateData.personalMaxSlideCount = data.personalMaxSlideCount;
   }

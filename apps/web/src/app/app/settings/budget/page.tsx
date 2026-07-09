@@ -1,11 +1,10 @@
-import { SimpleRoutePage } from "@/components/simple-route-page";
+import { AppShell } from "@/components/app-shell";
+import { BudgetSettings } from "@/components/budget-settings";
 
 export default function BudgetSettingsPage() {
   return (
-    <SimpleRoutePage
-      protectedRoute
-      title="Budget settings"
-      description="Monthly monetary and token budgets with warning thresholds and hard stops."
-    />
+    <AppShell>
+      <BudgetSettings />
+    </AppShell>
   );
 }
