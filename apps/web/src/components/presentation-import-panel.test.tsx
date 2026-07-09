@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-/* global File */
+/* global File, FormData */
 
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
@@ -42,7 +42,7 @@ describe("PresentationImportPanel", () => {
       ),
     );
 
-    render(<PresentationImportPanel />);
+    render(<PresentationImportPanel projectId="project-demo" />);
 
     fireEvent.change(screen.getByLabelText("PowerPoint file"), {
       target: {
@@ -63,6 +63,13 @@ describe("PresentationImportPanel", () => {
     expect(screen.getByRole("link", { name: /Open editor/ }).getAttribute("href")).toBe(
       "/app/presentations/presentation-1/editor",
     );
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "/api/presentations/imports",
+      expect.objectContaining({
+        body: expect.any(FormData),
+        method: "POST",
+      }),
+    );
   });
 
   it("shows API validation errors", async () => {
@@ -76,7 +83,7 @@ describe("PresentationImportPanel", () => {
       ),
     );
 
-    render(<PresentationImportPanel />);
+    render(<PresentationImportPanel projectId="project-demo" />);
 
     fireEvent.change(screen.getByLabelText("PowerPoint file"), {
       target: { files: [new File(["x"], "notes.txt")] },

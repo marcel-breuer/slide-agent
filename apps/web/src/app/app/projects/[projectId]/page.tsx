@@ -1,11 +1,18 @@
-import { SimpleRoutePage } from "@/components/simple-route-page";
+import { AppShell } from "@/components/app-shell";
+import { ProjectDetailWorkspace } from "@/components/project-detail-workspace";
 
-export default function ProjectPage() {
+type ProjectPageProps = {
+  params: Promise<{
+    projectId: string;
+  }>;
+};
+
+export default async function ProjectPage({ params }: ProjectPageProps) {
+  const { projectId } = await params;
+
   return (
-    <SimpleRoutePage
-      protectedRoute
-      title="Project"
-      description="Project detail with presentations and archived items."
-    />
+    <AppShell>
+      <ProjectDetailWorkspace projectId={projectId} />
+    </AppShell>
   );
 }

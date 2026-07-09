@@ -3,17 +3,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
 
-import { ensureDemoPresentation } from "@slide-agent/database";
-
 import { createPptxImport } from "../../../../lib/presentation-imports";
 import { getAuthenticatedUserId } from "../../../../lib/server-session";
 
 import { POST } from "./route";
 
 vi.mock("@slide-agent/database", () => ({
-  DEMO_PROJECT_ID: "project-demo",
-  DEMO_USER_ID: "demo-user",
-  ensureDemoPresentation: vi.fn(),
   prisma: {},
 }));
 
@@ -34,7 +29,6 @@ vi.mock("../../../../lib/presentation-imports", () => {
 });
 
 const mockedCreatePptxImport = createPptxImport as unknown as Mock;
-const mockedEnsureDemoPresentation = vi.mocked(ensureDemoPresentation);
 const mockedGetAuthenticatedUserId = vi.mocked(getAuthenticatedUserId);
 
 describe("presentation import API", () => {
@@ -42,7 +36,6 @@ describe("presentation import API", () => {
     vi.resetAllMocks();
     delete process.env.GLOBAL_MAX_UPLOAD_MB;
     mockedGetAuthenticatedUserId.mockResolvedValue("demo-user");
-    mockedEnsureDemoPresentation.mockResolvedValue("demo-presentation");
   });
 
   it("requires an authenticated session", async () => {
@@ -97,13 +90,14 @@ describe("presentation import API", () => {
       createdAt: "2026-07-03T10:00:00.000Z",
     });
 
-    const response = await POST(createImportRequest(createPptxFile("Deck.pptx", "data")));
+    const response = await POST(
+      createImportRequest(createPptxFile("Deck.pptx", "data"), "project-demo"),
+    );
     const payload = (await response.json()) as { ok: boolean; data: { presentationId: string } };
 
     expect(response.status).toBe(201);
     expect(payload.ok).toBe(true);
     expect(payload.data.presentationId).toBe("presentation-1");
-    expect(mockedEnsureDemoPresentation).toHaveBeenCalledWith({});
     expect(mockedCreatePptxImport).toHaveBeenCalledWith(
       expect.objectContaining({
         client: {},
@@ -113,11 +107,21 @@ describe("presentation import API", () => {
       }),
     );
   });
+
+  it("requires a project id", async () => {
+    const response = await POST(createImportRequest(createPptxFile("Deck.pptx", "data")));
+    const payload = (await response.json()) as { error: { code: string } };
+
+    expect(response.status).toBe(400);
+    expect(payload.error.code).toBe("VALIDATION_FAILED");
+    expect(mockedCreatePptxImport).not.toHaveBeenCalled();
+  });
 });
 
-function createImportRequest(file: File): Request {
+function createImportRequest(file: File, projectId?: string): Request {
   const formData = new FormData();
   formData.set("file", file);
+  if (projectId) formData.set("projectId", projectId);
   return new Request("http://test.local/api/presentations/imports", {
     body: formData,
     method: "POST",
