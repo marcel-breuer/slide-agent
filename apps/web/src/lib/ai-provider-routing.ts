@@ -30,6 +30,7 @@ export type StoredProviderConfiguration = {
   provider: string;
   enabled: boolean;
   baseUrl: string | null;
+  defaultModel: string | null;
 };
 
 export type AiEditRoutingRequest = {
@@ -187,6 +188,7 @@ export async function resolveAiEditRouting(
   );
   const policies = await buildRoutingPolicies(
     validatedProviders,
+    enabledConfigurations,
     input.userId,
     input.presentationId,
   );
@@ -229,6 +231,7 @@ export async function resolveAiEditRouting(
 
 async function buildRoutingPolicies(
   providers: readonly AiProvider[],
+  configurations: ReadonlyMap<string, StoredProviderConfiguration>,
   userId: string,
   presentationId: string,
 ): Promise<RoutingModelPolicy[]> {
@@ -236,12 +239,16 @@ async function buildRoutingPolicies(
 
   for (const [providerIndex, provider] of providers.entries()) {
     const models = await provider.listAvailableModels({ userId, presentationId });
+    const configuration = configurations.get(provider.id);
     for (const [modelIndex, model] of models.entries()) {
       policies.push({
         ...model,
         active: true,
         local: provider.id === "local-openai-compatible",
-        priority: providerIndex * 100 + modelIndex + 1,
+        priority:
+          model.model === configuration?.defaultModel
+            ? providerIndex * 100
+            : providerIndex * 100 + modelIndex + 1,
       });
     }
   }

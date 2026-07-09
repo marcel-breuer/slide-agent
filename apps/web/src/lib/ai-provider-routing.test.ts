@@ -64,7 +64,9 @@ describe("AI provider routing", () => {
       provider: "openai",
     };
     const routing = await resolveAiEditRouting({
-      configurations: [{ baseUrl: null, enabled: true, provider: "openai" }],
+      configurations: [
+        { baseUrl: null, defaultModel: "gpt-4.1", enabled: true, provider: "openai" },
+      ],
       credentials: [credential],
       encryptionKey: "local-dev-encryption-key",
       mode: "configured",
