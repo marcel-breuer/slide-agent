@@ -2,44 +2,66 @@
 
 import { useState, type FormEvent, type ReactElement } from "react";
 
-export function LoginForm({ nextPath }: { nextPath: string }): ReactElement {
+export function RegisterForm(): ReactElement {
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [registered, setRegistered] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  async function submitLogin(event: FormEvent): Promise<void> {
+  async function submitRegistration(event: FormEvent): Promise<void> {
     event.preventDefault();
     setError(null);
+    setRegistered(false);
     setSubmitting(true);
 
     try {
-      const response = await fetch("/api/auth/login", {
+      const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, next: nextPath }),
+        body: JSON.stringify({
+          displayName: displayName.trim() || undefined,
+          email,
+          password,
+        }),
       });
       const payload = (await response.json()) as {
         ok: boolean;
-        data?: { redirectTo?: string };
         error?: { message: string };
       };
 
       if (!response.ok || !payload.ok) {
-        setError(payload.error?.message ?? "Login failed.");
+        setError(payload.error?.message ?? "Registration failed.");
         return;
       }
 
-      globalThis.location.assign(payload.data?.redirectTo ?? nextPath);
+      setRegistered(true);
+      setPassword("");
     } catch {
-      setError("Login failed. Please try again.");
+      setError("Registration failed. Please try again.");
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <form onSubmit={submitLogin} className="space-y-4" noValidate>
+    <form onSubmit={submitRegistration} className="space-y-4" noValidate>
+      <div>
+        <label htmlFor="displayName" className="mb-1 block text-sm font-semibold text-ink">
+          Display name
+        </label>
+        <input
+          id="displayName"
+          name="displayName"
+          type="text"
+          autoComplete="name"
+          value={displayName}
+          onChange={(event) => setDisplayName(event.target.value)}
+          className="h-11 w-full rounded-app border border-line bg-white px-3 text-sm text-ink"
+        />
+      </div>
+
       <div>
         <label htmlFor="email" className="mb-1 block text-sm font-semibold text-ink">
           Email
@@ -63,7 +85,7 @@ export function LoginForm({ nextPath }: { nextPath: string }): ReactElement {
           id="password"
           name="password"
           type="password"
-          autoComplete="current-password"
+          autoComplete="new-password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           className="h-11 w-full rounded-app border border-line bg-white px-3 text-sm text-ink"
@@ -74,12 +96,18 @@ export function LoginForm({ nextPath }: { nextPath: string }): ReactElement {
         <p className="rounded-app bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       ) : null}
 
+      {registered ? (
+        <p className="rounded-app bg-green-50 px-3 py-2 text-sm text-green-700">
+          Account created. You can sign in now.
+        </p>
+      ) : null}
+
       <button
         type="submit"
         disabled={submitting}
         className="h-11 w-full rounded-app bg-primary px-4 text-sm font-semibold text-white transition hover:bg-primary-strong disabled:cursor-not-allowed disabled:opacity-70"
       >
-        {submitting ? "Signing in..." : "Sign in"}
+        {submitting ? "Creating account..." : "Create account"}
       </button>
     </form>
   );

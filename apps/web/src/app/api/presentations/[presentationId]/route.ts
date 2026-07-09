@@ -1,9 +1,9 @@
-import { cookies } from "next/headers";
 import { z } from "zod";
 
 import {
   ensureDemoPresentation,
   findPresentationDocument,
+  PresentationForbiddenError,
   PresentationNotFoundError,
   PresentationVersionConflictError,
   prisma,
@@ -12,7 +12,7 @@ import {
 import { DEMO_PRESENTATION_ID, PresentationDocumentSchema } from "@slide-agent/presentation-schema";
 
 import { fail, ok } from "@/lib/api";
-import { SESSION_COOKIE_NAME } from "@/lib/auth-session";
+import { getAuthenticatedUserId } from "@/lib/server-session";
 
 type RouteContext = {
   params: Promise<{
@@ -26,7 +26,8 @@ const PresentationUpdateSchema = z.object({
 });
 
 export async function GET(_request: Request, context: RouteContext) {
-  if (!(await hasSession())) {
+  const userId = await getAuthenticatedUserId();
+  if (!userId) {
     return fail("UNAUTHORIZED", "A valid session is required.", 401);
   }
 
@@ -37,12 +38,16 @@ export async function GET(_request: Request, context: RouteContext) {
 
   const document = await findPresentationDocument(prisma, presentationId);
   if (!document) return fail("PRESENTATION_NOT_FOUND", "Presentation was not found.", 404);
+  if (document.metadata.ownerId !== userId) {
+    return fail("FORBIDDEN", "Presentation is not available for this user.", 403);
+  }
 
   return ok(document);
 }
 
 export async function PUT(request: Request, context: RouteContext) {
-  if (!(await hasSession())) {
+  const userId = await getAuthenticatedUserId();
+  if (!userId) {
     return fail("UNAUTHORIZED", "A valid session is required.", 401);
   }
 
@@ -67,6 +72,7 @@ export async function PUT(request: Request, context: RouteContext) {
       presentationId,
       expectedUpdatedAt: parsed.data.expectedUpdatedAt,
       document: parsed.data.document,
+      ownerId: userId,
     });
 
     return ok(document);
@@ -83,15 +89,14 @@ export async function PUT(request: Request, context: RouteContext) {
       );
     }
 
+    if (error instanceof PresentationForbiddenError) {
+      return fail("FORBIDDEN", "Presentation is not available for this user.", 403);
+    }
+
     if (error instanceof Error) {
       return fail("VALIDATION_FAILED", error.message, 400);
     }
 
     return fail("SAVE_FAILED", "Presentation could not be saved.", 500);
   }
-}
-
-async function hasSession(): Promise<boolean> {
-  const cookieStore = await cookies();
-  return Boolean(cookieStore.get(SESSION_COOKIE_NAME)?.value);
 }
