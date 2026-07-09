@@ -1,10 +1,10 @@
 import { AppShell } from "@/components/app-shell";
-import { PresentationImportPanel } from "@/components/presentation-import-panel";
+import { ProjectWorkspace } from "@/components/project-workspace";
 
 export default function ProjectsPage() {
   return (
     <AppShell>
-      <PresentationImportPanel />
+      <ProjectWorkspace />
     </AppShell>
   );
 }

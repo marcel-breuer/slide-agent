@@ -1,9 +1,9 @@
-import { cookies } from "next/headers";
 import { z } from "zod";
 
 import {
   ensureDemoPresentation,
   findPresentationDocument,
+  PresentationForbiddenError,
   PresentationNotFoundError,
   PresentationVersionConflictError,
   prisma,
@@ -12,7 +12,7 @@ import {
 import { DEMO_PRESENTATION_ID, PresentationDocumentSchema } from "@slide-agent/presentation-schema";
 
 import { fail, ok } from "@/lib/api";
-import { SESSION_COOKIE_NAME } from "@/lib/auth-session";
+import { getAuthenticatedUserId } from "@/lib/server-session";
 
 type RouteContext = {
   params: Promise<{
@@ -25,8 +25,16 @@ const PresentationUpdateSchema = z.object({
   document: PresentationDocumentSchema,
 });
 
+const PresentationMetadataUpdateSchema = z
+  .object({
+    archived: z.boolean().optional(),
+    title: z.string().trim().min(1).max(180).optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0);
+
 export async function GET(_request: Request, context: RouteContext) {
-  if (!(await hasSession())) {
+  const userId = await getAuthenticatedUserId();
+  if (!userId) {
     return fail("UNAUTHORIZED", "A valid session is required.", 401);
   }
 
@@ -37,12 +45,16 @@ export async function GET(_request: Request, context: RouteContext) {
 
   const document = await findPresentationDocument(prisma, presentationId);
   if (!document) return fail("PRESENTATION_NOT_FOUND", "Presentation was not found.", 404);
+  if (document.metadata.ownerId !== userId) {
+    return fail("FORBIDDEN", "Presentation is not available for this user.", 403);
+  }
 
   return ok(document);
 }
 
 export async function PUT(request: Request, context: RouteContext) {
-  if (!(await hasSession())) {
+  const userId = await getAuthenticatedUserId();
+  if (!userId) {
     return fail("UNAUTHORIZED", "A valid session is required.", 401);
   }
 
@@ -67,6 +79,7 @@ export async function PUT(request: Request, context: RouteContext) {
       presentationId,
       expectedUpdatedAt: parsed.data.expectedUpdatedAt,
       document: parsed.data.document,
+      ownerId: userId,
     });
 
     return ok(document);
@@ -83,6 +96,10 @@ export async function PUT(request: Request, context: RouteContext) {
       );
     }
 
+    if (error instanceof PresentationForbiddenError) {
+      return fail("FORBIDDEN", "Presentation is not available for this user.", 403);
+    }
+
     if (error instanceof Error) {
       return fail("VALIDATION_FAILED", error.message, 400);
     }
@@ -91,7 +108,65 @@ export async function PUT(request: Request, context: RouteContext) {
   }
 }
 
-async function hasSession(): Promise<boolean> {
-  const cookieStore = await cookies();
-  return Boolean(cookieStore.get(SESSION_COOKIE_NAME)?.value);
+export async function PATCH(request: Request, context: RouteContext) {
+  const userId = await getAuthenticatedUserId();
+  if (!userId) {
+    return fail("UNAUTHORIZED", "A valid session is required.", 401);
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return fail("VALIDATION_FAILED", "Request body must be valid JSON.", 400);
+  }
+
+  const parsed = PresentationMetadataUpdateSchema.safeParse(body);
+  if (!parsed.success) return fail("VALIDATION_FAILED", "Presentation update is invalid.", 400);
+
+  const { presentationId } = await context.params;
+  const updateResult = await prisma.presentation.updateMany({
+    where: { id: presentationId, ownerId: userId },
+    data: {
+      ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
+      ...(parsed.data.archived !== undefined
+        ? {
+            archivedAt: parsed.data.archived ? new Date() : null,
+            status: parsed.data.archived ? "ARCHIVED" : "EDITING",
+          }
+        : {}),
+    },
+  });
+
+  if (updateResult.count !== 1) {
+    return fail("PRESENTATION_NOT_FOUND", "Presentation was not found.", 404);
+  }
+
+  const presentation = await prisma.presentation.findFirst({
+    where: { id: presentationId, ownerId: userId },
+    select: {
+      id: true,
+      projectId: true,
+      title: true,
+      status: true,
+      requestedSlideCount: true,
+      archivedAt: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  if (!presentation) return fail("PRESENTATION_NOT_FOUND", "Presentation was not found.", 404);
+
+  return ok({
+    id: presentation.id,
+    projectId: presentation.projectId,
+    title: presentation.title,
+    status: presentation.status,
+    requestedSlideCount: presentation.requestedSlideCount,
+    archivedAt: presentation.archivedAt?.toISOString() ?? null,
+    createdAt: presentation.createdAt.toISOString(),
+    updatedAt: presentation.updatedAt.toISOString(),
+    editorUrl: `/app/presentations/${encodeURIComponent(presentation.id)}/editor`,
+  });
 }

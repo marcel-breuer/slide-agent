@@ -1,5 +1,12 @@
 import { redirect } from "next/navigation";
 
-export default function PresentationPage() {
-  redirect("/app/presentations/demo-presentation/editor");
+type PresentationPageProps = {
+  params: Promise<{
+    presentationId: string;
+  }>;
+};
+
+export default async function PresentationPage({ params }: PresentationPageProps) {
+  const { presentationId } = await params;
+  redirect(`/app/presentations/${encodeURIComponent(presentationId)}/editor`);
 }

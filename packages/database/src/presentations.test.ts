@@ -6,6 +6,7 @@ import { createDemoPresentationDocument } from "@slide-agent/presentation-schema
 import {
   buildPresentationDocument,
   findPresentationDocument,
+  PresentationForbiddenError,
   PresentationVersionConflictError,
   savePresentationDocument,
   type PresentationLookupClient,
@@ -171,6 +172,35 @@ describe("presentation document lookup", () => {
         presentationId: demo.id,
       }),
     ).rejects.toBeInstanceOf(PresentationVersionConflictError);
+  });
+
+  it("rejects saves for presentations owned by another user", async () => {
+    const now = new Date("2026-07-02T10:00:00.000Z");
+    const demo = createDemoPresentationDocument({ ownerId: "user-1", now: now.toISOString() });
+    const client = createInMemorySaveClient({
+      createdAt: now,
+      designContext: { theme: demo.theme },
+      format: demo.format,
+      id: demo.id,
+      outputLanguage: demo.locale,
+      ownerId: "user-1",
+      slides: demo.slides.map((slide) => ({
+        document: slide,
+        id: slide.id,
+        order: slide.order,
+      })),
+      title: demo.title,
+      updatedAt: now,
+    });
+
+    await expect(
+      savePresentationDocument(client, {
+        document: demo,
+        expectedUpdatedAt: now.toISOString(),
+        ownerId: "user-2",
+        presentationId: demo.id,
+      }),
+    ).rejects.toBeInstanceOf(PresentationForbiddenError);
   });
 });
 

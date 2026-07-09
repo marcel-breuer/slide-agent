@@ -4,9 +4,9 @@ This document tracks the remaining editor work for turning Slide Agent into a co
 
 ## Current State
 
-The editor loads persisted presentation documents, autosaves durable edits, supports slide structure editing, provides session-scoped undo/redo, creates pointer-driven edit proposals, opens a read-only preview, imports uploaded `.pptx` files into editable structured decks, and exports the persisted document as a downloadable PowerPoint file with export metadata.
+The editor loads persisted presentation documents, autosaves durable edits, supports slide structure editing, provides session-scoped undo/redo, creates pointer-driven edit proposals, opens a read-only preview, imports uploaded `.pptx` files into editable structured decks, exports the persisted document as a downloadable PowerPoint file with export metadata, and sits inside database-backed project and presentation management.
 
-The browser-rendered deck, imported `.pptx` files, and exported `.pptx` files are connected through the same structured presentation schema. The remaining roadmap focuses on full account authorization, workspace management, and production operations.
+The browser-rendered deck, imported `.pptx` files, and exported `.pptx` files are connected through the same structured presentation schema. The remaining roadmap focuses on contextual workflow pages and production operations.
 
 The detailed list of remaining app subpages is tracked in [App Subpages Implementation Plan](./app-subpages-implementation-plan.md).
 
@@ -17,55 +17,6 @@ The detailed list of remaining app subpages is tracked in [App Subpages Implemen
 - Validate rendered editor behavior in the browser for every UI-affecting package.
 - Keep feature flags or temporary demo fallbacks explicit when a package cannot yet be fully production-backed.
 - Update this document when scope or sequencing changes.
-
-## Work Package 10: Full Authentication And Authorization
-
-Goal: Replace demo-session behavior with database-backed users and resource authorization.
-
-Required functionality:
-
-- Persist users during registration.
-- Verify login credentials against stored password hashes.
-- Store hashed session tokens in the `Session` table.
-- Validate sessions in middleware and API routes.
-- Restrict projects, presentations, assets, exports, and settings to their owner.
-- Add logout and session expiration handling.
-
-Acceptance criteria:
-
-- Demo-only credentials are no longer the primary auth path.
-- Users can register, log in, and access only their own resources.
-- Expired or invalid sessions redirect to login.
-- API routes reject unauthorized access.
-
-Suggested validation:
-
-- Auth helper tests.
-- API tests for login, logout, expired session, and unauthorized resource access.
-- Browser QA for register/login/logout and protected route access.
-
-## Work Package 11: Projects And Presentation Management
-
-Goal: Build the workspace around the editor.
-
-Required functionality:
-
-- List projects and presentations from the database.
-- Create, rename, archive, and restore projects.
-- Create, rename, duplicate, archive, and restore presentations.
-- Navigate from project list to editor.
-- Remove remaining hardcoded navigation data.
-
-Acceptance criteria:
-
-- The sidebar and project pages show real user-owned data.
-- Creating a presentation opens it in the editor.
-- Archived records are hidden from default views and recoverable where supported.
-
-Suggested validation:
-
-- API tests for project and presentation CRUD.
-- Browser QA for project creation -> presentation creation -> editor navigation.
 
 ## Work Package 12: Production Hardening And Observability
 
@@ -104,4 +55,4 @@ Suggested validation:
 
 ## Immediate Next Step
 
-Start with Work Package 10: Full Authentication And Authorization. Import and export are now connected to persisted presentation documents, so demo-only authentication is the next production blocker.
+Start with Work Package 12: Production Hardening And Observability. Project and presentation management is now production-backed, so operational readiness is the next production blocker.
