@@ -70,6 +70,24 @@ export async function POST(request: Request) {
   });
   if (!project) return fail("PROJECT_NOT_FOUND", "Project was not found.", 404);
 
+  const designProfile = parsed.data.designProfileId
+    ? await prisma.designProfile.findFirst({
+        where: { id: parsed.data.designProfileId, ownerId: userId, archivedAt: null },
+        select: {
+          id: true,
+          name: true,
+          versions: {
+            orderBy: { version: "desc" },
+            select: { profile: true, version: true },
+            take: 1,
+          },
+        },
+      })
+    : null;
+  if (parsed.data.designProfileId && !designProfile) {
+    return fail("DESIGN_PROFILE_NOT_FOUND", "Design profile was not found.", 404);
+  }
+
   const settings = await prisma.userSettings.upsert({
     where: { userId },
     update: {},
@@ -93,6 +111,7 @@ export async function POST(request: Request) {
       id: document.id,
       ownerId: userId,
       projectId: project.id,
+      designProfileId: designProfile?.id ?? null,
       title: document.title,
       status: "EDITING",
       requestedSlideCount,
@@ -108,6 +127,14 @@ export async function POST(request: Request) {
           speakerNotes: settings.defaultSpeakerNotes,
           tone: settings.defaultTone,
         },
+        designProfile: designProfile
+          ? {
+              id: designProfile.id,
+              name: designProfile.name,
+              profile: designProfile.versions[0]?.profile ?? null,
+              version: designProfile.versions[0]?.version ?? null,
+            }
+          : null,
         theme: document.theme,
       },
       slides: {

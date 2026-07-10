@@ -1,11 +1,16 @@
-import { SimpleRoutePage } from "@/components/simple-route-page";
+import { AppShell } from "@/components/app-shell";
+import { DesignProfileDetail } from "@/components/design-profile-detail";
 
-export default function DesignProfilePage() {
+export default async function DesignProfilePage({
+  params,
+}: {
+  params: Promise<{ profileId: string }>;
+}) {
+  const { profileId } = await params;
+
   return (
-    <SimpleRoutePage
-      protectedRoute
-      title="Design profile"
-      description="Review colors, fonts, layouts, logos, and visual rules."
-    />
+    <AppShell>
+      <DesignProfileDetail profileId={profileId} />
+    </AppShell>
   );
 }

@@ -40,115 +40,116 @@ enum JobType {
 }
 
 model User {
-  id             String    @id @default(uuid())
-  email          String    @unique
-  passwordHash   String
-  displayName    String?
-  role           UserRole  @default(USER)
+  id              String    @id @default(uuid())
+  email           String    @unique
+  passwordHash    String
+  displayName     String?
+  role            UserRole  @default(USER)
   emailVerifiedAt DateTime?
-  suspendedAt    DateTime?
-  deletedAt      DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  suspendedAt     DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  sessions       Session[]
-  settings       UserSettings?
-  credentials    ProviderCredential[]
+  sessions               Session[]
+  settings               UserSettings?
+  credentials            ProviderCredential[]
   providerConfigurations ProviderConfiguration[]
-  projects       Project[]
-  auditLogs      AuditLog[]
+  projects               Project[]
+  designProfiles         DesignProfile[]
+  auditLogs              AuditLog[]
 
   @@index([role])
   @@index([deletedAt])
 }
 
 model Session {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   rotatedAt DateTime?
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
 }
 
 model EmailVerificationToken {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId])
 }
 
 model PasswordResetToken {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId])
 }
 
 model UserSettings {
-  id                         String  @id @default(uuid())
-  userId                     String  @unique
-  uiLocale                   String  @default("en")
-  presentationLocale         String  @default("en")
-  timeZone                   String  @default("Europe/Berlin")
-  preferredCurrency          String  @default("EUR")
-  personalMaxSlideCount      Int     @default(50)
+  id                         String   @id @default(uuid())
+  userId                     String   @unique
+  uiLocale                   String   @default("en")
+  presentationLocale         String   @default("en")
+  timeZone                   String   @default("Europe/Berlin")
+  preferredCurrency          String   @default("EUR")
+  personalMaxSlideCount      Int      @default(50)
   monthlyMoneyBudget         Decimal?
   monthlyTokenBudget         Int?
-  warningThresholdPercentage Int     @default(80)
-  hardStopEnabled            Boolean @default(true)
-  defaultSlideCount          Int     @default(10)
-  defaultTone                String  @default("professional")
-  defaultAudience            String  @default("business")
-  defaultDetailLevel         String  @default("balanced")
-  defaultSpeakerNotes        String  @default("talking-points")
-  defaultImageryStyle        String  @default("minimal")
-  defaultExportFormat        String  @default("pptx")
-  defaultExportCompatibility String  @default("modern")
-  user                       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  warningThresholdPercentage Int      @default(80)
+  hardStopEnabled            Boolean  @default(true)
+  defaultSlideCount          Int      @default(10)
+  defaultTone                String   @default("professional")
+  defaultAudience            String   @default("business")
+  defaultDetailLevel         String   @default("balanced")
+  defaultSpeakerNotes        String   @default("talking-points")
+  defaultImageryStyle        String   @default("minimal")
+  defaultExportFormat        String   @default("pptx")
+  defaultExportCompatibility String   @default("modern")
+  user                       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model ProviderCredential {
-  id           String   @id @default(uuid())
-  userId       String
-  provider     String
-  enabled      Boolean  @default(true)
-  ciphertext   String
-  nonce        String
-  authTag      String
-  keyVersion   String
-  maskedValue  String
-  metadata     Json     @default("{}")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String   @id @default(uuid())
+  userId      String
+  provider    String
+  enabled     Boolean  @default(true)
+  ciphertext  String
+  nonce       String
+  authTag     String
+  keyVersion  String
+  maskedValue String
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, provider])
   @@index([provider])
 }
 
 model ProviderConfiguration {
-  id        String   @id @default(uuid())
-  userId    String?
-  provider  String
-  baseUrl   String?
+  id           String   @id @default(uuid())
+  userId       String?
+  provider     String
+  baseUrl      String?
   defaultModel String?
-  enabled   Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, provider])
   @@index([userId, enabled])
@@ -170,24 +171,26 @@ model Project {
 }
 
 model Presentation {
-  id                       String             @id @default(uuid())
+  id                       String                @id @default(uuid())
   ownerId                  String
   projectId                String
   title                    String
   description              String?
-  status                   PresentationStatus @default(DRAFT)
-  requestedSlideCount      Int                @default(10)
-  format                   String             @default("WIDE_16_9")
-  outputLanguage           String             @default("en")
+  status                   PresentationStatus    @default(DRAFT)
+  requestedSlideCount      Int                   @default(10)
+  format                   String                @default("WIDE_16_9")
+  outputLanguage           String                @default("en")
   designContext            Json?
+  designProfileId          String?
   activeStorylineVersionId String?
   activeVersionId          String?
   generationStatus         String?
   lastExportAt             DateTime?
   archivedAt               DateTime?
-  createdAt                DateTime           @default(now())
-  updatedAt                DateTime           @updatedAt
-  project                  Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
+  project                  Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  designProfile            DesignProfile?        @relation(fields: [designProfileId], references: [id], onDelete: SetNull)
   conversations            Conversation[]
   briefings                Briefing[]
   storylines               Storyline[]
@@ -199,6 +202,7 @@ model Presentation {
 
   @@index([ownerId])
   @@index([projectId, status])
+  @@index([designProfileId])
 }
 
 model Conversation {
@@ -283,13 +287,22 @@ model PresentationVersion {
 }
 
 model DesignProfile {
-  id          String                 @id @default(uuid())
-  ownerId     String
-  name        String
-  description String?
-  createdAt   DateTime               @default(now())
-  updatedAt   DateTime               @updatedAt
-  versions    DesignProfileVersion[]
+  id             String                 @id @default(uuid())
+  ownerId        String
+  name           String
+  description    String?
+  sourceType     String                 @default("manual")
+  sourceEvidence Json                   @default("{}")
+  preview        Json                   @default("{}")
+  archivedAt     DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  owner          User                   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  versions       DesignProfileVersion[]
+  presentations  Presentation[]
+  referenceFiles ReferenceFile[]
+
+  @@index([ownerId, archivedAt])
 }
 
 model DesignProfileVersion {
@@ -302,27 +315,31 @@ model DesignProfileVersion {
 }
 
 model PresentationDesignSnapshot {
-  id                     String   @id @default(uuid())
-  presentationId          String
-  sourceDesignProfileId   String?
+  id                         String   @id @default(uuid())
+  presentationId             String
+  sourceDesignProfileId      String?
   sourceDesignProfileVersion Int?
-  snapshot                Json
-  createdAt               DateTime @default(now())
+  snapshot                   Json
+  createdAt                  DateTime @default(now())
 
   @@index([presentationId])
 }
 
 model ReferenceFile {
-  id             String              @id @default(uuid())
-  ownerId        String
-  presentationId String?
+  id              String              @id @default(uuid())
+  ownerId         String
+  presentationId  String?
   designProfileId String?
-  purpose        String
-  storageKey     String
-  mimeType       String
-  checksum       String
-  createdAt      DateTime            @default(now())
-  analyses       ReferenceAnalysis[]
+  purpose         String
+  storageKey      String
+  mimeType        String
+  checksum        String
+  createdAt       DateTime            @default(now())
+  analyses        ReferenceAnalysis[]
+  designProfile   DesignProfile?      @relation(fields: [designProfileId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId])
+  @@index([designProfileId])
 }
 
 model ReferenceAnalysis {
@@ -334,40 +351,40 @@ model ReferenceAnalysis {
 }
 
 model Asset {
-  id             String       @id @default(uuid())
+  id             String        @id @default(uuid())
   ownerId        String
   presentationId String?
   kind           String
   storageKey     String
   mimeType       String
   altText        String?
-  metadata       Json         @default("{}")
-  createdAt      DateTime     @default(now())
+  metadata       Json          @default("{}")
+  createdAt      DateTime      @default(now())
   presentation   Presentation? @relation(fields: [presentationId], references: [id], onDelete: SetNull)
 
   @@index([ownerId])
 }
 
 model AiOperation {
-  id              String   @id @default(uuid())
-  ownerId         String
-  presentationId  String?
-  slideId         String?
-  taskType        String
-  provider        String
-  model           String
-  routingReason   String
-  inputTokens     Int
-  outputTokens    Int
-  estimatedCost   Decimal
-  actualCost      Decimal?
-  durationMs      Int?
-  status          String
-  retryCount      Int      @default(0)
-  usedFallback    Boolean  @default(false)
-  promptVersion   String
-  schemaVersion   String
-  createdAt       DateTime @default(now())
+  id             String   @id @default(uuid())
+  ownerId        String
+  presentationId String?
+  slideId        String?
+  taskType       String
+  provider       String
+  model          String
+  routingReason  String
+  inputTokens    Int
+  outputTokens   Int
+  estimatedCost  Decimal
+  actualCost     Decimal?
+  durationMs     Int?
+  status         String
+  retryCount     Int      @default(0)
+  usedFallback   Boolean  @default(false)
+  promptVersion  String
+  schemaVersion  String
+  createdAt      DateTime @default(now())
 
   @@index([ownerId, createdAt])
   @@index([presentationId])
@@ -388,7 +405,7 @@ model UsageLedgerEntry {
 }
 
 model BudgetReservation {
-  id             String   @id @default(uuid())
+  id             String    @id @default(uuid())
   ownerId        String
   presentationId String?
   amount         Decimal
@@ -396,7 +413,7 @@ model BudgetReservation {
   currency       String
   status         String
   expiresAt      DateTime
-  createdAt      DateTime @default(now())
+  createdAt      DateTime  @default(now())
   settledAt      DateTime?
 
   @@index([ownerId, status])
@@ -471,16 +488,16 @@ model ExchangeRate {
 }
 
 model GenerationJob {
-  id             String       @id @default(uuid())
+  id             String        @id @default(uuid())
   ownerId        String
   presentationId String?
   type           JobType
-  idempotencyKey String       @unique
+  idempotencyKey String        @unique
   status         String
-  progress       Int          @default(0)
+  progress       Int           @default(0)
   error          Json?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
   presentation   Presentation? @relation(fields: [presentationId], references: [id], onDelete: SetNull)
 }
 
