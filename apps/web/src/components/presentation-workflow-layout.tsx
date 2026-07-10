@@ -1,6 +1,17 @@
+"use client";
+
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowLeft, FileDown, FileText, GitBranch, LayoutPanelTop, PenLine } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  CircleAlert,
+  FileDown,
+  FileText,
+  GitBranch,
+  LayoutPanelTop,
+  PenLine,
+} from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 
 import type { PresentationWorkflow } from "@/lib/presentation-workflow";
@@ -82,8 +93,13 @@ export function PresentationWorkflowLayout({
 
 export function PresentationOverview({ workflow }: { workflow: Workflow }): ReactElement {
   const { msg } = useUiLocale();
-  const briefingReady = Boolean(workflow.briefing);
+  const briefing = workflow.briefing;
+  const briefingReady = Boolean(briefing);
   const storylineReady = workflow.storylines.length > 0;
+  const approvedStoryline = workflow.storylines.find(
+    (storyline) => storyline.latestVersion?.approvedAt,
+  );
+  const latestStoryline = workflow.storylines[0] ?? null;
   const exported = workflow.exports.length > 0;
 
   return (
@@ -91,11 +107,57 @@ export function PresentationOverview({ workflow }: { workflow: Workflow }): Reac
       <section className={ui.card}>
         <h2 className={ui.sectionTitle}>{msg("workflowStatus")}</h2>
         <dl className="grid gap-3 md:grid-cols-2">
-          <Metric label="Briefing" value={briefingReady ? "Ready" : "Open"} />
-          <Metric label="Storyline" value={storylineReady ? "Ready" : "Open"} />
+          <Metric
+            label="Briefing"
+            value={
+              briefing?.readiness.approved
+                ? "Approved"
+                : briefing
+                  ? `${briefing.readiness.score}% ready`
+                  : "Open"
+            }
+          />
+          <Metric
+            label="Storyline"
+            value={approvedStoryline ? "Approved" : storylineReady ? "Needs approval" : "Open"}
+          />
           <Metric label="Exports" value={exported ? String(workflow.exports.length) : "None"} />
           <Metric label="Updated" value={formatDate(workflow.updatedAt)} />
         </dl>
+      </section>
+
+      <section className={ui.card}>
+        <h2 className={ui.sectionTitle}>Readiness signals</h2>
+        <div className="grid gap-2.5">
+          <ReadinessSignal
+            ready={briefingReady}
+            title="Briefing captured"
+            detail={
+              briefing
+                ? `${briefing.readiness.answeredFollowUps} follow-ups answered · ${briefing.readiness.referenceCount} references`
+                : "Add goal, audience, requirements, and success criteria."
+            }
+          />
+          <ReadinessSignal
+            ready={briefing?.readiness.approved === true}
+            title="Briefing approved"
+            detail="Approval unlocks a stronger storyline proposal review."
+          />
+          <ReadinessSignal
+            ready={storylineReady}
+            title="Storyline proposed"
+            detail={
+              latestStoryline?.latestVersion?.scopeEstimate.slideCount
+                ? `${latestStoryline.latestVersion.scopeEstimate.slideCount} slides · ${latestStoryline.latestVersion.scopeEstimate.estimatedMinutes ?? "?"} minutes`
+                : "Generate or create a storyline proposal."
+            }
+          />
+          <ReadinessSignal
+            ready={Boolean(approvedStoryline)}
+            title="Storyline approved"
+            detail="Explicit approval is required before generation handoff."
+          />
+        </div>
       </section>
 
       <section className={ui.card}>
@@ -149,6 +211,32 @@ export function PresentationOverview({ workflow }: { workflow: Workflow }): Reac
   );
 }
 
+function ReadinessSignal({
+  detail,
+  ready,
+  title,
+}: {
+  detail: string;
+  ready: boolean;
+  title: string;
+}): ReactElement {
+  const Icon = ready ? CheckCircle2 : CircleAlert;
+
+  return (
+    <div className="grid grid-cols-[22px_minmax(0,1fr)] gap-2 rounded-lg border border-line bg-canvas p-3">
+      <Icon
+        size={18}
+        className={ready ? "mt-0.5 text-emerald-700" : "mt-0.5 text-amber-700"}
+        aria-hidden="true"
+      />
+      <div>
+        <p className="text-sm font-extrabold text-ink">{title}</p>
+        <p className="mt-1 text-xs font-bold leading-5 text-muted">{detail}</p>
+      </div>
+    </div>
+  );
+}
+
 function Metric({ label, value }: { label: string; value: string }): ReactElement {
   return (
     <div className="rounded-lg border border-line bg-canvas p-3">
@@ -161,6 +249,7 @@ function Metric({ label, value }: { label: string; value: string }): ReactElemen
 export function formatDate(value: string): string {
   return new Intl.DateTimeFormat("en", {
     dateStyle: "medium",
+    timeZone: "UTC",
     timeStyle: "short",
   }).format(new Date(value));
 }
