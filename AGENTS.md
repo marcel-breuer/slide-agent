@@ -18,6 +18,7 @@ This repository contains Slide Agent, a TypeScript-first monorepo for creating, 
 - Use the versioned presentation schema as the single source of truth.
 - Do not execute AI-generated HTML, CSS, JavaScript, or arbitrary code.
 - Validate all external input with runtime schemas.
+- Use Tailwind utility classes for new UI styling. Do not add or expand custom CSS for components or pages unless Tailwind cannot reasonably express the required behavior; document any exception in the pull request.
 
 ## Security
 
