@@ -3,6 +3,8 @@
 import { useState, type ReactElement } from "react";
 import { Download, FileDown, Loader2 } from "lucide-react";
 
+import { Button, ui } from "./ui";
+
 type ExportSummary = {
   id: string;
   fileName: string;
@@ -13,8 +15,7 @@ type ExportSummary = {
 };
 
 type ExportApiResponse =
-  | { ok: true; data: ExportSummary }
-  | { ok: false; error: { code: string; message: string } };
+  { ok: true; data: ExportSummary } | { ok: false; error: { code: string; message: string } };
 
 export function PresentationExportWorkspace({
   archived,
@@ -54,44 +55,47 @@ export function PresentationExportWorkspace({
   }
 
   return (
-    <section className="workflow-card">
-      <div className="workflow-card-header">
+    <section className={ui.card}>
+      <div className={ui.cardHeader}>
         <div>
-          <h2>PowerPoint exports</h2>
-          <p className="workflow-muted">Generate a downloadable .pptx from the current deck.</p>
+          <h2 className={ui.sectionTitle}>PowerPoint exports</h2>
+          <p className={ui.muted}>Generate a downloadable .pptx from the current deck.</p>
         </div>
-        <button
+        <Button
           type="button"
-          className="workspace-button primary"
+          variant="primary"
           disabled={archived || submitting}
           onClick={() => void createExport()}
         >
           {submitting ? (
-            <Loader2 size={17} className="import-spin" aria-hidden="true" />
+            <Loader2 size={17} className="animate-spin" aria-hidden="true" />
           ) : (
             <FileDown size={17} aria-hidden="true" />
           )}
           Create export
-        </button>
+        </Button>
       </div>
 
-      {error ? <div className="workspace-alert">{error}</div> : null}
+      {error ? <div className={ui.alert}>{error}</div> : null}
 
       {items.length === 0 ? (
-        <p className="workspace-empty">No exports yet.</p>
+        <p className={ui.empty}>No exports yet.</p>
       ) : (
-        <ul className="workspace-list">
+        <ul className={ui.list}>
           {items.map((item) => (
-            <li className="workspace-item" key={item.id}>
-              <div className="workspace-item-main">
-                <div className="workspace-item-title">{item.fileName}</div>
-                <p className="workspace-meta">
+            <li className={ui.item} key={item.id}>
+              <div className={ui.itemMain}>
+                <div className={ui.itemTitle}>{item.fileName}</div>
+                <p className={ui.itemMeta}>
                   {item.slideCount ?? "Unknown"} slides ·{" "}
                   {item.byteSize ? `${Math.round(item.byteSize / 1024)} KB` : "Size pending"} ·{" "}
                   {new Date(item.createdAt).toLocaleString()}
                 </p>
               </div>
-              <a className="workspace-button" href={item.downloadUrl}>
+              <a
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-line bg-white px-3.5 text-sm font-extrabold text-ink no-underline hover:border-primary hover:text-primary"
+                href={item.downloadUrl}
+              >
                 <Download size={16} aria-hidden="true" />
                 Download
               </a>

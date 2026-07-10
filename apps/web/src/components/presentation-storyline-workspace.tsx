@@ -5,6 +5,8 @@
 import { useMemo, useState, type FormEvent, type ReactElement } from "react";
 import { GitBranch, Loader2 } from "lucide-react";
 
+import { Button, ui } from "./ui";
+
 type StorylineSummary = {
   id: string;
   name: string;
@@ -15,8 +17,7 @@ type StorylineSummary = {
 };
 
 type StorylineApiResponse =
-  | { ok: true; data: StorylineSummary }
-  | { ok: false; error: { code: string; message: string } };
+  { ok: true; data: StorylineSummary } | { ok: false; error: { code: string; message: string } };
 
 export function PresentationStorylineWorkspace({
   archived,
@@ -81,40 +82,44 @@ export function PresentationStorylineWorkspace({
   }
 
   return (
-    <div className="workflow-grid">
-      <section className="workflow-card">
-        <h2>Create storyline</h2>
-        <form className="workflow-form" onSubmit={(event) => void createStoryline(event)}>
-          <label>
-            Name
+    <div className="grid gap-4 md:grid-cols-2">
+      <section className={ui.card}>
+        <h2 className={ui.sectionTitle}>Create storyline</h2>
+        <form className="grid gap-3.5" onSubmit={(event) => void createStoryline(event)}>
+          <label className={ui.field}>
+            <span>Name</span>
             <input
+              className={ui.input}
               value={name}
               onChange={(event) => setName(event.target.value)}
               required
               disabled={archived}
             />
           </label>
-          <label>
-            Method
+          <label className={ui.field}>
+            <span>Method</span>
             <input
+              className={ui.input}
               value={method}
               onChange={(event) => setMethod(event.target.value)}
               required
               disabled={archived}
             />
           </label>
-          <label>
-            Rationale
+          <label className={ui.field}>
+            <span>Rationale</span>
             <textarea
+              className="min-h-24 resize-y rounded-lg border border-line bg-white px-3 py-2.5 text-sm font-medium normal-case text-ink"
               value={rationale}
               onChange={(event) => setRationale(event.target.value)}
               required
               disabled={archived}
             />
           </label>
-          <label>
-            Outline
+          <label className={ui.field}>
+            <span>Outline</span>
             <textarea
+              className="min-h-24 resize-y rounded-lg border border-line bg-white px-3 py-2.5 text-sm font-medium normal-case text-ink"
               value={outline}
               onChange={(event) => setOutline(event.target.value)}
               required
@@ -122,34 +127,30 @@ export function PresentationStorylineWorkspace({
             />
           </label>
 
-          {error ? <div className="workspace-alert">{error}</div> : null}
+          {error ? <div className={ui.alert}>{error}</div> : null}
 
-          <button
-            type="submit"
-            className="workspace-button primary"
-            disabled={archived || submitting}
-          >
+          <Button type="submit" variant="primary" disabled={archived || submitting}>
             {submitting ? (
-              <Loader2 size={17} className="import-spin" aria-hidden="true" />
+              <Loader2 size={17} className="animate-spin" aria-hidden="true" />
             ) : (
               <GitBranch size={17} aria-hidden="true" />
             )}
             Create storyline
-          </button>
+          </Button>
         </form>
       </section>
 
-      <section className="workflow-card">
-        <h2>Storylines</h2>
+      <section className={ui.card}>
+        <h2 className={ui.sectionTitle}>Storylines</h2>
         {items.length === 0 ? (
-          <p className="workflow-muted">No storylines have been created yet.</p>
+          <p className={ui.muted}>No storylines have been created yet.</p>
         ) : (
-          <ul className="workflow-stack">
+          <ul className={ui.list}>
             {items.map((storyline) => (
-              <li key={storyline.id}>
-                <strong>{storyline.name}</strong>
-                <span>{storyline.method}</span>
-                <p>{storyline.rationale}</p>
+              <li className="rounded-lg border border-line bg-canvas p-3" key={storyline.id}>
+                <strong className="block text-ink">{storyline.name}</strong>
+                <span className="block text-sm leading-6 text-muted">{storyline.method}</span>
+                <p className="mt-2 text-sm leading-6 text-muted">{storyline.rationale}</p>
               </li>
             ))}
           </ul>

@@ -18,6 +18,8 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 
+import { cn } from "./ui";
+
 const workspaceLinks: NavigationItem[] = [
   { href: "/app/projects", label: "Projects", icon: FolderKanban },
   { href: "/app/design-profiles", label: "Design profiles", icon: Palette },
@@ -42,36 +44,54 @@ export function AppShell({ children }: { children: ReactNode }): ReactElement {
   const pathname = usePathname();
 
   return (
-    <div className="app-shell">
-      <aside className="app-sidebar" aria-label="Workspace navigation">
-        <Link href="/app/projects" className="app-brand" aria-label="Slide Agent projects">
-          <span className="app-brand-mark">
+    <div className="grid min-h-screen grid-cols-[264px_minmax(0,1fr)] bg-canvas max-[960px]:grid-cols-1">
+      <aside
+        className="sticky top-0 flex h-screen flex-col border-r border-line bg-white px-4 py-5 max-[960px]:static max-[960px]:h-auto max-[960px]:border-b max-[960px]:border-r-0 max-[520px]:p-4"
+        aria-label="Workspace navigation"
+      >
+        <Link
+          href="/app/projects"
+          className="flex items-center gap-3 rounded-lg p-2 text-ink no-underline hover:bg-canvas"
+          aria-label="Slide Agent projects"
+        >
+          <span className="grid h-10 w-10 place-items-center rounded-lg bg-primary text-white">
             <LayoutTemplate size={20} aria-hidden="true" />
           </span>
           <span>
-            <span className="app-brand-name">Slide Agent</span>
-            <span className="app-brand-subtitle">Workspace</span>
+            <span className="block text-[15px] font-extrabold leading-tight">Slide Agent</span>
+            <span className="mt-0.5 block text-xs font-semibold text-muted">Workspace</span>
           </span>
         </Link>
 
-        <nav className="app-nav" aria-label="Primary">
+        <nav
+          className="mt-7 grid gap-6 max-[960px]:grid-cols-2 max-[520px]:grid-cols-1"
+          aria-label="Primary"
+        >
           <NavigationSection items={workspaceLinks} pathname={pathname} title="Workspace" />
           <NavigationSection items={settingsLinks} pathname={pathname} title="Settings" />
         </nav>
       </aside>
 
-      <div className="app-main-column">
-        <header className="app-topbar">
+      <div className="min-w-0">
+        <header className="sticky top-0 z-10 flex min-h-[72px] items-center justify-between gap-5 border-b border-line bg-canvas/90 px-7 backdrop-blur max-[960px]:static max-[520px]:flex-col max-[520px]:items-stretch max-[520px]:p-4">
           <div>
-            <p className="app-eyebrow">Demo workspace</p>
-            <p className="app-topbar-title">Create, import, manage, and export decks.</p>
+            <p className="m-0 text-xs font-extrabold uppercase tracking-wide text-muted">
+              Demo workspace
+            </p>
+            <p className="mt-1 text-sm font-bold text-ink">
+              Create, import, manage, and export decks.
+            </p>
           </div>
-          <button type="button" className="app-logout-button" onClick={() => void signOut()}>
+          <button
+            type="button"
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-line bg-white px-3 text-sm font-bold text-ink hover:border-primary hover:text-primary max-[520px]:w-full"
+            onClick={() => void signOut()}
+          >
             <LogOut size={17} aria-hidden="true" />
             Sign out
           </button>
         </header>
-        <main className="app-content">{children}</main>
+        <main className="min-w-0">{children}</main>
       </div>
     </div>
   );
@@ -87,16 +107,24 @@ function NavigationSection({
   title: string;
 }): ReactElement {
   return (
-    <section className="app-nav-section">
-      <h2>{title}</h2>
-      <ul>
+    <section>
+      <h2 className="mb-2 px-2 text-[11px] font-extrabold uppercase tracking-wide text-muted">
+        {title}
+      </h2>
+      <ul className="grid list-none gap-1 p-0">
         {items.map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
 
           return (
             <li key={item.href}>
-              <Link className={active ? "app-nav-link active" : "app-nav-link"} href={item.href}>
+              <Link
+                className={cn(
+                  "flex min-h-[38px] items-center gap-2.5 rounded-lg px-2.5 text-sm font-bold text-muted no-underline hover:bg-canvas hover:text-ink",
+                  active && "active bg-primary/10 text-primary",
+                )}
+                href={item.href}
+              >
                 <Icon size={17} aria-hidden="true" />
                 <span>{item.label}</span>
               </Link>

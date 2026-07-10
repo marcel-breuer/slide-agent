@@ -5,6 +5,8 @@ import type { ReactElement, ReactNode } from "react";
 
 import type { PresentationWorkflow } from "@/lib/presentation-workflow";
 
+import { ButtonLink, cn, ui } from "./ui";
+
 type Workflow = NonNullable<PresentationWorkflow>;
 
 const workflowSteps = [
@@ -25,32 +27,38 @@ export function PresentationWorkflowLayout({
   workflow: Workflow;
 }): ReactElement {
   return (
-    <section className="workflow-shell">
-      <div className="workflow-header">
+    <section className={ui.workflowShell}>
+      <div className={ui.pageHeader}>
         <div>
           <Link
-            className="workflow-back-link"
+            className="mb-3 inline-flex items-center gap-1.5 text-sm font-extrabold text-muted no-underline hover:text-primary"
             href={`/app/projects/${encodeURIComponent(workflow.project.id)}` as Route}
           >
             <ArrowLeft size={16} aria-hidden="true" />
             {workflow.project.name}
           </Link>
-          <p className="workspace-kicker">Presentation</p>
-          <h1>{workflow.title}</h1>
-          <p>
+          <p className={ui.kicker}>Presentation</p>
+          <h1 className={ui.title}>{workflow.title}</h1>
+          <p className="mt-2 text-sm font-bold text-muted">
             {workflow.status} · {workflow.slideCount} slides · {workflow.outputLanguage}
           </p>
         </div>
       </div>
 
-      <nav className="workflow-tabs" aria-label="Presentation workflow">
+      <nav
+        className="mb-6 flex flex-wrap gap-2 border-b border-line pb-3"
+        aria-label="Presentation workflow"
+      >
         {workflowSteps.map((step) => {
           const Icon = step.icon;
           const href = `/app/presentations/${encodeURIComponent(workflow.id)}${step.suffix}`;
           return (
             <Link
               key={step.id}
-              className={activeStep === step.id ? "workflow-tab active" : "workflow-tab"}
+              className={cn(
+                "inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-extrabold text-muted no-underline hover:bg-white hover:text-ink",
+                activeStep === step.id && "bg-primary/10 text-primary",
+              )}
               href={href as Route}
             >
               <Icon size={16} aria-hidden="true" />
@@ -61,7 +69,7 @@ export function PresentationWorkflowLayout({
       </nav>
 
       {workflow.archivedAt ? (
-        <div className="workspace-alert">This presentation is archived and cannot be edited.</div>
+        <div className={ui.alert}>This presentation is archived and cannot be edited.</div>
       ) : null}
 
       {children}
@@ -75,10 +83,10 @@ export function PresentationOverview({ workflow }: { workflow: Workflow }): Reac
   const exported = workflow.exports.length > 0;
 
   return (
-    <div className="workflow-grid">
-      <section className="workflow-card">
-        <h2>Workflow status</h2>
-        <dl className="workflow-metrics">
+    <div className="grid gap-4 md:grid-cols-2">
+      <section className={ui.card}>
+        <h2 className={ui.sectionTitle}>Workflow status</h2>
+        <dl className="grid gap-3 md:grid-cols-2">
           <Metric label="Briefing" value={briefingReady ? "Ready" : "Open"} />
           <Metric label="Storyline" value={storylineReady ? "Ready" : "Open"} />
           <Metric label="Exports" value={exported ? String(workflow.exports.length) : "None"} />
@@ -86,15 +94,20 @@ export function PresentationOverview({ workflow }: { workflow: Workflow }): Reac
         </dl>
       </section>
 
-      <section className="workflow-card">
-        <h2>Slides</h2>
+      <section className={ui.card}>
+        <h2 className={ui.sectionTitle}>Slides</h2>
         {workflow.slideTitles.length === 0 ? (
-          <p className="workflow-muted">No slides have been created yet.</p>
+          <p className={ui.muted}>No slides have been created yet.</p>
         ) : (
-          <ol className="workflow-list">
+          <ol className="grid list-none gap-2.5 p-0">
             {workflow.slideTitles.slice(0, 8).map((slide) => (
-              <li key={slide.id}>
-                <span>{slide.order}</span>
+              <li
+                className="grid grid-cols-[28px_minmax(0,1fr)] items-center gap-2.5 text-sm font-bold text-ink"
+                key={slide.id}
+              >
+                <span className="grid h-7 w-7 place-items-center rounded-lg bg-canvas text-xs text-muted">
+                  {slide.order}
+                </span>
                 {slide.title}
               </li>
             ))}
@@ -102,33 +115,30 @@ export function PresentationOverview({ workflow }: { workflow: Workflow }): Reac
         )}
       </section>
 
-      <section className="workflow-card">
-        <h2>Next actions</h2>
-        <div className="workflow-actions">
-          <Link
-            className="workspace-button"
+      <section className={ui.card}>
+        <h2 className={ui.sectionTitle}>Next actions</h2>
+        <div className="flex flex-wrap gap-2.5">
+          <ButtonLink
             href={`/app/presentations/${encodeURIComponent(workflow.id)}/briefing` as Route}
           >
             Open briefing
-          </Link>
-          <Link
-            className="workspace-button"
+          </ButtonLink>
+          <ButtonLink
             href={`/app/presentations/${encodeURIComponent(workflow.id)}/storyline` as Route}
           >
             Open storyline
-          </Link>
-          <Link
-            className="workspace-button primary"
+          </ButtonLink>
+          <ButtonLink
+            variant="primary"
             href={`/app/presentations/${encodeURIComponent(workflow.id)}/editor` as Route}
           >
             Open editor
-          </Link>
-          <Link
-            className="workspace-button"
+          </ButtonLink>
+          <ButtonLink
             href={`/app/presentations/${encodeURIComponent(workflow.id)}/export` as Route}
           >
             Export
-          </Link>
+          </ButtonLink>
         </div>
       </section>
     </div>
@@ -137,9 +147,9 @@ export function PresentationOverview({ workflow }: { workflow: Workflow }): Reac
 
 function Metric({ label, value }: { label: string; value: string }): ReactElement {
   return (
-    <div>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
+    <div className="rounded-lg border border-line bg-canvas p-3">
+      <dt className="text-xs font-extrabold uppercase text-muted">{label}</dt>
+      <dd className="mt-1 text-lg font-extrabold text-ink">{value}</dd>
     </div>
   );
 }

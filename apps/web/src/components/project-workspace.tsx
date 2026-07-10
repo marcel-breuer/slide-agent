@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent, type ReactElement } from "react";
 import { Archive, FolderOpen, Loader2, Plus, RotateCcw } from "lucide-react";
 
+import { Button, ButtonLink, PageHeader, ui } from "./ui";
+
 type ProjectSummary = {
   id: string;
   name: string;
@@ -133,20 +135,16 @@ export function ProjectWorkspace(): ReactElement {
   );
 
   return (
-    <section className="workspace-shell">
-      <div className="workspace-header">
-        <div>
-          <p className="workspace-kicker">Projects</p>
-          <h1>Workspace</h1>
-        </div>
-      </div>
+    <section className={ui.pageShell}>
+      <PageHeader eyebrow="Projects" title="Workspace" />
 
-      {error ? <div className="workspace-alert">{error}</div> : null}
+      {error ? <div className={ui.alert}>{error}</div> : null}
 
-      <form className="workspace-form" onSubmit={(event) => void createProject(event)}>
-        <div className="workspace-field">
+      <form className={ui.form} onSubmit={(event) => void createProject(event)}>
+        <div className={ui.field}>
           <label htmlFor="project-name">Project name</label>
           <input
+            className={ui.input}
             id="project-name"
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -154,23 +152,24 @@ export function ProjectWorkspace(): ReactElement {
             required
           />
         </div>
-        <div className="workspace-field">
+        <div className={ui.field}>
           <label htmlFor="project-description">Description</label>
           <input
+            className={ui.input}
             id="project-description"
             value={description}
             onChange={(event) => setDescription(event.target.value)}
             maxLength={1000}
           />
         </div>
-        <button type="submit" className="workspace-button primary" disabled={isCreating}>
+        <Button type="submit" variant="primary" disabled={isCreating}>
           {isCreating ? (
-            <Loader2 size={17} className="import-spin" aria-hidden="true" />
+            <Loader2 size={17} className="animate-spin" aria-hidden="true" />
           ) : (
             <Plus size={17} aria-hidden="true" />
           )}
           Create project
-        </button>
+        </Button>
       </form>
 
       <ProjectList
@@ -202,40 +201,40 @@ function ProjectList({
   title: string;
 }): ReactElement {
   return (
-    <section className="workspace-section">
-      <h2>{title}</h2>
+    <section className={ui.section}>
+      <h2 className={ui.sectionTitle}>{title}</h2>
       {projects.length === 0 ? (
-        <p className="workspace-empty">{emptyLabel}</p>
+        <p className={ui.empty}>{emptyLabel}</p>
       ) : (
-        <ul className="workspace-list">
+        <ul className={ui.list}>
           {projects.map((project) => {
             const archived = Boolean(project.archivedAt);
 
             return (
-              <li className="workspace-item" key={project.id}>
-                <div className="workspace-item-main">
-                  <div className="workspace-item-title">
+              <li className={ui.item} key={project.id}>
+                <div className={ui.itemMain}>
+                  <div className={ui.itemTitle}>
                     <FolderOpen size={18} aria-hidden="true" />
-                    <Link href={`/app/projects/${encodeURIComponent(project.id)}`}>
+                    <Link
+                      className={ui.itemTitleLink}
+                      href={`/app/projects/${encodeURIComponent(project.id)}`}
+                    >
                       {project.name}
                     </Link>
                   </div>
-                  {project.description ? <p>{project.description}</p> : null}
-                  <p className="workspace-meta">
+                  {project.description ? <p className={ui.muted}>{project.description}</p> : null}
+                  <p className={ui.itemMeta}>
                     {project.activePresentationCount} active presentations,{" "}
                     {project.presentationCount} total
                   </p>
                 </div>
-                <div className="workspace-actions">
-                  <Link
-                    className="workspace-button"
-                    href={`/app/projects/${encodeURIComponent(project.id)}`}
-                  >
+                <div className={ui.actionRow}>
+                  <ButtonLink href={`/app/projects/${encodeURIComponent(project.id)}`}>
                     Open
-                  </Link>
+                  </ButtonLink>
                   <button
                     type="button"
-                    className="workspace-icon-button"
+                    className={ui.iconButton}
                     title={archived ? "Restore project" : "Archive project"}
                     onClick={() => void onArchiveChange(project.id, !archived)}
                   >

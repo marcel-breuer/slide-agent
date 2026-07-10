@@ -5,13 +5,13 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#0f172a",
-        muted: "#64748b",
-        line: "#e2e8f0",
-        canvas: "#f8fafc",
-        primary: "#9333ea",
-        "primary-strong": "#7e22ce",
-        accent: "#7c3aed",
+        ink: "#111827",
+        muted: "#4b5563",
+        line: "#e5e7eb",
+        canvas: "#f9fafb",
+        primary: "#a855f7",
+        "primary-strong": "#9333ea",
+        accent: "#10b981",
         warning: "#a16207",
       },
       borderRadius: {
