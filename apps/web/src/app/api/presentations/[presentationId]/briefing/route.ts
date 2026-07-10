@@ -12,9 +12,29 @@ type RouteContext = {
 };
 
 const BriefingInputSchema = z.object({
+  approved: z.boolean().default(false),
   audience: z.string().trim().min(1).max(1000),
   context: z.string().trim().max(2000).optional(),
+  followUps: z
+    .array(
+      z.object({
+        answer: z.string().trim().max(1000).default(""),
+        question: z.string().trim().min(1).max(240),
+      }),
+    )
+    .max(8)
+    .default([]),
   goal: z.string().trim().min(1).max(1000),
+  references: z
+    .array(
+      z.object({
+        label: z.string().trim().min(1).max(160),
+        note: z.string().trim().max(500).optional(),
+        type: z.enum(["attachment", "link", "note"]).default("note"),
+      }),
+    )
+    .max(12)
+    .default([]),
   requirements: z.string().trim().max(2000).optional(),
   successCriteria: z.string().trim().max(1000).optional(),
 });
@@ -76,14 +96,17 @@ export async function POST(request: Request, context: RouteContext) {
   const briefing = await prisma.briefing.create({
     data: {
       presentationId,
-      answers: parsed.data,
+      answers: {
+        ...parsed.data,
+        readiness: calculateBriefingReadiness(parsed.data),
+      },
     },
     select: { id: true, answers: true, createdAt: true, updatedAt: true },
   });
 
   await prisma.presentation.updateMany({
     where: { id: presentationId, ownerId: userId },
-    data: { status: "BRIEFING" },
+    data: { status: parsed.data.approved ? "STORYLINE_REVIEW" : "BRIEFING" },
   });
 
   return ok(
@@ -96,4 +119,26 @@ export async function POST(request: Request, context: RouteContext) {
     },
     201,
   );
+}
+
+function calculateBriefingReadiness(answers: z.infer<typeof BriefingInputSchema>) {
+  const answeredFollowUps = answers.followUps.filter((followUp) => followUp.answer.trim()).length;
+  const requiredFields = [
+    answers.goal,
+    answers.audience,
+    answers.successCriteria ?? "",
+    answers.requirements ?? "",
+  ];
+  const completedRequiredFields = requiredFields.filter((value) => value.trim()).length;
+  const score = Math.round(
+    ((completedRequiredFields + Math.min(answeredFollowUps, 2)) / (requiredFields.length + 2)) *
+      100,
+  );
+
+  return {
+    approved: answers.approved,
+    answeredFollowUps,
+    referenceCount: answers.references.length,
+    score,
+  };
 }

@@ -12,10 +12,24 @@ type RouteContext = {
 };
 
 const StorylineInputSchema = z.object({
+  generated: z.boolean().default(false),
   method: z.string().trim().min(1).max(120).default("Manual outline"),
   name: z.string().trim().min(1).max(160),
   outline: z.array(z.string().trim().min(1).max(240)).min(1).max(20),
+  proposalSummary: z.string().trim().max(1000).optional(),
   rationale: z.string().trim().min(1).max(1000),
+  scopeEstimate: z
+    .object({
+      confidence: z.enum(["low", "medium", "high"]).default("medium"),
+      estimatedMinutes: z.number().int().min(1).max(240),
+      slideCount: z.number().int().min(1).max(80),
+    })
+    .optional(),
+});
+
+const StorylineApprovalSchema = z.object({
+  approved: z.literal(true),
+  storylineVersionId: z.string().trim().min(1),
 });
 
 export async function GET(_request: Request, context: RouteContext) {
@@ -80,10 +94,17 @@ export async function POST(request: Request, context: RouteContext) {
         create: {
           version: 1,
           outline: {
+            generated: parsed.data.generated,
+            proposalSummary: parsed.data.proposalSummary ?? null,
             sections: parsed.data.outline.map((title, index) => ({
               order: index + 1,
               title,
             })),
+            scopeEstimate: parsed.data.scopeEstimate ?? {
+              confidence: "medium",
+              estimatedMinutes: Math.max(5, parsed.data.outline.length * 3),
+              slideCount: parsed.data.outline.length,
+            },
           },
         },
       },
@@ -111,6 +132,72 @@ export async function POST(request: Request, context: RouteContext) {
   });
 
   return ok(toStorylineSummary(storyline), 201);
+}
+
+export async function PATCH(request: Request, context: RouteContext) {
+  const userId = await getAuthenticatedUserId();
+  if (!userId) return fail("UNAUTHORIZED", "A valid session is required.", 401);
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return fail("VALIDATION_FAILED", "Request body must be valid JSON.", 400);
+  }
+
+  const parsed = StorylineApprovalSchema.safeParse(body);
+  if (!parsed.success) return fail("VALIDATION_FAILED", "Storyline approval is invalid.", 400);
+
+  const { presentationId } = await context.params;
+  const presentation = await prisma.presentation.findFirst({
+    where: { id: presentationId, ownerId: userId, archivedAt: null },
+    select: {
+      id: true,
+      storylines: {
+        where: {
+          versions: {
+            some: { id: parsed.data.storylineVersionId },
+          },
+        },
+        select: { id: true },
+        take: 1,
+      },
+    },
+  });
+  if (!presentation || presentation.storylines.length === 0) {
+    return fail("STORYLINE_VERSION_NOT_FOUND", "Storyline version was not found.", 404);
+  }
+
+  const approvedAt = new Date();
+  const updateResult = await prisma.storylineVersion.updateMany({
+    where: {
+      id: parsed.data.storylineVersionId,
+      storyline: {
+        presentation: {
+          id: presentationId,
+          ownerId: userId,
+        },
+      },
+    },
+    data: { approvedAt },
+  });
+  if (updateResult.count !== 1) {
+    return fail("STORYLINE_VERSION_NOT_FOUND", "Storyline version was not found.", 404);
+  }
+
+  await prisma.presentation.updateMany({
+    where: { id: presentationId, ownerId: userId },
+    data: {
+      activeStorylineVersionId: parsed.data.storylineVersionId,
+      status: "APPROVED",
+    },
+  });
+
+  return ok({
+    approvedAt: approvedAt.toISOString(),
+    presentationId,
+    storylineVersionId: parsed.data.storylineVersionId,
+  });
 }
 
 type StorylineRecord = {
