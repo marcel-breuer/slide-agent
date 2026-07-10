@@ -5,6 +5,8 @@
 import { AlertTriangle, CheckCircle2, Loader2, Save } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactElement } from "react";
 
+import { useUiLocale } from "@/lib/ui-locale";
+
 type BudgetSnapshot = {
   settings: {
     hardStopEnabled: boolean;
@@ -41,6 +43,7 @@ type BudgetApiResponse =
   { ok: true; data: BudgetSnapshot } | { ok: false; error: { code: string; message: string } };
 
 export function BudgetSettings(): ReactElement {
+  const { msg } = useUiLocale();
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<BudgetFormState>({
     hardStopEnabled: true,
@@ -131,19 +134,19 @@ export function BudgetSettings(): ReactElement {
     <section className="mx-auto w-full max-w-[1180px] px-6 py-8">
       <div className="mb-5 flex items-start justify-between gap-5">
         <div>
-          <p className="text-xs font-extrabold uppercase tracking-wide text-muted">Settings</p>
-          <h1 className="mt-1 text-[28px] font-extrabold leading-tight text-ink">
-            Budget controls
-          </h1>
-          <p className="mt-2 text-sm font-bold text-muted">
-            Monthly spend and token controls for protected generation workflows.
+          <p className="text-xs font-extrabold uppercase tracking-wide text-muted">
+            {msg("navSettings")}
           </p>
+          <h1 className="mt-1 text-[28px] font-extrabold leading-tight text-ink">
+            {msg("budgetControls")}
+          </h1>
+          <p className="mt-2 text-sm font-bold text-muted">{msg("budgetControlsDescription")}</p>
         </div>
       </div>
 
       {loading ? (
         <p className="rounded-app border border-dashed border-line bg-white p-4 text-sm text-muted">
-          Loading budget settings...
+          {msg("loadingBudgetSettings")}
         </p>
       ) : null}
       {error ? (
@@ -154,7 +157,7 @@ export function BudgetSettings(): ReactElement {
       {saved ? (
         <p className="mb-4 inline-flex items-center gap-2 rounded-app border border-green-200 bg-green-50 px-3 py-2.5 text-sm font-extrabold text-green-800">
           <CheckCircle2 size={16} aria-hidden="true" />
-          Saved
+          {msg("saved")}
         </p>
       ) : null}
 

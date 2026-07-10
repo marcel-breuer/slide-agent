@@ -5,6 +5,8 @@
 import { useState, type FormEvent, type ReactElement } from "react";
 import { Loader2, Save } from "lucide-react";
 
+import { useUiLocale } from "@/lib/ui-locale";
+
 import { Button, ui } from "./ui";
 
 type BriefingAnswers = {
@@ -28,6 +30,7 @@ export function PresentationBriefingWorkspace({
   briefing: { answers: unknown; updatedAt: string } | null;
   presentationId: string;
 }): ReactElement {
+  const { msg } = useUiLocale();
   const initialAnswers = asBriefingAnswers(briefing?.answers);
   const [audience, setAudience] = useState(initialAnswers.audience ?? "");
   const [context, setContext] = useState(initialAnswers.context ?? "");
@@ -73,7 +76,7 @@ export function PresentationBriefingWorkspace({
 
   return (
     <section className={ui.card}>
-      <h2 className={ui.sectionTitle}>Briefing</h2>
+      <h2 className={ui.sectionTitle}>{msg("briefing")}</h2>
       <form className="grid gap-3.5" onSubmit={(event) => void saveBriefing(event)}>
         <label className={ui.field}>
           <span>Goal</span>
@@ -132,7 +135,7 @@ export function PresentationBriefingWorkspace({
           ) : (
             <Save size={17} aria-hidden="true" />
           )}
-          Save briefing
+          {msg("saveBriefing")}
         </Button>
       </form>
     </section>

@@ -5,6 +5,8 @@
 import { CheckCircle2, KeyRound, Loader2, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactElement } from "react";
 
+import { useUiLocale } from "@/lib/ui-locale";
+
 import { Button, PageHeader, cn, ui } from "./ui";
 
 type SecuritySession = {
@@ -36,6 +38,7 @@ type MutationResponse =
   | { ok: false; error: { code: string; message: string } };
 
 export function SecuritySettings(): ReactElement {
+  const { msg } = useUiLocale();
   const [currentPassword, setCurrentPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -95,7 +98,7 @@ export function SecuritySettings(): ReactElement {
       setCurrentPassword("");
       setNewPassword("");
       setPasswordConfirmation("");
-      setSaved("Password changed.");
+      setSaved(msg("passwordChanged"));
       await loadSecuritySettings();
     } catch (changeError) {
       setError(
@@ -125,7 +128,7 @@ export function SecuritySettings(): ReactElement {
         setError(payload.ok ? "Session could not be revoked." : payload.error.message);
         return;
       }
-      setSaved("Session revoked.");
+      setSaved(msg("sessionRevoked"));
       await loadSecuritySettings();
     } catch (revokeError) {
       setError(
@@ -141,11 +144,11 @@ export function SecuritySettings(): ReactElement {
 
   return (
     <section className={ui.workflowShell}>
-      <PageHeader eyebrow="Settings" title="Security settings">
-        Password changes, active sessions, and security events for this account.
+      <PageHeader eyebrow={msg("navSettings")} title={msg("securitySettings")}>
+        {msg("securitySettingsDescription")}
       </PageHeader>
 
-      {loading ? <p className={ui.empty}>Loading security settings...</p> : null}
+      {loading ? <p className={ui.empty}>{msg("loadingSecuritySettings")}</p> : null}
       {error ? <div className={ui.alert}>{error}</div> : null}
       {saved ? (
         <p className={ui.success}>
@@ -158,19 +161,17 @@ export function SecuritySettings(): ReactElement {
         <section className={ui.card}>
           <div className={ui.cardHeader}>
             <div>
-              <h2 className={ui.sectionTitle}>Password</h2>
-              <p className={ui.muted}>
-                Enter your current password and repeat the new password before saving.
-              </p>
+              <h2 className={ui.sectionTitle}>{msg("password")}</h2>
+              <p className={ui.muted}>{msg("passwordSettingsDescription")}</p>
             </div>
             <span className={cn(ui.badge, "border-emerald-200 bg-emerald-50 text-emerald-800")}>
               <ShieldCheck size={14} aria-hidden="true" />
-              Confirmation required
+              {msg("confirmationRequired")}
             </span>
           </div>
           <form className={ui.settingsForm} onSubmit={(event) => void changePassword(event)}>
             <label className={ui.field}>
-              <span>Current password</span>
+              <span>{msg("currentPassword")}</span>
               <input
                 className={ui.input}
                 type="password"
@@ -180,7 +181,7 @@ export function SecuritySettings(): ReactElement {
               />
             </label>
             <label className={ui.field}>
-              <span>New password</span>
+              <span>{msg("newPassword")}</span>
               <input
                 className={ui.input}
                 type="password"
@@ -190,7 +191,7 @@ export function SecuritySettings(): ReactElement {
               />
             </label>
             <label className={ui.field}>
-              <span>Repeat new password</span>
+              <span>{msg("repeatNewPassword")}</span>
               <input
                 className={ui.input}
                 type="password"
@@ -210,19 +211,19 @@ export function SecuritySettings(): ReactElement {
                 ) : (
                   <KeyRound size={17} aria-hidden="true" />
                 )}
-                Change password
+                {msg("changePassword")}
               </Button>
             </div>
           </form>
           {newPassword && !passwordsMatch ? (
-            <p className="mt-3 text-sm font-bold text-red-700">New passwords must match.</p>
+            <p className="mt-3 text-sm font-bold text-red-700">{msg("passwordMismatch")}</p>
           ) : null}
         </section>
 
         <section className={ui.card}>
           <div className={ui.cardHeader}>
             <div>
-              <h2 className={ui.sectionTitle}>Active sessions</h2>
+              <h2 className={ui.sectionTitle}>{msg("activeSessions")}</h2>
               <p className={ui.muted}>Revoke sessions that should no longer have account access.</p>
             </div>
             <Button type="button" onClick={() => void loadSecuritySettings()}>
@@ -261,7 +262,7 @@ export function SecuritySettings(): ReactElement {
                     ) : (
                       <Trash2 size={17} aria-hidden="true" />
                     )}
-                    Revoke
+                    {msg("revoke")}
                   </Button>
                 </li>
               ))}
@@ -272,7 +273,7 @@ export function SecuritySettings(): ReactElement {
         </section>
 
         <section className={ui.card}>
-          <h2 className={ui.sectionTitle}>Security event history</h2>
+          <h2 className={ui.sectionTitle}>{msg("securityEventHistory")}</h2>
           {snapshot?.auditEvents.length ? (
             <ul className={ui.list}>
               {snapshot.auditEvents.map((event) => (

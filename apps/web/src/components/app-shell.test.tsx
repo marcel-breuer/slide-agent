@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /* global HTMLAnchorElement */
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import React, { type AnchorHTMLAttributes, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -25,10 +25,13 @@ vi.mock("next/link", () => ({
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
 });
 
 describe("AppShell", () => {
   it("renders workspace navigation and marks the current route", () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValueOnce(new Error("not loaded"));
+
     render(
       <AppShell>
         <section>Page content</section>
@@ -43,5 +46,33 @@ describe("AppShell", () => {
     );
     expect(screen.getByRole("link", { name: "AI providers" }).className).toContain("active");
     expect(screen.getByText("Page content")).toBeTruthy();
+  });
+
+  it("applies the persisted UI locale to navigation copy", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          data: {
+            uiLocale: "de",
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+
+    render(
+      <AppShell>
+        <section>Page content</section>
+      </AppShell>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: "KI-Anbieter" })).toBeTruthy();
+    });
+    expect(screen.getByRole("link", { name: "Projekte" }).getAttribute("href")).toBe(
+      "/app/projects",
+    );
+    expect(screen.getAllByText("Arbeitsbereich").length).toBeGreaterThan(0);
   });
 });

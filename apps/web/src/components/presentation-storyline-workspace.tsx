@@ -5,6 +5,8 @@
 import { useMemo, useState, type FormEvent, type ReactElement } from "react";
 import { GitBranch, Loader2 } from "lucide-react";
 
+import { useUiLocale } from "@/lib/ui-locale";
+
 import { Button, ui } from "./ui";
 
 type StorylineSummary = {
@@ -30,6 +32,7 @@ export function PresentationStorylineWorkspace({
   slideTitles: Array<{ order: number; title: string }>;
   storylines: StorylineSummary[];
 }): ReactElement {
+  const { msg } = useUiLocale();
   const defaultOutline = useMemo(
     () => slideTitles.map((slide) => slide.title).join("\n"),
     [slideTitles],
@@ -84,7 +87,7 @@ export function PresentationStorylineWorkspace({
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <section className={ui.card}>
-        <h2 className={ui.sectionTitle}>Create storyline</h2>
+        <h2 className={ui.sectionTitle}>{msg("createStoryline")}</h2>
         <form className="grid gap-3.5" onSubmit={(event) => void createStoryline(event)}>
           <label className={ui.field}>
             <span>Name</span>
@@ -135,13 +138,13 @@ export function PresentationStorylineWorkspace({
             ) : (
               <GitBranch size={17} aria-hidden="true" />
             )}
-            Create storyline
+            {msg("createStoryline")}
           </Button>
         </form>
       </section>
 
       <section className={ui.card}>
-        <h2 className={ui.sectionTitle}>Storylines</h2>
+        <h2 className={ui.sectionTitle}>{msg("storyline")}</h2>
         {items.length === 0 ? (
           <p className={ui.muted}>No storylines have been created yet.</p>
         ) : (

@@ -5,6 +5,8 @@
 import { CheckCircle2, Loader2, Save, ShieldCheck, Trash2 } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactElement } from "react";
 
+import { useUiLocale } from "@/lib/ui-locale";
+
 import { Button, PageHeader, cn, ui } from "./ui";
 
 type ProviderModel = {
@@ -61,6 +63,7 @@ type ProviderVerifyResponse =
   | { ok: false; error: { code: string; message: string } };
 
 export function ProviderSettings(): ReactElement {
+  const { msg } = useUiLocale();
   const [error, setError] = useState<string | null>(null);
   const [forms, setForms] = useState<Record<string, ProviderFormState>>({});
   const [loading, setLoading] = useState(true);
@@ -216,9 +219,9 @@ export function ProviderSettings(): ReactElement {
 
   return (
     <section className={ui.workflowShell}>
-      <PageHeader eyebrow="Settings" title="AI providers" />
+      <PageHeader eyebrow={msg("navSettings")} title={msg("providers")} />
 
-      {loading ? <p className={ui.empty}>Loading providers...</p> : null}
+      {loading ? <p className={ui.empty}>{msg("loadingProviders")}</p> : null}
       {error ? <div className={ui.alert}>{error}</div> : null}
 
       <div className="grid gap-4">

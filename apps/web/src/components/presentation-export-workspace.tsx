@@ -3,6 +3,8 @@
 import { useState, type ReactElement } from "react";
 import { Download, FileDown, Loader2 } from "lucide-react";
 
+import { useUiLocale } from "@/lib/ui-locale";
+
 import { Button, ui } from "./ui";
 
 type ExportSummary = {
@@ -26,6 +28,7 @@ export function PresentationExportWorkspace({
   exports: ExportSummary[];
   presentationId: string;
 }): ReactElement {
+  const { msg } = useUiLocale();
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState(exports);
   const [submitting, setSubmitting] = useState(false);
@@ -59,7 +62,7 @@ export function PresentationExportWorkspace({
       <div className={ui.cardHeader}>
         <div>
           <h2 className={ui.sectionTitle}>PowerPoint exports</h2>
-          <p className={ui.muted}>Generate a downloadable .pptx from the current deck.</p>
+          <p className={ui.muted}>{msg("exportSettingsDescription")}</p>
         </div>
         <Button
           type="button"
@@ -72,14 +75,14 @@ export function PresentationExportWorkspace({
           ) : (
             <FileDown size={17} aria-hidden="true" />
           )}
-          Create export
+          {msg("createExport")}
         </Button>
       </div>
 
       {error ? <div className={ui.alert}>{error}</div> : null}
 
       {items.length === 0 ? (
-        <p className={ui.empty}>No exports yet.</p>
+        <p className={ui.empty}>{msg("noExportsYet")}</p>
       ) : (
         <ul className={ui.list}>
           {items.map((item) => (
@@ -97,7 +100,7 @@ export function PresentationExportWorkspace({
                 href={item.downloadUrl}
               >
                 <Download size={16} aria-hidden="true" />
-                Download
+                {msg("exportData")}
               </a>
             </li>
           ))}

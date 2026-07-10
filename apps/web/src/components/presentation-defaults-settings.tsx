@@ -5,6 +5,8 @@
 import { Loader2, Save } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactElement } from "react";
 
+import { useUiLocale } from "@/lib/ui-locale";
+
 import { Button, PageHeader, ui } from "./ui";
 
 type Settings = {
@@ -23,6 +25,7 @@ type SettingsApiResponse =
   { ok: true; data: Settings } | { ok: false; error: { code: string; message: string } };
 
 export function PresentationDefaultsSettings(): ReactElement {
+  const { msg } = useUiLocale();
   const [audience, setAudience] = useState("business");
   const [detailLevel, setDetailLevel] = useState("balanced");
   const [error, setError] = useState<string | null>(null);
@@ -110,16 +113,16 @@ export function PresentationDefaultsSettings(): ReactElement {
 
   return (
     <section className={ui.workflowShell}>
-      <PageHeader eyebrow="Settings" title="Presentation defaults" />
+      <PageHeader eyebrow={msg("navSettings")} title={msg("presentationDefaults")} />
 
       <section className={ui.card}>
-        {loading ? <p className={ui.empty}>Loading settings...</p> : null}
+        {loading ? <p className={ui.empty}>{msg("loadingSettings")}</p> : null}
         {error ? <div className={ui.alert}>{error}</div> : null}
-        {saved ? <p className={ui.success}>Saved</p> : null}
+        {saved ? <p className={ui.success}>{msg("saved")}</p> : null}
 
         <form className={ui.settingsForm} onSubmit={(event) => void saveSettings(event)}>
           <label className={ui.field}>
-            <span>Default slides</span>
+            <span>{msg("defaultSlides")}</span>
             <input
               className={ui.input}
               type="number"
@@ -227,7 +230,7 @@ export function PresentationDefaultsSettings(): ReactElement {
             ) : (
               <Save size={17} aria-hidden="true" />
             )}
-            Save defaults
+            {msg("saveDefaults")}
           </Button>
         </form>
       </section>
