@@ -26,6 +26,12 @@ vi.mock("../../../../../lib/presentation-exports", () => {
 
   return {
     createPptxExport: vi.fn(),
+    DEFAULT_PRESENTATION_EXPORT_SETTINGS: {
+      compatibility: "modern",
+      format: "pptx",
+      imageFallbackMode: "preserve-editable",
+      includeSpeakerNotes: true,
+    },
     PresentationExportFailedError,
     PresentationExportForbiddenError,
     PresentationExportNotFoundError,
@@ -94,8 +100,92 @@ describe("presentation export API", () => {
     expect(mockedCreatePptxExport).toHaveBeenCalledWith({
       client: mockedPrisma.prisma,
       presentationId: "demo-presentation",
+      settings: {
+        compatibility: "modern",
+        format: "pptx",
+        imageFallbackMode: "preserve-editable",
+        includeSpeakerNotes: true,
+      },
       userId: "demo-user",
     });
+  });
+
+  it("validates and forwards requested export settings", async () => {
+    mockedCreatePptxExport.mockResolvedValue({
+      id: "export-1",
+      presentationId: "demo-presentation",
+      jobId: "job-1",
+      fileName: "demo.pptx",
+      mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      byteSize: 4096,
+      downloadUrl: "/api/presentations/demo-presentation/exports/export-1/download",
+      report: {
+        slideCount: 3,
+        elementCount: 12,
+        nativeEditableElementCount: 12,
+        svgFallbackCount: 0,
+        pngFallbackCount: 0,
+        warnings: ["Speaker notes were excluded from this export."],
+      },
+      settings: {
+        compatibility: "legacy",
+        format: "pptx",
+        imageFallbackMode: "rasterize-unsupported",
+        includeSpeakerNotes: false,
+      },
+      warnings: ["Speaker notes were excluded from this export."],
+      createdAt: "2026-07-03T10:00:00.000Z",
+    });
+
+    const response = await POST(
+      new Request("http://test.local", {
+        body: JSON.stringify({
+          compatibility: "legacy",
+          format: "pptx",
+          imageFallbackMode: "rasterize-unsupported",
+          includeSpeakerNotes: false,
+        }),
+        method: "POST",
+      }),
+      {
+        params: Promise.resolve({ presentationId: "demo-presentation" }),
+      },
+    );
+    const payload = (await response.json()) as {
+      ok: boolean;
+      data: { settings: { compatibility: string }; warnings: string[] };
+    };
+
+    expect(response.status).toBe(201);
+    expect(payload.data.settings.compatibility).toBe("legacy");
+    expect(payload.data.warnings).toContain("Speaker notes were excluded from this export.");
+    expect(mockedCreatePptxExport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        settings: {
+          compatibility: "legacy",
+          format: "pptx",
+          imageFallbackMode: "rasterize-unsupported",
+          includeSpeakerNotes: false,
+        },
+      }),
+    );
+  });
+
+  it("rejects invalid export settings", async () => {
+    const response = await POST(
+      new Request("http://test.local", {
+        body: JSON.stringify({ compatibility: "unknown", format: "pptx" }),
+        method: "POST",
+      }),
+      {
+        params: Promise.resolve({ presentationId: "demo-presentation" }),
+      },
+    );
+    const payload = (await response.json()) as { ok: boolean; error: { code: string } };
+
+    expect(response.status).toBe(400);
+    expect(payload.error.code).toBe("INVALID_EXPORT_SETTINGS");
+    expect(mockedCreatePptxExport).not.toHaveBeenCalled();
   });
 
   it("returns export failures as recoverable API errors", async () => {
@@ -125,6 +215,13 @@ describe("presentation export API", () => {
             byteSize: 2048,
             fileName: "q3-review.pptx",
             slideCount: 3,
+            settings: {
+              compatibility: "strict",
+              format: "pptx",
+              imageFallbackMode: "preserve-editable",
+              includeSpeakerNotes: true,
+            },
+            warnings: ["Strict compatibility may simplify fallback-rendered visuals."],
           },
           createdAt: new Date("2026-07-09T10:00:00.000Z"),
         },
@@ -136,11 +233,12 @@ describe("presentation export API", () => {
     });
     const payload = (await response.json()) as {
       ok: boolean;
-      data: Array<{ downloadUrl: string; fileName: string }>;
+      data: Array<{ downloadUrl: string; fileName: string; settings: { compatibility: string } }>;
     };
 
     expect(response.status).toBe(200);
     expect(payload.data[0]?.fileName).toBe("q3-review.pptx");
+    expect(payload.data[0]?.settings.compatibility).toBe("strict");
     expect(payload.data[0]?.downloadUrl).toBe(
       "/api/presentations/presentation-1/exports/export-1/download",
     );

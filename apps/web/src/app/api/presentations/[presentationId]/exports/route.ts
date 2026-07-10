@@ -1,9 +1,12 @@
 import { ensureDemoPresentation, prisma } from "@slide-agent/database";
 import { DEMO_PRESENTATION_ID } from "@slide-agent/presentation-schema";
+import { z } from "zod";
 
 import { fail, ok } from "../../../../../lib/api";
 import {
   createPptxExport,
+  DEFAULT_PRESENTATION_EXPORT_SETTINGS,
+  type PresentationExportSettings,
   PresentationExportFailedError,
   PresentationExportForbiddenError,
   PresentationExportNotFoundError,
@@ -16,10 +19,26 @@ type RouteContext = {
   }>;
 };
 
-export async function POST(_request: Request, context: RouteContext) {
+const ExportSettingsSchema = z
+  .object({
+    compatibility: z.enum(["legacy", "modern", "strict"]).default("modern"),
+    format: z.literal("pptx").default("pptx"),
+    imageFallbackMode: z
+      .enum(["preserve-editable", "rasterize-unsupported"])
+      .default("preserve-editable"),
+    includeSpeakerNotes: z.boolean().default(true),
+  })
+  .default(DEFAULT_PRESENTATION_EXPORT_SETTINGS);
+
+export async function POST(request: Request, context: RouteContext) {
   const userId = await getAuthenticatedUserId();
   if (!userId) {
     return fail("UNAUTHORIZED", "A valid session is required.", 401);
+  }
+
+  const settings = await parseExportSettings(request);
+  if (!settings.ok) {
+    return fail("INVALID_EXPORT_SETTINGS", settings.message, 400);
   }
 
   const { presentationId } = await context.params;
@@ -31,6 +50,7 @@ export async function POST(_request: Request, context: RouteContext) {
     const exportSummary = await createPptxExport({
       client: prisma,
       presentationId,
+      settings: settings.data,
       userId,
     });
 
@@ -94,6 +114,10 @@ export async function GET(_request: Request, context: RouteContext) {
           typeof report.fileName === "string" ? report.fileName : `${presentation.title}.pptx`,
         byteSize: typeof report.byteSize === "number" ? report.byteSize : null,
         slideCount: typeof report.slideCount === "number" ? report.slideCount : null,
+        settings: parseStoredSettings(report.settings),
+        warnings: Array.isArray(report.warnings)
+          ? report.warnings.filter((warning): warning is string => typeof warning === "string")
+          : [],
         createdAt: exportRecord.createdAt.toISOString(),
         downloadUrl: `/api/presentations/${encodeURIComponent(
           presentationId,
@@ -101,4 +125,32 @@ export async function GET(_request: Request, context: RouteContext) {
       };
     }),
   );
+}
+
+async function parseExportSettings(
+  request: Request,
+): Promise<{ ok: true; data: PresentationExportSettings } | { ok: false; message: string }> {
+  const text = await request.text();
+  if (!text.trim()) {
+    return { ok: true, data: DEFAULT_PRESENTATION_EXPORT_SETTINGS };
+  }
+
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    return { ok: false, message: "Export settings must be valid JSON." };
+  }
+
+  const parsed = ExportSettingsSchema.safeParse(json);
+  if (!parsed.success) {
+    return { ok: false, message: "Export settings are invalid." };
+  }
+
+  return { ok: true, data: parsed.data };
+}
+
+function parseStoredSettings(value: unknown): PresentationExportSettings | null {
+  const parsed = ExportSettingsSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
 }

@@ -1,4 +1,8 @@
 import { prisma, type Prisma } from "@slide-agent/database";
+import {
+  DEFAULT_PRESENTATION_EXPORT_SETTINGS,
+  type PresentationExportSettings,
+} from "@/lib/presentation-exports";
 
 export type PresentationWorkflow = Awaited<ReturnType<typeof getPresentationWorkflow>>;
 
@@ -133,11 +137,42 @@ export async function getPresentationWorkflow(userId: string, presentationId: st
           typeof report?.fileName === "string" ? report.fileName : `${presentation.title}.pptx`,
         byteSize: typeof report?.byteSize === "number" ? report.byteSize : null,
         slideCount: typeof report?.slideCount === "number" ? report.slideCount : null,
+        settings: parseExportSettings(report?.settings),
+        warnings: Array.isArray(report?.warnings)
+          ? report.warnings.filter((warning): warning is string => typeof warning === "string")
+          : [],
         downloadUrl: `/api/presentations/${encodeURIComponent(
           presentation.id,
         )}/exports/${encodeURIComponent(exportRecord.id)}/download`,
       };
     }),
+  };
+}
+
+function parseExportSettings(value: unknown): PresentationExportSettings | null {
+  const record =
+    value !== null && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : null;
+  if (!record) return null;
+
+  const compatibility = record.compatibility;
+  const imageFallbackMode = record.imageFallbackMode;
+
+  if (
+    record.format !== "pptx" ||
+    (compatibility !== "legacy" && compatibility !== "modern" && compatibility !== "strict") ||
+    (imageFallbackMode !== "preserve-editable" && imageFallbackMode !== "rasterize-unsupported") ||
+    typeof record.includeSpeakerNotes !== "boolean"
+  ) {
+    return null;
+  }
+
+  return {
+    ...DEFAULT_PRESENTATION_EXPORT_SETTINGS,
+    compatibility,
+    imageFallbackMode,
+    includeSpeakerNotes: record.includeSpeakerNotes,
   };
 }
 
