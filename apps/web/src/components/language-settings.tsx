@@ -5,6 +5,8 @@
 import { Loader2, Save } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactElement } from "react";
 
+import { Button, PageHeader, ui } from "./ui";
+
 type Settings = {
   presentationLocale: string;
   timeZone: string;
@@ -81,33 +83,30 @@ export function LanguageSettings(): ReactElement {
   }
 
   return (
-    <section className="workflow-shell">
-      <div className="workflow-header">
-        <div>
-          <p className="workspace-kicker">Settings</p>
-          <h1>Language</h1>
-        </div>
-      </div>
+    <section className={ui.workflowShell}>
+      <PageHeader eyebrow="Settings" title="Language" />
 
-      <section className="workflow-card">
-        {loading ? <p className="workspace-empty">Loading settings...</p> : null}
-        {error ? <div className="workspace-alert">{error}</div> : null}
-        {saved ? <p className="settings-success">Saved</p> : null}
+      <section className={ui.card}>
+        {loading ? <p className={ui.empty}>Loading settings...</p> : null}
+        {error ? <div className={ui.alert}>{error}</div> : null}
+        {saved ? <p className={ui.success}>Saved</p> : null}
 
-        <form
-          className="workflow-form settings-form"
-          onSubmit={(event) => void saveSettings(event)}
-        >
-          <label>
-            UI language
-            <select value={uiLocale} onChange={(event) => setUiLocale(event.target.value)}>
+        <form className={ui.settingsForm} onSubmit={(event) => void saveSettings(event)}>
+          <label className={ui.field}>
+            <span>UI language</span>
+            <select
+              className={ui.input}
+              value={uiLocale}
+              onChange={(event) => setUiLocale(event.target.value)}
+            >
               <option value="en">English</option>
               <option value="de">Deutsch</option>
             </select>
           </label>
-          <label>
-            Presentation language
+          <label className={ui.field}>
+            <span>Presentation language</span>
             <select
+              className={ui.input}
               value={presentationLocale}
               onChange={(event) => setPresentationLocale(event.target.value)}
             >
@@ -115,23 +114,24 @@ export function LanguageSettings(): ReactElement {
               <option value="de">Deutsch</option>
             </select>
           </label>
-          <label>
-            Time zone
+          <label className={ui.field}>
+            <span>Time zone</span>
             <input
+              className={ui.input}
               value={timeZone}
               maxLength={80}
               onChange={(event) => setTimeZone(event.target.value)}
             />
           </label>
 
-          <button type="submit" className="workspace-button primary" disabled={submitting}>
+          <Button type="submit" variant="primary" disabled={submitting}>
             {submitting ? (
-              <Loader2 size={17} className="import-spin" aria-hidden="true" />
+              <Loader2 size={17} className="animate-spin" aria-hidden="true" />
             ) : (
               <Save size={17} aria-hidden="true" />
             )}
             Save language
-          </button>
+          </Button>
         </form>
       </section>
     </section>

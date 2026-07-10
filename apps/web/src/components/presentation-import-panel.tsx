@@ -5,6 +5,8 @@
 import { useRef, useState, type ChangeEvent, type ReactElement } from "react";
 import { AlertTriangle, CheckCircle2, ExternalLink, FileUp, Loader2 } from "lucide-react";
 
+import { Button, ui } from "./ui";
+
 type ImportStatus = "idle" | "ready" | "uploading" | "succeeded" | "failed";
 
 type ImportSummary = {
@@ -83,22 +85,22 @@ export function PresentationImportPanel({ projectId }: { projectId: string }): R
   const isUploading = status === "uploading";
 
   return (
-    <section className="import-shell">
-      <div className="import-layout">
-        <div className="import-card">
-          <div className="import-heading-row">
-            <div className="import-icon">
+    <section className={ui.pageShell}>
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="rounded-lg border border-line bg-white p-6 shadow-sm max-[520px]:p-4">
+          <div className="mb-5 flex items-start gap-3">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
               <FileUp size={20} aria-hidden="true" />
             </div>
             <div>
-              <h1 className="import-title">Projects</h1>
-              <p className="import-description">
+              <h1 className="m-0 text-2xl font-bold leading-tight text-ink">Projects</h1>
+              <p className="mt-1 text-sm leading-6 text-muted">
                 Upload a PowerPoint deck and convert it into an editable presentation.
               </p>
             </div>
           </div>
 
-          <div className="import-dropzone">
+          <div className="rounded-lg border border-dashed border-line bg-canvas p-5">
             <input
               ref={inputRef}
               type="file"
@@ -107,57 +109,56 @@ export function PresentationImportPanel({ projectId }: { projectId: string }): R
               onChange={handleFileChange}
               className="sr-only"
             />
-            <div className="import-controls">
-              <button
-                type="button"
-                onClick={() => inputRef.current?.click()}
-                className="import-secondary-button"
-              >
+            <div className="flex items-center justify-between gap-4 max-[960px]:flex-col max-[960px]:items-stretch">
+              <Button type="button" onClick={() => inputRef.current?.click()}>
                 <FileUp size={18} aria-hidden="true" />
                 Choose .pptx
-              </button>
-              <div className="import-file-name">
+              </Button>
+              <div className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm text-muted">
                 {file ? <span>{file.name}</span> : "No file selected"}
               </div>
-              <button
+              <Button
                 type="button"
+                variant="primary"
                 disabled={isUploading || !file}
                 onClick={() => void uploadSelectedFile()}
-                className="import-primary-button"
               >
                 {isUploading ? (
-                  <Loader2 size={18} className="import-spin" aria-hidden="true" />
+                  <Loader2 size={18} className="animate-spin" aria-hidden="true" />
                 ) : null}
                 Import
-              </button>
+              </Button>
             </div>
           </div>
 
           {error ? (
-            <div className="import-alert">
+            <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
               <AlertTriangle size={18} aria-hidden="true" />
-              <p>{error}</p>
+              <p className="m-0">{error}</p>
             </div>
           ) : null}
 
           {result ? (
-            <div className="import-result">
-              <div className="import-result-header">
+            <div className="mt-5 rounded-lg border border-line bg-white p-4">
+              <div className="flex items-start justify-between gap-3 max-[960px]:flex-col">
                 <div>
-                  <div className="import-success-label">
+                  <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
                     <CheckCircle2 size={18} aria-hidden="true" />
                     Import complete
                   </div>
-                  <h2 className="import-result-title">{result.title}</h2>
-                  <p className="import-result-file">{result.fileName}</p>
+                  <h2 className="mt-2 text-xl font-bold leading-tight text-ink">{result.title}</h2>
+                  <p className="mt-1 text-sm text-muted">{result.fileName}</p>
                 </div>
-                <a href={result.editorUrl} className="import-editor-link">
+                <a
+                  href={result.editorUrl}
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-primary bg-white px-3.5 text-sm font-extrabold text-primary no-underline hover:bg-primary hover:text-white"
+                >
                   Open editor
                   <ExternalLink size={16} aria-hidden="true" />
                 </a>
               </div>
 
-              <dl className="import-report-grid">
+              <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <ReportMetric label="Slides" value={result.report.importedSlideCount} />
                 <ReportMetric label="Elements" value={result.report.importedElementCount} />
                 <ReportMetric label="Editable" value={result.report.fullyEditableElementCount} />
@@ -165,9 +166,9 @@ export function PresentationImportPanel({ projectId }: { projectId: string }): R
               </dl>
 
               {result.report.warnings.length > 0 ? (
-                <div className="import-warnings">
-                  <h3>Import warnings</h3>
-                  <ul>
+                <div className="mt-4 rounded-lg bg-canvas p-3">
+                  <h3 className="m-0 text-sm font-bold text-ink">Import warnings</h3>
+                  <ul className="mt-2 pl-5 text-sm leading-6 text-muted">
                     {result.report.warnings.map((warning) => (
                       <li key={warning}>{warning}</li>
                     ))}
@@ -178,9 +179,11 @@ export function PresentationImportPanel({ projectId }: { projectId: string }): R
           ) : null}
         </div>
 
-        <aside className="import-support">
-          <h2>Import support</h2>
-          <dl>
+        <aside className="rounded-lg border border-line bg-white p-5 shadow-sm max-[520px]:p-4">
+          <h2 className="m-0 text-xs font-bold uppercase tracking-wide text-muted">
+            Import support
+          </h2>
+          <dl className="mt-4 grid gap-4">
             <SupportItem label="Accepted file" value=".pptx PowerPoint package" />
             <SupportItem label="Editable output" value="Text-first structured slides" />
             <SupportItem label="Reported gaps" value="Images, charts, tables, groups" />
@@ -193,18 +196,18 @@ export function PresentationImportPanel({ projectId }: { projectId: string }): R
 
 function ReportMetric({ label, value }: { label: string; value: number }): ReactElement {
   return (
-    <div className="import-metric">
-      <dt>{label}</dt>
-      <dd>{value}</dd>
+    <div className="rounded-lg border border-line bg-canvas p-3">
+      <dt className="text-xs font-bold uppercase tracking-wide text-muted">{label}</dt>
+      <dd className="mt-1 text-2xl font-bold leading-tight text-ink">{value}</dd>
     </div>
   );
 }
 
 function SupportItem({ label, value }: { label: string; value: string }): ReactElement {
   return (
-    <div className="import-support-item">
-      <dt>{label}</dt>
-      <dd>{value}</dd>
+    <div>
+      <dt className="text-sm font-bold text-ink">{label}</dt>
+      <dd className="mt-1 text-sm leading-6 text-muted">{value}</dd>
     </div>
   );
 }

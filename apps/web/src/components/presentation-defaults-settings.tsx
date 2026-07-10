@@ -5,6 +5,8 @@
 import { Loader2, Save } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactElement } from "react";
 
+import { Button, PageHeader, ui } from "./ui";
+
 type Settings = {
   defaultAudience: string;
   defaultDetailLevel: string;
@@ -107,26 +109,19 @@ export function PresentationDefaultsSettings(): ReactElement {
   }
 
   return (
-    <section className="workflow-shell">
-      <div className="workflow-header">
-        <div>
-          <p className="workspace-kicker">Settings</p>
-          <h1>Presentation defaults</h1>
-        </div>
-      </div>
+    <section className={ui.workflowShell}>
+      <PageHeader eyebrow="Settings" title="Presentation defaults" />
 
-      <section className="workflow-card">
-        {loading ? <p className="workspace-empty">Loading settings...</p> : null}
-        {error ? <div className="workspace-alert">{error}</div> : null}
-        {saved ? <p className="settings-success">Saved</p> : null}
+      <section className={ui.card}>
+        {loading ? <p className={ui.empty}>Loading settings...</p> : null}
+        {error ? <div className={ui.alert}>{error}</div> : null}
+        {saved ? <p className={ui.success}>Saved</p> : null}
 
-        <form
-          className="workflow-form settings-form"
-          onSubmit={(event) => void saveSettings(event)}
-        >
-          <label>
-            Default slides
+        <form className={ui.settingsForm} onSubmit={(event) => void saveSettings(event)}>
+          <label className={ui.field}>
+            <span>Default slides</span>
             <input
+              className={ui.input}
               type="number"
               min={1}
               max={maxSlideCount}
@@ -134,9 +129,10 @@ export function PresentationDefaultsSettings(): ReactElement {
               onChange={(event) => setSlideCount(Number(event.target.value))}
             />
           </label>
-          <label>
-            Maximum slides
+          <label className={ui.field}>
+            <span>Maximum slides</span>
             <input
+              className={ui.input}
               type="number"
               min={1}
               max={50}
@@ -144,57 +140,79 @@ export function PresentationDefaultsSettings(): ReactElement {
               onChange={(event) => setMaxSlideCount(Number(event.target.value))}
             />
           </label>
-          <label>
-            Tone
-            <select value={tone} onChange={(event) => setTone(event.target.value)}>
+          <label className={ui.field}>
+            <span>Tone</span>
+            <select
+              className={ui.input}
+              value={tone}
+              onChange={(event) => setTone(event.target.value)}
+            >
               <option value="professional">Professional</option>
               <option value="executive">Executive</option>
               <option value="persuasive">Persuasive</option>
               <option value="technical">Technical</option>
             </select>
           </label>
-          <label>
-            Audience
+          <label className={ui.field}>
+            <span>Audience</span>
             <input
+              className={ui.input}
               value={audience}
               maxLength={120}
               onChange={(event) => setAudience(event.target.value)}
             />
           </label>
-          <label>
-            Detail level
-            <select value={detailLevel} onChange={(event) => setDetailLevel(event.target.value)}>
+          <label className={ui.field}>
+            <span>Detail level</span>
+            <select
+              className={ui.input}
+              value={detailLevel}
+              onChange={(event) => setDetailLevel(event.target.value)}
+            >
               <option value="concise">Concise</option>
               <option value="balanced">Balanced</option>
               <option value="detailed">Detailed</option>
             </select>
           </label>
-          <label>
-            Speaker notes
-            <select value={speakerNotes} onChange={(event) => setSpeakerNotes(event.target.value)}>
+          <label className={ui.field}>
+            <span>Speaker notes</span>
+            <select
+              className={ui.input}
+              value={speakerNotes}
+              onChange={(event) => setSpeakerNotes(event.target.value)}
+            >
               <option value="none">None</option>
               <option value="talking-points">Talking points</option>
               <option value="full">Full notes</option>
             </select>
           </label>
-          <label>
-            Imagery
-            <select value={imageryStyle} onChange={(event) => setImageryStyle(event.target.value)}>
+          <label className={ui.field}>
+            <span>Imagery</span>
+            <select
+              className={ui.input}
+              value={imageryStyle}
+              onChange={(event) => setImageryStyle(event.target.value)}
+            >
               <option value="none">None</option>
               <option value="minimal">Minimal</option>
               <option value="editorial">Editorial</option>
               <option value="data-driven">Data-driven</option>
             </select>
           </label>
-          <label>
-            Export format
-            <select value={exportFormat} onChange={(event) => setExportFormat(event.target.value)}>
+          <label className={ui.field}>
+            <span>Export format</span>
+            <select
+              className={ui.input}
+              value={exportFormat}
+              onChange={(event) => setExportFormat(event.target.value)}
+            >
               <option value="pptx">PowerPoint .pptx</option>
             </select>
           </label>
-          <label>
-            Compatibility
+          <label className={ui.field}>
+            <span>Compatibility</span>
             <select
+              className={ui.input}
               value={exportCompatibility}
               onChange={(event) => setExportCompatibility(event.target.value)}
             >
@@ -203,14 +221,14 @@ export function PresentationDefaultsSettings(): ReactElement {
             </select>
           </label>
 
-          <button type="submit" className="workspace-button primary" disabled={submitting}>
+          <Button type="submit" variant="primary" disabled={submitting}>
             {submitting ? (
-              <Loader2 size={17} className="import-spin" aria-hidden="true" />
+              <Loader2 size={17} className="animate-spin" aria-hidden="true" />
             ) : (
               <Save size={17} aria-hidden="true" />
             )}
             Save defaults
-          </button>
+          </Button>
         </form>
       </section>
     </section>

@@ -8,6 +8,7 @@ import { Archive, Copy, ExternalLink, Loader2, Pencil, Plus, RotateCcw } from "l
 import { useEffect, useMemo, useState, type FormEvent, type ReactElement } from "react";
 
 import { PresentationImportPanel } from "./presentation-import-panel";
+import { Button, ButtonLink, PageHeader, ui } from "./ui";
 
 type PresentationSummary = {
   id: string;
@@ -215,19 +216,17 @@ export function ProjectDetailWorkspace({ projectId }: { projectId: string }): Re
 
   if (isLoading) {
     return (
-      <section className="workspace-shell">
-        <p className="workspace-empty">Loading project...</p>
+      <section className={ui.pageShell}>
+        <p className={ui.empty}>Loading project...</p>
       </section>
     );
   }
 
   if (!project) {
     return (
-      <section className="workspace-shell">
-        {error ? <div className="workspace-alert">{error}</div> : null}
-        <Link className="workspace-button" href="/app/projects">
-          Back to projects
-        </Link>
+      <section className={ui.pageShell}>
+        {error ? <div className={ui.alert}>{error}</div> : null}
+        <ButtonLink href="/app/projects">Back to projects</ButtonLink>
       </section>
     );
   }
@@ -235,38 +234,34 @@ export function ProjectDetailWorkspace({ projectId }: { projectId: string }): Re
   const projectArchived = Boolean(project.archivedAt);
 
   return (
-    <section className="workspace-shell">
-      <div className="workspace-header">
-        <div>
-          <p className="workspace-kicker">Project</p>
-          <h1>{project.name}</h1>
-          {project.description ? <p>{project.description}</p> : null}
-        </div>
-        <div className="workspace-actions">
-          <Link className="workspace-button" href="/app/projects">
-            Back
-          </Link>
-          <button
-            type="button"
-            className="workspace-button"
-            onClick={() => void setProjectArchived(!projectArchived)}
-          >
-            {projectArchived ? (
-              <RotateCcw size={17} aria-hidden="true" />
-            ) : (
-              <Archive size={17} aria-hidden="true" />
-            )}
-            {projectArchived ? "Restore" : "Archive"}
-          </button>
-        </div>
-      </div>
+    <section className={ui.pageShell}>
+      <PageHeader
+        actions={
+          <>
+            <ButtonLink href="/app/projects">Back</ButtonLink>
+            <Button type="button" onClick={() => void setProjectArchived(!projectArchived)}>
+              {projectArchived ? (
+                <RotateCcw size={17} aria-hidden="true" />
+              ) : (
+                <Archive size={17} aria-hidden="true" />
+              )}
+              {projectArchived ? "Restore" : "Archive"}
+            </Button>
+          </>
+        }
+        eyebrow="Project"
+        title={project.name}
+      >
+        {project.description ? project.description : null}
+      </PageHeader>
 
-      {error ? <div className="workspace-alert">{error}</div> : null}
+      {error ? <div className={ui.alert}>{error}</div> : null}
 
-      <form className="workspace-form" onSubmit={(event) => void updateProject(event)}>
-        <div className="workspace-field">
+      <form className={ui.form} onSubmit={(event) => void updateProject(event)}>
+        <div className={ui.field}>
           <label htmlFor="project-detail-name">Project name</label>
           <input
+            className={ui.input}
             id="project-detail-name"
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -274,27 +269,29 @@ export function ProjectDetailWorkspace({ projectId }: { projectId: string }): Re
             required
           />
         </div>
-        <div className="workspace-field">
+        <div className={ui.field}>
           <label htmlFor="project-detail-description">Description</label>
           <input
+            className={ui.input}
             id="project-detail-description"
             value={description}
             onChange={(event) => setDescription(event.target.value)}
             maxLength={1000}
           />
         </div>
-        <button type="submit" className="workspace-button">
+        <Button type="submit">
           <Pencil size={17} aria-hidden="true" />
           Save
-        </button>
+        </Button>
       </form>
 
       {!projectArchived ? (
         <>
-          <form className="workspace-form" onSubmit={(event) => void createPresentation(event)}>
-            <div className="workspace-field">
+          <form className={ui.form} onSubmit={(event) => void createPresentation(event)}>
+            <div className={ui.field}>
               <label htmlFor="presentation-title">Presentation title</label>
               <input
+                className={ui.input}
                 id="presentation-title"
                 value={createTitle}
                 onChange={(event) => setCreateTitle(event.target.value)}
@@ -302,9 +299,10 @@ export function ProjectDetailWorkspace({ projectId }: { projectId: string }): Re
                 required
               />
             </div>
-            <div className="workspace-field compact">
+            <div className={ui.field}>
               <label htmlFor="slide-count">Slides</label>
               <input
+                className={ui.input}
                 id="slide-count"
                 type="number"
                 min={1}
@@ -313,14 +311,14 @@ export function ProjectDetailWorkspace({ projectId }: { projectId: string }): Re
                 onChange={(event) => setRequestedSlideCount(Number(event.target.value))}
               />
             </div>
-            <button type="submit" className="workspace-button primary" disabled={isCreating}>
+            <Button type="submit" variant="primary" disabled={isCreating}>
               {isCreating ? (
-                <Loader2 size={17} className="import-spin" aria-hidden="true" />
+                <Loader2 size={17} className="animate-spin" aria-hidden="true" />
               ) : (
                 <Plus size={17} aria-hidden="true" />
               )}
               Create presentation
-            </button>
+            </Button>
           </form>
 
           <PresentationImportPanel projectId={project.id} />
@@ -368,27 +366,29 @@ function PresentationList({
   title: string;
 }): ReactElement {
   return (
-    <section className="workspace-section">
-      <h2>{title}</h2>
+    <section className={ui.section}>
+      <h2 className={ui.sectionTitle}>{title}</h2>
       {presentations.length === 0 ? (
-        <p className="workspace-empty">{emptyLabel}</p>
+        <p className={ui.empty}>{emptyLabel}</p>
       ) : (
-        <ul className="workspace-list">
+        <ul className={ui.list}>
           {presentations.map((presentation) => {
             const archived = Boolean(presentation.archivedAt);
             const overviewUrl = `/app/presentations/${encodeURIComponent(presentation.id)}`;
 
             return (
-              <li className="workspace-item" key={presentation.id}>
-                <div className="workspace-item-main">
-                  <div className="workspace-item-title">
-                    <Link href={overviewUrl as Route}>{presentation.title}</Link>
+              <li className={ui.item} key={presentation.id}>
+                <div className={ui.itemMain}>
+                  <div className={ui.itemTitle}>
+                    <Link className={ui.itemTitleLink} href={overviewUrl as Route}>
+                      {presentation.title}
+                    </Link>
                   </div>
-                  <p className="workspace-meta">
+                  <p className={ui.itemMeta}>
                     {presentation.status} · {presentation.requestedSlideCount} slides
                   </p>
                   <form
-                    className="workspace-inline-form"
+                    className="grid grid-cols-[minmax(0,1fr)_40px] gap-2"
                     onSubmit={(event) => {
                       event.preventDefault();
                       const formData = new FormData(event.currentTarget);
@@ -396,28 +396,29 @@ function PresentationList({
                       if (titleValue) void onRename(presentation.id, titleValue);
                     }}
                   >
-                    <input name="title" defaultValue={presentation.title} maxLength={180} />
-                    <button type="submit" className="workspace-icon-button" title="Rename">
+                    <input
+                      className={ui.input}
+                      name="title"
+                      defaultValue={presentation.title}
+                      maxLength={180}
+                    />
+                    <button type="submit" className={ui.iconButton} title="Rename">
                       <Pencil size={16} aria-hidden="true" />
                     </button>
                   </form>
                 </div>
-                <div className="workspace-actions">
+                <div className={ui.actionRow}>
+                  {!archived ? <ButtonLink href={overviewUrl as Route}>Workflow</ButtonLink> : null}
                   {!archived ? (
-                    <Link className="workspace-button" href={overviewUrl as Route}>
-                      Workflow
-                    </Link>
-                  ) : null}
-                  {!archived ? (
-                    <Link className="workspace-button" href={presentation.editorUrl as Route}>
+                    <ButtonLink href={presentation.editorUrl as Route}>
                       Editor
                       <ExternalLink size={16} aria-hidden="true" />
-                    </Link>
+                    </ButtonLink>
                   ) : null}
                   {!archived ? (
                     <button
                       type="button"
-                      className="workspace-icon-button"
+                      className={ui.iconButton}
                       title="Duplicate presentation"
                       onClick={() => void onDuplicate(presentation.id)}
                     >
@@ -426,7 +427,7 @@ function PresentationList({
                   ) : null}
                   <button
                     type="button"
-                    className="workspace-icon-button"
+                    className={ui.iconButton}
                     title={archived ? "Restore presentation" : "Archive presentation"}
                     onClick={() => void onArchiveChange(presentation.id, !archived)}
                   >

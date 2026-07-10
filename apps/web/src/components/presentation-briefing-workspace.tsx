@@ -5,6 +5,8 @@
 import { useState, type FormEvent, type ReactElement } from "react";
 import { Loader2, Save } from "lucide-react";
 
+import { Button, ui } from "./ui";
+
 type BriefingAnswers = {
   audience?: string;
   context?: string;
@@ -70,69 +72,68 @@ export function PresentationBriefingWorkspace({
   }
 
   return (
-    <section className="workflow-card">
-      <h2>Briefing</h2>
-      <form className="workflow-form" onSubmit={(event) => void saveBriefing(event)}>
-        <label>
-          Goal
+    <section className={ui.card}>
+      <h2 className={ui.sectionTitle}>Briefing</h2>
+      <form className="grid gap-3.5" onSubmit={(event) => void saveBriefing(event)}>
+        <label className={ui.field}>
+          <span>Goal</span>
           <textarea
+            className="min-h-24 resize-y rounded-lg border border-line bg-white px-3 py-2.5 text-sm font-medium normal-case text-ink"
             value={goal}
             onChange={(event) => setGoal(event.target.value)}
             required
             disabled={archived}
           />
         </label>
-        <label>
-          Audience
+        <label className={ui.field}>
+          <span>Audience</span>
           <textarea
+            className="min-h-24 resize-y rounded-lg border border-line bg-white px-3 py-2.5 text-sm font-medium normal-case text-ink"
             value={audience}
             onChange={(event) => setAudience(event.target.value)}
             required
             disabled={archived}
           />
         </label>
-        <label>
-          Context
+        <label className={ui.field}>
+          <span>Context</span>
           <textarea
+            className="min-h-24 resize-y rounded-lg border border-line bg-white px-3 py-2.5 text-sm font-medium normal-case text-ink"
             value={context}
             onChange={(event) => setContext(event.target.value)}
             disabled={archived}
           />
         </label>
-        <label>
-          Requirements
+        <label className={ui.field}>
+          <span>Requirements</span>
           <textarea
+            className="min-h-24 resize-y rounded-lg border border-line bg-white px-3 py-2.5 text-sm font-medium normal-case text-ink"
             value={requirements}
             onChange={(event) => setRequirements(event.target.value)}
             disabled={archived}
           />
         </label>
-        <label>
-          Success criteria
+        <label className={ui.field}>
+          <span>Success criteria</span>
           <textarea
+            className="min-h-24 resize-y rounded-lg border border-line bg-white px-3 py-2.5 text-sm font-medium normal-case text-ink"
             value={successCriteria}
             onChange={(event) => setSuccessCriteria(event.target.value)}
             disabled={archived}
           />
         </label>
 
-        {error ? <div className="workspace-alert">{error}</div> : null}
-        {savedAt ? (
-          <p className="workflow-muted">Saved {new Date(savedAt).toLocaleString()}</p>
-        ) : null}
+        {error ? <div className={ui.alert}>{error}</div> : null}
+        {savedAt ? <p className={ui.muted}>Saved {new Date(savedAt).toLocaleString()}</p> : null}
 
-        <button
-          type="submit"
-          className="workspace-button primary"
-          disabled={archived || submitting}
-        >
+        <Button type="submit" variant="primary" disabled={archived || submitting}>
           {submitting ? (
-            <Loader2 size={17} className="import-spin" aria-hidden="true" />
+            <Loader2 size={17} className="animate-spin" aria-hidden="true" />
           ) : (
             <Save size={17} aria-hidden="true" />
           )}
           Save briefing
-        </button>
+        </Button>
       </form>
     </section>
   );

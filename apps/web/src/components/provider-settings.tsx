@@ -5,6 +5,8 @@
 import { CheckCircle2, Loader2, Save, ShieldCheck, Trash2 } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactElement } from "react";
 
+import { Button, PageHeader, cn, ui } from "./ui";
+
 type ProviderModel = {
   model: string;
   displayLabel: string;
@@ -213,46 +215,45 @@ export function ProviderSettings(): ReactElement {
   }
 
   return (
-    <section className="workflow-shell">
-      <div className="workflow-header">
-        <div>
-          <p className="workspace-kicker">Settings</p>
-          <h1>AI providers</h1>
-        </div>
-      </div>
+    <section className={ui.workflowShell}>
+      <PageHeader eyebrow="Settings" title="AI providers" />
 
-      {loading ? <p className="workspace-empty">Loading providers...</p> : null}
-      {error ? <div className="workspace-alert">{error}</div> : null}
+      {loading ? <p className={ui.empty}>Loading providers...</p> : null}
+      {error ? <div className={ui.alert}>{error}</div> : null}
 
-      <div className="provider-settings-grid">
+      <div className="grid gap-4">
         {providers.map((provider) => {
           const form = forms[provider.provider] ?? toForm(provider);
           const busy = submitting[provider.provider] ?? false;
           return (
-            <section className="workflow-card provider-settings-card" key={provider.provider}>
-              <div className="provider-settings-card-header">
+            <section
+              className="grid gap-[18px] rounded-lg border border-line bg-white p-[18px] shadow-sm"
+              key={provider.provider}
+            >
+              <div className="flex items-start justify-between gap-4 max-[960px]:flex-col">
                 <div>
-                  <h2>{provider.displayName}</h2>
-                  <p>{provider.maskedValue ?? "No credential stored"}</p>
+                  <h2 className="text-lg font-extrabold leading-snug text-ink">
+                    {provider.displayName}
+                  </h2>
+                  <p className="mt-1 text-[13px] font-bold text-muted">
+                    {provider.maskedValue ?? "No credential stored"}
+                  </p>
                 </div>
                 <span
-                  className={
-                    provider.configured && provider.enabled
-                      ? "provider-status ready"
-                      : "provider-status"
-                  }
+                  className={cn(ui.badge, provider.configured && provider.enabled && ui.badgeReady)}
                 >
                   {provider.configured && provider.enabled ? "Ready" : "Not configured"}
                 </span>
               </div>
 
               <form
-                className="workflow-form provider-settings-form"
+                className="grid gap-3.5 md:grid-cols-2"
                 onSubmit={(event) => void saveProvider(provider, event)}
               >
-                <label>
-                  Enabled
+                <label className={ui.field}>
+                  <span>Enabled</span>
                   <select
+                    className={ui.input}
                     value={form.enabled ? "true" : "false"}
                     onChange={(event) =>
                       updateForm(provider.provider, { enabled: event.target.value === "true" })
@@ -262,9 +263,10 @@ export function ProviderSettings(): ReactElement {
                     <option value="false">Disabled</option>
                   </select>
                 </label>
-                <label>
-                  Default model
+                <label className={ui.field}>
+                  <span>Default model</span>
                   <select
+                    className={ui.input}
                     value={form.defaultModel}
                     onChange={(event) =>
                       updateForm(provider.provider, { defaultModel: event.target.value })
@@ -277,9 +279,10 @@ export function ProviderSettings(): ReactElement {
                     ))}
                   </select>
                 </label>
-                <label>
-                  API key
+                <label className={ui.field}>
+                  <span>API key</span>
                   <input
+                    className={ui.input}
                     type="password"
                     value={form.apiKey}
                     placeholder={provider.configured ? "Keep existing key" : "Enter API key"}
@@ -288,9 +291,10 @@ export function ProviderSettings(): ReactElement {
                     }
                   />
                 </label>
-                <label>
-                  Base URL
+                <label className={ui.field}>
+                  <span>Base URL</span>
                   <input
+                    className={ui.input}
                     value={form.baseUrl}
                     placeholder={
                       provider.provider === "local-openai-compatible"
@@ -304,39 +308,38 @@ export function ProviderSettings(): ReactElement {
                 </label>
 
                 {status[provider.provider] ? (
-                  <p className="settings-success">
+                  <p className={cn(ui.success, "md:col-span-2")}>
                     <CheckCircle2 size={16} aria-hidden="true" />
                     {status[provider.provider]}
                   </p>
                 ) : null}
 
-                <div className="provider-settings-actions">
-                  <button className="workspace-button primary" type="submit" disabled={busy}>
+                <div className="flex flex-wrap items-center gap-2.5 md:col-span-2">
+                  <Button variant="primary" type="submit" disabled={busy}>
                     {busy ? (
-                      <Loader2 size={17} className="import-spin" aria-hidden="true" />
+                      <Loader2 size={17} className="animate-spin" aria-hidden="true" />
                     ) : (
                       <Save size={17} aria-hidden="true" />
                     )}
                     Save
-                  </button>
-                  <button
-                    className="workspace-button"
+                  </Button>
+                  <Button
                     type="button"
                     disabled={busy}
                     onClick={() => void verifyProvider(provider)}
                   >
                     <ShieldCheck size={17} aria-hidden="true" />
                     Verify
-                  </button>
-                  <button
-                    className="workspace-button danger"
+                  </Button>
+                  <Button
+                    variant="danger"
                     type="button"
                     disabled={busy || !provider.configured}
                     onClick={() => void removeProvider(provider)}
                   >
                     <Trash2 size={17} aria-hidden="true" />
                     Remove
-                  </button>
+                  </Button>
                 </div>
               </form>
             </section>

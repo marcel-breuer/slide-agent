@@ -721,7 +721,7 @@ function LoadedEditor({
   }
 
   return (
-    <main className="editor-grid">
+    <main className="grid min-h-screen grid-cols-[260px_minmax(0,1fr)_300px] grid-rows-[minmax(0,1fr)_140px] max-[960px]:grid-cols-1 max-[960px]:grid-rows-[auto_auto_auto_auto]">
       {isPreviewOpen ? (
         <PresentationPreview
           initialSlideId={activeSlide.id}
