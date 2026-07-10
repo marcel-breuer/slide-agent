@@ -18,6 +18,10 @@ export type ExportReport = {
   warnings: string[];
 };
 
+export type ExportPresentationOptions = {
+  includeSpeakerNotes?: boolean;
+};
+
 function toInches(value: number, axis: "x" | "y"): number {
   const denominator = axis === "x" ? LOGICAL_SLIDE_WIDTH : LOGICAL_SLIDE_HEIGHT;
   const inches = axis === "x" ? 13.333 : 7.5;
@@ -78,6 +82,7 @@ function addElement(slide: PptxSlide, element: SlideElement, report: ExportRepor
 
 export async function exportPresentation(
   document: PresentationDocument,
+  options: ExportPresentationOptions = {},
 ): Promise<{ buffer: Buffer; report: ExportReport }> {
   const pptx = new pptxgen();
   pptx.layout = "LAYOUT_WIDE";
@@ -101,7 +106,7 @@ export async function exportPresentation(
     for (const element of sourceSlide.elements) {
       addElement(slide, element, report);
     }
-    if (sourceSlide.speakerNotes) {
+    if (options.includeSpeakerNotes !== false && sourceSlide.speakerNotes) {
       slide.addNotes(sourceSlide.speakerNotes);
     }
   }

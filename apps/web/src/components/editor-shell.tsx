@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import type { Route } from "next";
 import {
   useEffect,
   useMemo,
@@ -56,8 +58,6 @@ import { validatePresentation, type PresentationDocument } from "@slide-agent/pr
 
 import { PresentationPreview } from "./presentation-preview";
 
-const navProjects = ["Board reporting", "Product launch", "Banking pitch"];
-
 type InspectorTab = "properties" | "layers" | "design" | "assets";
 type TextElement = Extract<
   PresentationDocument["slides"][number]["elements"][number],
@@ -109,6 +109,14 @@ type PresentationExportSummary = {
 type PresentationExportApiResponse =
   | { ok: true; data: PresentationExportSummary }
   | { ok: false; error: { code: string; message: string } };
+
+export type EditorProjectContext = {
+  outputLanguage: string;
+  presentationTitle: string;
+  projectId: string;
+  projectName: string;
+  status: string;
+};
 
 type EditorSnapshot = {
   assistantText: string;
@@ -191,7 +199,32 @@ async function signOut(): Promise<void> {
   globalThis.location.assign("/login");
 }
 
-export function EditorShell({ presentationId }: { presentationId: string }) {
+export function EditorBreadcrumbs({ context }: { context: EditorProjectContext }): ReactNode {
+  return (
+    <nav aria-label="Editor breadcrumb" className="mb-1 flex flex-wrap items-center gap-1 text-xs">
+      <Link className="font-bold text-muted no-underline hover:text-primary" href="/app/projects">
+        Projects
+      </Link>
+      <span className="text-muted">/</span>
+      <Link
+        className="font-bold text-muted no-underline hover:text-primary"
+        href={`/app/projects/${encodeURIComponent(context.projectId)}` as Route}
+      >
+        {context.projectName}
+      </Link>
+      <span className="text-muted">/</span>
+      <span className="font-bold text-ink">{context.presentationTitle}</span>
+    </nav>
+  );
+}
+
+export function EditorShell({
+  presentationId,
+  projectContext,
+}: {
+  presentationId: string;
+  projectContext: EditorProjectContext;
+}) {
   const [document, setDocument] = useState<PresentationDocument | null>(null);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -270,17 +303,24 @@ export function EditorShell({ presentationId }: { presentationId: string }) {
   }
 
   return (
-    <LoadedEditor document={document} presentationId={presentationId} setDocument={setDocument} />
+    <LoadedEditor
+      document={document}
+      presentationId={presentationId}
+      projectContext={projectContext}
+      setDocument={setDocument}
+    />
   );
 }
 
 function LoadedEditor({
   document,
   presentationId,
+  projectContext,
   setDocument,
 }: {
   document: PresentationDocument;
   presentationId: string;
+  projectContext: EditorProjectContext;
   setDocument: Dispatch<SetStateAction<PresentationDocument | null>>;
 }) {
   const [selectedElementId, setSelectedElementId] = useState("title");
@@ -751,18 +791,14 @@ function LoadedEditor({
           </button>
         </div>
 
-        <nav aria-label="Projects" className="space-y-1">
-          {navProjects.map((project, index) => (
-            <button
-              key={project}
-              className={`flex w-full items-center justify-between rounded-app px-3 py-2 text-left text-sm ${
-                index === 0 ? "bg-canvas font-semibold text-ink" : "text-muted hover:bg-canvas"
-              }`}
-            >
-              {project}
-              {index === 0 ? <ArrowUpRight size={14} /> : null}
-            </button>
-          ))}
+        <nav aria-label="Project navigation" className="space-y-1">
+          <Link
+            className="flex w-full items-center justify-between rounded-app bg-canvas px-3 py-2 text-left text-sm font-semibold text-ink no-underline"
+            href={`/app/projects/${encodeURIComponent(projectContext.projectId)}` as Route}
+          >
+            {projectContext.projectName}
+            <ArrowUpRight size={14} aria-hidden="true" />
+          </Link>
         </nav>
 
         <div className="mt-7">
@@ -800,10 +836,12 @@ function LoadedEditor({
       <section className="flex min-w-0 flex-col bg-canvas">
         <header className="flex items-center justify-between border-b border-line bg-white px-4 py-3">
           <div>
+            <EditorBreadcrumbs context={projectContext} />
             <h1 className="text-base font-bold">{document.title}</h1>
             <p className="text-xs text-muted" aria-live="polite">
               {saveStatusLabel(saveStatus)}
-              {saveError ? `: ${saveError}` : ""} · 16:9 widescreen · English output
+              {saveError ? `: ${saveError}` : ""} · 16:9 widescreen ·{" "}
+              {projectContext.outputLanguage.toUpperCase()} output · {projectContext.status}
             </p>
           </div>
           <div className="flex flex-col items-end gap-1">

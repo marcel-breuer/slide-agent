@@ -20,7 +20,23 @@ export type PresentationExportSummary = {
   byteSize: number;
   downloadUrl: string;
   report: ExportReport;
+  settings: PresentationExportSettings;
+  warnings: string[];
   createdAt: string;
+};
+
+export type PresentationExportSettings = {
+  compatibility: "legacy" | "modern" | "strict";
+  format: "pptx";
+  imageFallbackMode: "preserve-editable" | "rasterize-unsupported";
+  includeSpeakerNotes: boolean;
+};
+
+export const DEFAULT_PRESENTATION_EXPORT_SETTINGS: PresentationExportSettings = {
+  compatibility: "modern",
+  format: "pptx",
+  imageFallbackMode: "preserve-editable",
+  includeSpeakerNotes: true,
 };
 
 export type PresentationExportDownload = {
@@ -117,11 +133,13 @@ export async function createPptxExport({
   client,
   env = process.env,
   presentationId,
+  settings = DEFAULT_PRESENTATION_EXPORT_SETTINGS,
   userId,
 }: {
   client: PresentationExportClient;
   env?: Record<string, string | undefined>;
   presentationId: string;
+  settings?: PresentationExportSettings;
   userId: string;
 }): Promise<PresentationExportSummary> {
   const document = await findPresentationDocument(client, presentationId);
@@ -143,7 +161,14 @@ export async function createPptxExport({
   });
 
   try {
-    const { buffer, report } = await exportPresentation(document);
+    const { buffer, report } = await exportPresentation(document, {
+      includeSpeakerNotes: settings.includeSpeakerNotes,
+    });
+    const warnings = buildCompatibilityWarnings(settings, report);
+    const reportWithWarnings: ExportReport = {
+      ...report,
+      warnings: [...report.warnings, ...warnings],
+    };
     const fileName = createPptxFileName(document.title);
     const storageKey = `exports/${presentationId}/${exportId}/${fileName}`;
     const storage = createLocalObjectStorageFromEnv(env);
@@ -155,12 +180,14 @@ export async function createPptxExport({
 
     const createdAt = new Date();
     const metadata = {
-      ...report,
+      ...reportWithWarnings,
       byteSize: buffer.length,
       fileName,
       generatedAt: createdAt.toISOString(),
       jobId,
       mimeType: PPTX_MIME_TYPE,
+      settings,
+      warnings: reportWithWarnings.warnings,
     };
     const exportRecord = await client.export.create({
       data: {
@@ -191,7 +218,9 @@ export async function createPptxExport({
       mimeType: PPTX_MIME_TYPE,
       byteSize: buffer.length,
       downloadUrl: buildExportDownloadUrl(presentationId, exportRecord.id),
-      report,
+      report: reportWithWarnings,
+      settings,
+      warnings: reportWithWarnings.warnings,
       createdAt: exportRecord.createdAt.toISOString(),
     };
   } catch (error) {
@@ -261,6 +290,36 @@ function createPptxFileName(title: string): string {
     .slice(0, 80);
 
   return `${baseName || "presentation"}.pptx`;
+}
+
+function buildCompatibilityWarnings(
+  settings: PresentationExportSettings,
+  report: ExportReport,
+): string[] {
+  const warnings: string[] = [];
+
+  if (
+    settings.compatibility === "strict" &&
+    report.svgFallbackCount + report.pngFallbackCount > 0
+  ) {
+    warnings.push("Strict compatibility may simplify fallback-rendered visuals.");
+  }
+
+  if (settings.compatibility === "legacy") {
+    warnings.push(
+      "Legacy compatibility may flatten advanced styling for older PowerPoint versions.",
+    );
+  }
+
+  if (settings.imageFallbackMode === "rasterize-unsupported") {
+    warnings.push("Unsupported visuals may be rasterized and become non-editable.");
+  }
+
+  if (!settings.includeSpeakerNotes) {
+    warnings.push("Speaker notes were excluded from this export.");
+  }
+
+  return warnings;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
