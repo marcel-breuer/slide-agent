@@ -13,6 +13,9 @@ vi.mock("@slide-agent/database", () => ({
       create: vi.fn(),
       findMany: vi.fn(),
     },
+    designProfile: {
+      findFirst: vi.fn(),
+    },
     project: {
       findFirst: vi.fn(),
     },
@@ -27,6 +30,7 @@ vi.mock("@/lib/server-session", () => ({
 }));
 
 const mockedCreatePresentation = prisma.presentation.create as unknown as Mock;
+const mockedFindDesignProfile = prisma.designProfile.findFirst as unknown as Mock;
 const mockedFindPresentations = prisma.presentation.findMany as unknown as Mock;
 const mockedFindProject = prisma.project.findFirst as unknown as Mock;
 const mockedGetAuthenticatedUserId = vi.mocked(getAuthenticatedUserId);
@@ -118,6 +122,78 @@ describe("presentations API", () => {
         }),
       }),
     );
+  });
+
+  it("attaches an owned active design profile when requested", async () => {
+    mockedFindProject.mockResolvedValue({ id: "project-1" });
+    mockedFindDesignProfile.mockResolvedValue({
+      id: "profile-1",
+      name: "Board brand",
+      versions: [{ profile: { colors: [] }, version: 2 }],
+    });
+    mockedCreatePresentation.mockResolvedValue({
+      id: "presentation-1",
+      projectId: "project-1",
+      title: "Q3 Review",
+      status: "EDITING",
+      requestedSlideCount: 3,
+      archivedAt: null,
+      createdAt: new Date("2026-07-09T08:00:00.000Z"),
+      updatedAt: new Date("2026-07-09T08:00:00.000Z"),
+    });
+
+    const response = await POST(
+      new Request("http://test.local/api/presentations", {
+        body: JSON.stringify({
+          designProfileId: "profile-1",
+          projectId: "project-1",
+          requestedSlideCount: 3,
+          title: "Q3 Review",
+        }),
+        method: "POST",
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(mockedFindDesignProfile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { archivedAt: null, id: "profile-1", ownerId: "user-1" },
+      }),
+    );
+    expect(mockedCreatePresentation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          designContext: expect.objectContaining({
+            designProfile: expect.objectContaining({
+              id: "profile-1",
+              version: 2,
+            }),
+          }),
+          designProfileId: "profile-1",
+        }),
+      }),
+    );
+  });
+
+  it("rejects missing or unauthorized design profiles", async () => {
+    mockedFindProject.mockResolvedValue({ id: "project-1" });
+    mockedFindDesignProfile.mockResolvedValue(null);
+
+    const response = await POST(
+      new Request("http://test.local/api/presentations", {
+        body: JSON.stringify({
+          designProfileId: "profile-1",
+          projectId: "project-1",
+          title: "Q3 Review",
+        }),
+        method: "POST",
+      }),
+    );
+    const payload = (await response.json()) as { error: { code: string } };
+
+    expect(response.status).toBe(404);
+    expect(payload.error.code).toBe("DESIGN_PROFILE_NOT_FOUND");
+    expect(mockedCreatePresentation).not.toHaveBeenCalled();
   });
 
   it("applies saved presentation defaults when slide count is omitted", async () => {
