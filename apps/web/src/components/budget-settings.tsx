@@ -128,38 +128,52 @@ export function BudgetSettings(): ReactElement {
   }
 
   return (
-    <section className="workflow-shell">
-      <div className="workflow-header">
+    <section className="mx-auto w-full max-w-[1180px] px-6 py-8">
+      <div className="mb-5 flex items-start justify-between gap-5">
         <div>
-          <p className="workspace-kicker">Settings</p>
-          <h1>Budget controls</h1>
-          <p>Monthly spend and token controls for protected generation workflows.</p>
+          <p className="text-xs font-extrabold uppercase tracking-wide text-muted">Settings</p>
+          <h1 className="mt-1 text-[28px] font-extrabold leading-tight text-ink">
+            Budget controls
+          </h1>
+          <p className="mt-2 text-sm font-bold text-muted">
+            Monthly spend and token controls for protected generation workflows.
+          </p>
         </div>
       </div>
 
-      {loading ? <p className="workspace-empty">Loading budget settings...</p> : null}
-      {error ? <div className="workspace-alert">{error}</div> : null}
+      {loading ? (
+        <p className="rounded-app border border-dashed border-line bg-white p-4 text-sm text-muted">
+          Loading budget settings...
+        </p>
+      ) : null}
+      {error ? (
+        <div className="mb-4 rounded-app border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-800">
+          {error}
+        </div>
+      ) : null}
       {saved ? (
-        <p className="settings-success">
+        <p className="mb-4 inline-flex items-center gap-2 rounded-app border border-green-200 bg-green-50 px-3 py-2.5 text-sm font-extrabold text-green-800">
           <CheckCircle2 size={16} aria-hidden="true" />
           Saved
         </p>
       ) : null}
 
       {snapshot ? (
-        <div className="budget-settings-layout">
-          <section className="workflow-card">
-            <div className="budget-summary-header">
+        <div className="grid gap-4">
+          <section className="rounded-app border border-line bg-white p-[18px]">
+            <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <h2>Current month</h2>
-                <p>
+                <h2 className="mb-3 text-[17px] font-extrabold leading-snug text-ink">
+                  Current month
+                </h2>
+                <p className="text-[13px] font-bold text-muted">
                   {formatDate(snapshot.usage.monthStart)} to {formatDate(snapshot.usage.monthEnd)}
                 </p>
               </div>
               <BudgetStatus snapshot={snapshot} />
             </div>
 
-            <div className="budget-summary-grid">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <BudgetMeter
                 label="Spend"
                 value={formatCurrency(
@@ -182,13 +196,19 @@ export function BudgetSettings(): ReactElement {
                 )}
                 percentage={snapshot.usage.tokenUsagePercentage}
               />
-              <div className="budget-stat">
-                <span>Operations</span>
-                <strong>{formatInteger(snapshot.usage.operations)}</strong>
+              <div className="rounded-app border border-line bg-canvas p-3.5">
+                <span className="text-xs font-extrabold uppercase tracking-wide text-muted">
+                  Operations
+                </span>
+                <strong className="mt-1.5 block text-xl font-extrabold leading-tight text-ink">
+                  {formatInteger(snapshot.usage.operations)}
+                </strong>
               </div>
-              <div className="budget-stat">
-                <span>Input / output</span>
-                <strong>
+              <div className="rounded-app border border-line bg-canvas p-3.5">
+                <span className="text-xs font-extrabold uppercase tracking-wide text-muted">
+                  Input / output
+                </span>
+                <strong className="mt-1.5 block text-xl font-extrabold leading-tight text-ink">
                   {formatInteger(snapshot.usage.inputTokens)} /{" "}
                   {formatInteger(snapshot.usage.outputTokens)}
                 </strong>
@@ -196,15 +216,16 @@ export function BudgetSettings(): ReactElement {
             </div>
           </section>
 
-          <section className="workflow-card">
-            <h2>Limits</h2>
+          <section className="rounded-app border border-line bg-white p-[18px]">
+            <h2 className="mb-3.5 text-[17px] font-extrabold leading-snug text-ink">Limits</h2>
             <form
-              className="workflow-form settings-form"
+              className="grid gap-3.5 md:grid-cols-2"
               onSubmit={(event) => void saveBudgetSettings(event)}
             >
-              <label>
-                Monthly spend budget
+              <label className="grid gap-1.5 text-xs font-extrabold uppercase tracking-wide text-muted">
+                <span>Monthly spend budget</span>
                 <input
+                  className="h-[42px] min-w-0 rounded-app border border-line bg-white px-3 text-sm font-medium normal-case text-ink"
                   type="number"
                   min={0}
                   step="0.01"
@@ -218,9 +239,10 @@ export function BudgetSettings(): ReactElement {
                   }
                 />
               </label>
-              <label>
-                Monthly token budget
+              <label className="grid gap-1.5 text-xs font-extrabold uppercase tracking-wide text-muted">
+                <span>Monthly token budget</span>
                 <input
+                  className="h-[42px] min-w-0 rounded-app border border-line bg-white px-3 text-sm font-medium normal-case text-ink"
                   type="number"
                   min={0}
                   step={1}
@@ -234,9 +256,10 @@ export function BudgetSettings(): ReactElement {
                   }
                 />
               </label>
-              <label>
-                Warning threshold
+              <label className="grid gap-1.5 text-xs font-extrabold uppercase tracking-wide text-muted">
+                <span>Warning threshold</span>
                 <input
+                  className="h-[42px] min-w-0 rounded-app border border-line bg-white px-3 text-sm font-medium normal-case text-ink"
                   type="number"
                   min={1}
                   max={100}
@@ -249,9 +272,10 @@ export function BudgetSettings(): ReactElement {
                   }
                 />
               </label>
-              <label>
-                Hard stop
+              <label className="grid gap-1.5 text-xs font-extrabold uppercase tracking-wide text-muted">
+                <span>Hard stop</span>
                 <select
+                  className="h-[42px] min-w-0 rounded-app border border-line bg-white px-3 text-sm font-medium normal-case text-ink"
                   value={form.hardStopEnabled ? "true" : "false"}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -265,9 +289,13 @@ export function BudgetSettings(): ReactElement {
                 </select>
               </label>
 
-              <button type="submit" className="workspace-button primary" disabled={submitting}>
+              <button
+                type="submit"
+                className="inline-flex min-h-10 w-fit items-center justify-center gap-2 rounded-app border border-primary bg-primary px-3.5 text-sm font-extrabold text-white hover:bg-primary-strong disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={submitting}
+              >
                 {submitting ? (
-                  <Loader2 size={17} className="import-spin" aria-hidden="true" />
+                  <Loader2 size={17} className="animate-spin" aria-hidden="true" />
                 ) : (
                   <Save size={17} aria-hidden="true" />
                 )}
@@ -290,14 +318,21 @@ function BudgetMeter(props: {
   const percentage = props.percentage ?? 0;
 
   return (
-    <div className="budget-meter">
+    <div className="rounded-app border border-line bg-canvas p-3.5">
       <div>
-        <span>{props.label}</span>
-        <strong>{props.value}</strong>
-        <p>{props.detail}</p>
+        <span className="text-xs font-extrabold uppercase tracking-wide text-muted">
+          {props.label}
+        </span>
+        <strong className="mt-1.5 block text-xl font-extrabold leading-tight text-ink">
+          {props.value}
+        </strong>
+        <p className="mt-1 text-[13px] font-bold text-muted">{props.detail}</p>
       </div>
-      <div className="budget-meter-track" aria-hidden="true">
-        <span style={{ width: `${Math.min(100, percentage)}%` }} />
+      <div className="mt-3.5 h-2 overflow-hidden rounded-full bg-line" aria-hidden="true">
+        <span
+          className="block h-full rounded-full bg-primary"
+          style={{ width: `${Math.min(100, percentage)}%` }}
+        />
       </div>
     </div>
   );
@@ -306,7 +341,7 @@ function BudgetMeter(props: {
 function BudgetStatus(props: { snapshot: BudgetSnapshot }): ReactElement {
   if (props.snapshot.usage.hardStopReached) {
     return (
-      <span className="budget-status blocked">
+      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-extrabold text-red-800">
         <AlertTriangle size={15} aria-hidden="true" />
         Hard stop
       </span>
@@ -315,7 +350,7 @@ function BudgetStatus(props: { snapshot: BudgetSnapshot }): ReactElement {
 
   if (props.snapshot.usage.warningReached) {
     return (
-      <span className="budget-status warning">
+      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-extrabold text-amber-800">
         <AlertTriangle size={15} aria-hidden="true" />
         Warning
       </span>
@@ -323,7 +358,7 @@ function BudgetStatus(props: { snapshot: BudgetSnapshot }): ReactElement {
   }
 
   return (
-    <span className="budget-status ready">
+    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-2.5 py-1.5 text-xs font-extrabold text-green-800">
       <CheckCircle2 size={15} aria-hidden="true" />
       In range
     </span>
