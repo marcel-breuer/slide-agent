@@ -5,6 +5,8 @@
 import { CheckCircle2, Download, Loader2, Save, Trash2 } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactElement } from "react";
 
+import { useUiLocale } from "@/lib/ui-locale";
+
 import { Button, PageHeader, ui } from "./ui";
 
 type Profile = {
@@ -25,6 +27,7 @@ type DeleteApiResponse =
   | { ok: false; error: { code: string; message: string } };
 
 export function ProfileSettings(): ReactElement {
+  const { msg } = useUiLocale();
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -81,7 +84,7 @@ export function ProfileSettings(): ReactElement {
         return;
       }
       applyProfile(payload.data);
-      setSaved("Profile saved.");
+      setSaved(msg("profileSaved"));
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Profile could not be saved.");
     } finally {
@@ -107,7 +110,7 @@ export function ProfileSettings(): ReactElement {
       link.download = "slide-agent-account-export.json";
       link.click();
       window.URL.revokeObjectURL(url);
-      setSaved("Account export is ready.");
+      setSaved(msg("accountExportReady"));
     } catch (exportError) {
       setError(exportError instanceof Error ? exportError.message : "Account export failed.");
     } finally {
@@ -134,7 +137,7 @@ export function ProfileSettings(): ReactElement {
         setError(payload.ok ? "Account could not be deleted." : payload.error.message);
         return;
       }
-      setSaved("Account deleted.");
+      setSaved(msg("accountDeleted"));
       window.location.assign("/login");
     } catch (deleteError) {
       setError(
@@ -156,11 +159,11 @@ export function ProfileSettings(): ReactElement {
 
   return (
     <section className={ui.workflowShell}>
-      <PageHeader eyebrow="Settings" title="Profile settings">
-        Account identity, regional preferences, data export, and account lifecycle controls.
+      <PageHeader eyebrow={msg("navSettings")} title={msg("profileSettings")}>
+        {msg("profileSettingsDescription")}
       </PageHeader>
 
-      {loading ? <p className={ui.empty}>Loading profile...</p> : null}
+      {loading ? <p className={ui.empty}>{msg("loadingProfile")}</p> : null}
       {error ? <div className={ui.alert}>{error}</div> : null}
       {saved ? (
         <p className={ui.success}>
@@ -171,14 +174,14 @@ export function ProfileSettings(): ReactElement {
 
       <div className="grid gap-4">
         <section className={ui.card}>
-          <h2 className={ui.sectionTitle}>Account profile</h2>
+          <h2 className={ui.sectionTitle}>{msg("accountProfile")}</h2>
           <form className={ui.settingsForm} onSubmit={(event) => void saveProfile(event)}>
             <label className={ui.field}>
-              <span>Email</span>
+              <span>{msg("email")}</span>
               <input className={ui.input} value={email} disabled readOnly />
             </label>
             <label className={ui.field}>
-              <span>Display name</span>
+              <span>{msg("displayName")}</span>
               <input
                 className={ui.input}
                 value={displayName}
@@ -187,7 +190,7 @@ export function ProfileSettings(): ReactElement {
               />
             </label>
             <label className={ui.field}>
-              <span>Preferred currency</span>
+              <span>{msg("preferredCurrency")}</span>
               <select
                 className={ui.input}
                 value={preferredCurrency}
@@ -198,7 +201,7 @@ export function ProfileSettings(): ReactElement {
               </select>
             </label>
             <label className={ui.field}>
-              <span>Time zone</span>
+              <span>{msg("timeZone")}</span>
               <input
                 className={ui.input}
                 value={timeZone}
@@ -213,7 +216,7 @@ export function ProfileSettings(): ReactElement {
                 ) : (
                   <Save size={17} aria-hidden="true" />
                 )}
-                Save profile
+                {msg("saveProfile")}
               </Button>
             </div>
           </form>
@@ -222,7 +225,7 @@ export function ProfileSettings(): ReactElement {
         <section className={ui.card}>
           <div className={ui.cardHeader}>
             <div>
-              <h2 className={ui.sectionTitle}>Account data export</h2>
+              <h2 className={ui.sectionTitle}>{msg("accountDataExport")}</h2>
               <p className={ui.muted}>
                 Download account-scoped profile, settings, usage, and presentation metadata.
               </p>
@@ -233,14 +236,14 @@ export function ProfileSettings(): ReactElement {
               ) : (
                 <Download size={17} aria-hidden="true" />
               )}
-              Export data
+              {msg("exportData")}
             </Button>
           </div>
         </section>
 
         <section className="rounded-lg border border-red-200 bg-white p-[18px] shadow-sm">
           <h2 className="mb-3 text-base font-extrabold leading-snug text-red-900">
-            Delete account
+            {msg("deleteAccount")}
           </h2>
           <p className="mb-4 text-sm leading-6 text-red-800">
             Type your account email to confirm deletion. This revokes sessions and removes stored
@@ -248,7 +251,7 @@ export function ProfileSettings(): ReactElement {
           </p>
           <div className="grid gap-3.5 md:grid-cols-[minmax(240px,1fr)_auto]">
             <label className={ui.field}>
-              <span>Confirm email</span>
+              <span>{msg("confirmEmail")}</span>
               <input
                 className={ui.input}
                 value={deleteConfirmation}
@@ -267,7 +270,7 @@ export function ProfileSettings(): ReactElement {
                 ) : (
                   <Trash2 size={17} aria-hidden="true" />
                 )}
-                Delete account
+                {msg("deleteAccount")}
               </Button>
             </div>
           </div>

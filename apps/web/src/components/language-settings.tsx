@@ -5,6 +5,8 @@
 import { Loader2, Save } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactElement } from "react";
 
+import { useUiLocale } from "@/lib/ui-locale";
+
 import { Button, PageHeader, ui } from "./ui";
 
 type Settings = {
@@ -17,6 +19,7 @@ type SettingsApiResponse =
   { ok: true; data: Settings } | { ok: false; error: { code: string; message: string } };
 
 export function LanguageSettings(): ReactElement {
+  const { msg, setLocale } = useUiLocale();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [presentationLocale, setPresentationLocale] = useState("en");
@@ -74,6 +77,9 @@ export function LanguageSettings(): ReactElement {
       setPresentationLocale(payload.data.presentationLocale);
       setTimeZone(payload.data.timeZone);
       setUiLocale(payload.data.uiLocale);
+      if (payload.data.uiLocale === "en" || payload.data.uiLocale === "de") {
+        setLocale(payload.data.uiLocale);
+      }
       setSaved(true);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Settings could not be saved.");
@@ -84,16 +90,16 @@ export function LanguageSettings(): ReactElement {
 
   return (
     <section className={ui.workflowShell}>
-      <PageHeader eyebrow="Settings" title="Language" />
+      <PageHeader eyebrow={msg("navSettings")} title={msg("language")} />
 
       <section className={ui.card}>
-        {loading ? <p className={ui.empty}>Loading settings...</p> : null}
+        {loading ? <p className={ui.empty}>{msg("loadingSettings")}</p> : null}
         {error ? <div className={ui.alert}>{error}</div> : null}
-        {saved ? <p className={ui.success}>Saved</p> : null}
+        {saved ? <p className={ui.success}>{msg("saved")}</p> : null}
 
         <form className={ui.settingsForm} onSubmit={(event) => void saveSettings(event)}>
           <label className={ui.field}>
-            <span>UI language</span>
+            <span>{msg("uiLanguage")}</span>
             <select
               className={ui.input}
               value={uiLocale}
@@ -104,7 +110,7 @@ export function LanguageSettings(): ReactElement {
             </select>
           </label>
           <label className={ui.field}>
-            <span>Presentation language</span>
+            <span>{msg("presentationLanguage")}</span>
             <select
               className={ui.input}
               value={presentationLocale}
@@ -115,7 +121,7 @@ export function LanguageSettings(): ReactElement {
             </select>
           </label>
           <label className={ui.field}>
-            <span>Time zone</span>
+            <span>{msg("timeZone")}</span>
             <input
               className={ui.input}
               value={timeZone}
@@ -130,7 +136,7 @@ export function LanguageSettings(): ReactElement {
             ) : (
               <Save size={17} aria-hidden="true" />
             )}
-            Save language
+            {msg("saveLanguage")}
           </Button>
         </form>
       </section>

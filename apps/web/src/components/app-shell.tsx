@@ -18,30 +18,49 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 
+import { UiLocaleProvider, useUiLocale } from "@/lib/ui-locale";
+
 import { cn } from "./ui";
 
 const workspaceLinks: NavigationItem[] = [
-  { href: "/app/projects", label: "Projects", icon: FolderKanban },
-  { href: "/app/design-profiles", label: "Design profiles", icon: Palette },
-  { href: "/app/settings/presentations", label: "Presentation defaults", icon: FileText },
+  { href: "/app/projects", labelKey: "navProjects", icon: FolderKanban },
+  { href: "/app/design-profiles", labelKey: "navDesignProfiles", icon: Palette },
+  { href: "/app/settings/presentations", labelKey: "navPresentationDefaults", icon: FileText },
 ];
 
 const settingsLinks: NavigationItem[] = [
-  { href: "/app/settings/profile", label: "Profile", icon: UserRound },
-  { href: "/app/settings/providers", label: "AI providers", icon: KeyRound },
-  { href: "/app/settings/budget", label: "Budget", icon: BarChart3 },
-  { href: "/app/settings/language", label: "Language", icon: SlidersHorizontal },
-  { href: "/app/settings/security", label: "Security", icon: Shield },
+  { href: "/app/settings/profile", labelKey: "navProfile", icon: UserRound },
+  { href: "/app/settings/providers", labelKey: "navAiProviders", icon: KeyRound },
+  { href: "/app/settings/budget", labelKey: "navBudget", icon: BarChart3 },
+  { href: "/app/settings/language", labelKey: "navLanguage", icon: SlidersHorizontal },
+  { href: "/app/settings/security", labelKey: "navSecurity", icon: Shield },
 ];
 
 type NavigationItem = {
   href: Route;
   icon: LucideIcon;
-  label: string;
+  labelKey:
+    | "navAiProviders"
+    | "navBudget"
+    | "navDesignProfiles"
+    | "navLanguage"
+    | "navPresentationDefaults"
+    | "navProfile"
+    | "navProjects"
+    | "navSecurity";
 };
 
 export function AppShell({ children }: { children: ReactNode }): ReactElement {
+  return (
+    <UiLocaleProvider>
+      <AppShellContent>{children}</AppShellContent>
+    </UiLocaleProvider>
+  );
+}
+
+function AppShellContent({ children }: { children: ReactNode }): ReactElement {
   const pathname = usePathname();
+  const { msg } = useUiLocale();
 
   return (
     <div className="grid min-h-screen grid-cols-[264px_minmax(0,1fr)] bg-canvas max-[960px]:grid-cols-1">
@@ -52,14 +71,16 @@ export function AppShell({ children }: { children: ReactNode }): ReactElement {
         <Link
           href="/app/projects"
           className="flex items-center gap-3 rounded-lg p-2 text-ink no-underline hover:bg-canvas"
-          aria-label="Slide Agent projects"
+          aria-label={`${msg("appName")} ${msg("navProjects")}`}
         >
           <span className="grid h-10 w-10 place-items-center rounded-lg bg-primary text-white">
             <LayoutTemplate size={20} aria-hidden="true" />
           </span>
           <span>
-            <span className="block text-[15px] font-extrabold leading-tight">Slide Agent</span>
-            <span className="mt-0.5 block text-xs font-semibold text-muted">Workspace</span>
+            <span className="block text-[15px] font-extrabold leading-tight">{msg("appName")}</span>
+            <span className="mt-0.5 block text-xs font-semibold text-muted">
+              {msg("workspace")}
+            </span>
           </span>
         </Link>
 
@@ -67,8 +88,8 @@ export function AppShell({ children }: { children: ReactNode }): ReactElement {
           className="mt-7 grid gap-6 max-[960px]:grid-cols-2 max-[520px]:grid-cols-1"
           aria-label="Primary"
         >
-          <NavigationSection items={workspaceLinks} pathname={pathname} title="Workspace" />
-          <NavigationSection items={settingsLinks} pathname={pathname} title="Settings" />
+          <NavigationSection items={workspaceLinks} pathname={pathname} title={msg("workspace")} />
+          <NavigationSection items={settingsLinks} pathname={pathname} title={msg("navSettings")} />
         </nav>
       </aside>
 
@@ -76,11 +97,9 @@ export function AppShell({ children }: { children: ReactNode }): ReactElement {
         <header className="sticky top-0 z-10 flex min-h-[72px] items-center justify-between gap-5 border-b border-line bg-canvas/90 px-7 backdrop-blur max-[960px]:static max-[520px]:flex-col max-[520px]:items-stretch max-[520px]:p-4">
           <div>
             <p className="m-0 text-xs font-extrabold uppercase tracking-wide text-muted">
-              Demo workspace
+              {msg("appShellWorkspaceLabel")}
             </p>
-            <p className="mt-1 text-sm font-bold text-ink">
-              Create, import, manage, and export decks.
-            </p>
+            <p className="mt-1 text-sm font-bold text-ink">{msg("appShellSubtitle")}</p>
           </div>
           <button
             type="button"
@@ -88,7 +107,7 @@ export function AppShell({ children }: { children: ReactNode }): ReactElement {
             onClick={() => void signOut()}
           >
             <LogOut size={17} aria-hidden="true" />
-            Sign out
+            {msg("signOut")}
           </button>
         </header>
         <main className="min-w-0">{children}</main>
@@ -106,6 +125,8 @@ function NavigationSection({
   pathname: string;
   title: string;
 }): ReactElement {
+  const { msg } = useUiLocale();
+
   return (
     <section>
       <h2 className="mb-2 px-2 text-[11px] font-extrabold uppercase tracking-wide text-muted">
@@ -126,7 +147,7 @@ function NavigationSection({
                 href={item.href}
               >
                 <Icon size={17} aria-hidden="true" />
-                <span>{item.label}</span>
+                <span>{msg(item.labelKey)}</span>
               </Link>
             </li>
           );

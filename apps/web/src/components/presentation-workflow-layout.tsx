@@ -4,18 +4,19 @@ import { ArrowLeft, FileDown, FileText, GitBranch, LayoutPanelTop, PenLine } fro
 import type { ReactElement, ReactNode } from "react";
 
 import type { PresentationWorkflow } from "@/lib/presentation-workflow";
+import { useUiLocale } from "@/lib/ui-locale";
 
 import { ButtonLink, cn, ui } from "./ui";
 
 type Workflow = NonNullable<PresentationWorkflow>;
 
 const workflowSteps = [
-  { id: "overview", label: "Overview", suffix: "", icon: LayoutPanelTop },
-  { id: "briefing", label: "Briefing", suffix: "/briefing", icon: FileText },
-  { id: "storyline", label: "Storyline", suffix: "/storyline", icon: GitBranch },
-  { id: "editor", label: "Editor", suffix: "/editor", icon: PenLine },
-  { id: "export", label: "Export", suffix: "/export", icon: FileDown },
-];
+  { id: "overview", labelKey: "overview", suffix: "", icon: LayoutPanelTop },
+  { id: "briefing", labelKey: "briefing", suffix: "/briefing", icon: FileText },
+  { id: "storyline", labelKey: "storyline", suffix: "/storyline", icon: GitBranch },
+  { id: "editor", labelKey: "editor", suffix: "/editor", icon: PenLine },
+  { id: "export", labelKey: "actionExport", suffix: "/export", icon: FileDown },
+] as const;
 
 export function PresentationWorkflowLayout({
   activeStep,
@@ -26,6 +27,8 @@ export function PresentationWorkflowLayout({
   children: ReactNode;
   workflow: Workflow;
 }): ReactElement {
+  const { msg } = useUiLocale();
+
   return (
     <section className={ui.workflowShell}>
       <div className={ui.pageHeader}>
@@ -37,7 +40,7 @@ export function PresentationWorkflowLayout({
             <ArrowLeft size={16} aria-hidden="true" />
             {workflow.project.name}
           </Link>
-          <p className={ui.kicker}>Presentation</p>
+          <p className={ui.kicker}>{msg("presentation")}</p>
           <h1 className={ui.title}>{workflow.title}</h1>
           <p className="mt-2 text-sm font-bold text-muted">
             {workflow.status} · {workflow.slideCount} slides · {workflow.outputLanguage}
@@ -62,7 +65,7 @@ export function PresentationWorkflowLayout({
               href={href as Route}
             >
               <Icon size={16} aria-hidden="true" />
-              {step.label}
+              {msg(step.labelKey)}
             </Link>
           );
         })}
@@ -78,6 +81,7 @@ export function PresentationWorkflowLayout({
 }
 
 export function PresentationOverview({ workflow }: { workflow: Workflow }): ReactElement {
+  const { msg } = useUiLocale();
   const briefingReady = Boolean(workflow.briefing);
   const storylineReady = workflow.storylines.length > 0;
   const exported = workflow.exports.length > 0;
@@ -85,7 +89,7 @@ export function PresentationOverview({ workflow }: { workflow: Workflow }): Reac
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <section className={ui.card}>
-        <h2 className={ui.sectionTitle}>Workflow status</h2>
+        <h2 className={ui.sectionTitle}>{msg("workflowStatus")}</h2>
         <dl className="grid gap-3 md:grid-cols-2">
           <Metric label="Briefing" value={briefingReady ? "Ready" : "Open"} />
           <Metric label="Storyline" value={storylineReady ? "Ready" : "Open"} />
@@ -121,23 +125,23 @@ export function PresentationOverview({ workflow }: { workflow: Workflow }): Reac
           <ButtonLink
             href={`/app/presentations/${encodeURIComponent(workflow.id)}/briefing` as Route}
           >
-            Open briefing
+            {msg("briefing")}
           </ButtonLink>
           <ButtonLink
             href={`/app/presentations/${encodeURIComponent(workflow.id)}/storyline` as Route}
           >
-            Open storyline
+            {msg("storyline")}
           </ButtonLink>
           <ButtonLink
             variant="primary"
             href={`/app/presentations/${encodeURIComponent(workflow.id)}/editor` as Route}
           >
-            Open editor
+            {msg("editor")}
           </ButtonLink>
           <ButtonLink
             href={`/app/presentations/${encodeURIComponent(workflow.id)}/export` as Route}
           >
-            Export
+            {msg("actionExport")}
           </ButtonLink>
         </div>
       </section>
