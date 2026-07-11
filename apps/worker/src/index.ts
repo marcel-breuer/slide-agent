@@ -1,6 +1,15 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+
 import { Queue, Worker, type ConnectionOptions } from "bullmq";
 
 const connection = createRedisConnectionOptions(process.env.REDIS_URL ?? "redis://127.0.0.1:6379");
+const heartbeatIntervalMs = Number(process.env.WORKER_HEARTBEAT_INTERVAL_MS ?? 15_000);
+const workerStartedAt = new Date().toISOString();
+const workerHeartbeatPath = path.join(
+  path.resolve(process.env.STORAGE_ROOT ?? "/app/storage"),
+  "ops/worker-heartbeat.json",
+);
 
 export const generationQueue = new Queue("slide-agent-generation", { connection });
 
@@ -39,9 +48,39 @@ worker.on("failed", (job, error) => {
   );
 });
 
+const heartbeatTimer = globalThis.setInterval(() => {
+  void writeWorkerHeartbeat();
+}, heartbeatIntervalMs);
+
+void writeWorkerHeartbeat();
+
 process.on("SIGTERM", () => {
+  globalThis.clearInterval(heartbeatTimer);
   void Promise.all([worker.close(), generationQueue.close()]).then(() => process.exit(0));
 });
+
+async function writeWorkerHeartbeat(): Promise<void> {
+  try {
+    await mkdir(path.dirname(workerHeartbeatPath), { recursive: true });
+    await writeFile(
+      workerHeartbeatPath,
+      JSON.stringify({
+        pid: process.pid,
+        queueName: "slide-agent-generation",
+        startedAt: workerStartedAt,
+        updatedAt: new Date().toISOString(),
+      }),
+    );
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Worker heartbeat could not be written.",
+        level: "error",
+        message: "worker heartbeat failed",
+      }),
+    );
+  }
+}
 
 function createRedisConnectionOptions(redisUrl: string): ConnectionOptions {
   const parsed = new URL(redisUrl);

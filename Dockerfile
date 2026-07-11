@@ -21,6 +21,7 @@ FROM base AS runner
 ENV NODE_ENV=production
 RUN useradd --user-group --create-home --shell /bin/false appuser
 COPY --from=builder --chown=appuser:appuser /app /app
+RUN mkdir -p /app/storage && chown -R appuser:appuser /app/storage
 USER appuser
 EXPOSE 3000
 CMD ["pnpm", "--filter", "web", "start"]

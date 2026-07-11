@@ -1,12 +1,20 @@
 import { ok } from "@/lib/api";
+import { getSystemStatus } from "@/lib/ops-status";
+import { logSafe } from "@/lib/safe-logger";
 
-export function GET() {
+export async function GET() {
+  const system = await getSystemStatus();
+
+  if (system.status !== "ok") {
+    logSafe(system.status === "down" ? "error" : "warn", "admin system status degraded", {
+      dependencies: system.dependencies,
+      status: system.status,
+    });
+  }
+
   return ok({
-    web: "ok",
-    worker: "unknown",
-    postgres: "configured",
-    redis: "configured",
-    objectStorage: "configured",
-    email: "configured",
+    checkedAt: system.checkedAt,
+    dependencies: system.dependencies,
+    status: system.status,
   });
 }
