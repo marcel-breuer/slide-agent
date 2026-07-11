@@ -18,9 +18,30 @@ The root compose file includes deployable defaults for the app, database, Redis,
 - `APP_URL`
 - `AUTH_SECRET`
 - `CREDENTIAL_ENCRYPTION_KEY`
+- `DATABASE_URL` or the matching `POSTGRES_*` values
+- `REDIS_URL`
+- `STORAGE_ROOT`
 - `DEMO_LOGIN_EMAIL`
 - `DEMO_LOGIN_PASSWORD`
 - `POSTGRES_PASSWORD`
+- `WORKER_CONCURRENCY`
 - SMTP settings if outbound email should be sent through a real mail provider
 
 Uploaded files, generated assets, and exports are stored in the `app-storage` Docker volume mounted at `/app/storage` in the web and worker containers.
+
+## Operational checks
+
+The web health endpoint at `/api/health` verifies Postgres, Redis reachability, local object storage read/write access, and the latest worker heartbeat. Postgres, Redis, and storage failures return HTTP `503`; a stale worker heartbeat is reported as degraded in the JSON payload so deployments can distinguish web liveness from background-worker health.
+
+Administrators can inspect the same dependency data on `/admin/system` and through `/api/admin/system`. Worker heartbeat details are also exposed through `/api/admin/jobs`.
+
+Run these smoke checks after every production deployment:
+
+- Open `/api/health` and confirm `status` is `ok` or only `degraded` because of a known worker restart window.
+- Open `/admin/system` and confirm Postgres, Redis, storage, and worker status cards reflect live checks.
+- Create or open a presentation, generate a PPTX export, and download it.
+- Confirm the worker container logs show structured JSON for job completion or failure events and no plaintext credentials, cookies, tokens, or provider secrets.
+
+## Backups
+
+Back up the Postgres volume and the `app-storage` volume together. The database stores presentation metadata and export records, while `app-storage` stores uploaded files, generated assets, exports, and operational heartbeat probes. Redis is used for queue state and should be treated as transient unless a deployment requires job recovery across restarts.
