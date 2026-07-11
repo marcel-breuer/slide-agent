@@ -66,6 +66,22 @@ describe("slide pointers", () => {
       "Slide AI pointers:\n1. pointer 1 at x 25%, y 50%: Make this number more prominent",
     );
   });
+
+  it("includes an anchored element in model context", () => {
+    const context = buildSlidePointerContext("slide-1", [
+      createSlidePointer({
+        id: "pointer-1",
+        instruction: "Increase contrast",
+        label: "Chart",
+        slideId: "slide-1",
+        targetElementId: "revenue-chart",
+        x: 400,
+        y: 300,
+      }),
+    ]);
+
+    expect(context).toContain("targeting element revenue-chart");
+  });
 });
 
 describe("slide structure editing", () => {

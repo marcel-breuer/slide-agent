@@ -8,6 +8,7 @@ import {
   createDemoPresentationDocument,
   type PresentationDocument,
 } from "@slide-agent/presentation-schema";
+import { createSlidePointer } from "@slide-agent/editor-core";
 
 import {
   PresentationPreview,
@@ -75,6 +76,62 @@ describe("PresentationPreview", () => {
 
     fireEvent.keyDown(globalThis.window, { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("places and manages multiple preview pointers with chat references", () => {
+    const presentation = createPreviewTestDocument();
+    const slideId = presentation.slides[0]!.id;
+    const pointers = [
+      createSlidePointer({ id: "pointer-1", label: "KPI", slideId, x: 240, y: 180 }),
+      createSlidePointer({ id: "pointer-2", label: "Chart", slideId, x: 480, y: 300 }),
+    ];
+    const onPointerAdd = vi.fn();
+    const onPointerChange = vi.fn();
+    const onPointerRemove = vi.fn();
+    const onPointerReferenceToggle = vi.fn();
+    const onClearPointers = vi.fn();
+
+    render(
+      <PresentationPreview
+        initialSlideId={slideId}
+        onClearPointers={onClearPointers}
+        onClose={() => undefined}
+        onPointerAdd={onPointerAdd}
+        onPointerChange={onPointerChange}
+        onPointerRemove={onPointerRemove}
+        onPointerReferenceToggle={onPointerReferenceToggle}
+        pointers={pointers}
+        presentation={presentation}
+        referencedPointerIds={["pointer-1"]}
+      />,
+    );
+
+    expect(screen.getByText("2 on this slide")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Linked in chat" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Link in chat" }));
+    expect(onPointerReferenceToggle).toHaveBeenCalledWith("pointer-2");
+
+    fireEvent.pointerDown(screen.getByRole("button", { name: /Pointer KPI/i }));
+    fireEvent.change(screen.getByLabelText("Pointer label"), { target: { value: "Revenue" } });
+    expect(onPointerChange).toHaveBeenCalledWith("pointer-1", {
+      instruction: "Describe the requested change here",
+      label: "Revenue",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove pointer" }));
+    expect(onPointerRemove).toHaveBeenCalledWith("pointer-1");
+    fireEvent.click(screen.getByRole("button", { name: "Clear slide pointers" }));
+    expect(onClearPointers).toHaveBeenCalledWith(slideId);
+
+    fireEvent.click(screen.getByRole("button", { name: "Toggle pointer mode" }));
+    const slide = screen.getByRole("region", {
+      name: presentation.slides[0]!.title ?? "Slide",
+    });
+    Object.defineProperty(slide, "getBoundingClientRect", {
+      value: () => ({ bottom: 900, height: 900, left: 0, right: 1600, top: 0, width: 1600 }),
+    });
+    fireEvent.pointerDown(slide, { clientX: 800, clientY: 450 });
+    expect(onPointerAdd).toHaveBeenCalledWith(slideId, { x: 500, y: 281.25 });
   });
 });
 

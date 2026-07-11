@@ -47,6 +47,7 @@ export type SlidePointer = {
   x: number;
   y: number;
   instruction: string;
+  targetElementId?: string;
 };
 
 export type CreateSlidePointerInput = {
@@ -56,6 +57,7 @@ export type CreateSlidePointerInput = {
   y: number;
   label?: string;
   instruction?: string;
+  targetElementId?: string;
 };
 
 export type CreateBlankSlideInput = {
@@ -203,6 +205,7 @@ export function createSlidePointer(input: CreateSlidePointerInput): SlidePointer
     x: clampCoordinate(input.x, LOGICAL_SLIDE_WIDTH),
     y: clampCoordinate(input.y, LOGICAL_SLIDE_HEIGHT),
     instruction: input.instruction?.trim() || "Describe the requested change here",
+    ...(input.targetElementId ? { targetElementId: input.targetElementId } : {}),
   };
 }
 
@@ -216,7 +219,8 @@ export function buildSlidePointerContext(
   const lines = slidePointers.map((pointer, index) => {
     const x = formatPercent(pointer.x, LOGICAL_SLIDE_WIDTH);
     const y = formatPercent(pointer.y, LOGICAL_SLIDE_HEIGHT);
-    return `${index + 1}. pointer ${pointer.label} at x ${x}, y ${y}: ${pointer.instruction}`;
+    const target = pointer.targetElementId ? ` targeting element ${pointer.targetElementId}` : "";
+    return `${index + 1}. pointer ${pointer.label} at x ${x}, y ${y}${target}: ${pointer.instruction}`;
   });
 
   return ["Slide AI pointers:", ...lines].join("\n");

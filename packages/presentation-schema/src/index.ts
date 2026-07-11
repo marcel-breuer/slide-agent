@@ -167,6 +167,7 @@ export const SlidePointerMarkerSchema = z.object({
   x: z.number().finite().min(0).max(LOGICAL_SLIDE_WIDTH),
   y: z.number().finite().min(0).max(LOGICAL_SLIDE_HEIGHT),
   instruction: z.string().min(1).max(1000),
+  targetElementId: z.string().min(1).optional(),
 });
 export type SlidePointerMarker = z.infer<typeof SlidePointerMarkerSchema>;
 
