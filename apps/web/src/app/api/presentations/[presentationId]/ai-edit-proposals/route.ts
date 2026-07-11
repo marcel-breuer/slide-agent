@@ -32,6 +32,7 @@ const SlidePointerRequestSchema = z.object({
   x: z.number().finite().min(0).max(LOGICAL_SLIDE_WIDTH),
   y: z.number().finite().min(0).max(LOGICAL_SLIDE_HEIGHT),
   instruction: z.string().min(1).max(1000),
+  targetElementId: z.string().min(1).optional(),
 });
 
 const AiEditProposalRequestSchema = z.object({
@@ -70,6 +71,23 @@ export async function POST(request: Request, context: RouteContext) {
     return fail("VALIDATION_FAILED", "Presentation document id does not match the route id.", 400);
   }
 
+  const requestedSlide = parsed.data.document.slides.find(
+    (slide) => slide.id === parsed.data.slideId,
+  );
+  if (!requestedSlide) {
+    return fail("VALIDATION_FAILED", "Requested slide does not belong to the presentation.", 400);
+  }
+
+  const pointersAreScoped = parsed.data.pointers.every(
+    (pointer) =>
+      pointer.slideId === requestedSlide.id &&
+      (!pointer.targetElementId ||
+        requestedSlide.elements.some((element) => element.id === pointer.targetElementId)),
+  );
+  if (!pointersAreScoped) {
+    return fail("VALIDATION_FAILED", "Pointer references must belong to the requested slide.", 400);
+  }
+
   try {
     const budgetSnapshot = await loadBudgetUsageSnapshot(userId);
     if (budgetSnapshot.usage.hardStopReached) {
@@ -97,7 +115,15 @@ export async function POST(request: Request, context: RouteContext) {
       document: parsed.data.document,
       model: routing.decision.model,
       operationId,
-      pointers: parsed.data.pointers,
+      pointers: parsed.data.pointers.map((pointer) => ({
+        id: pointer.id,
+        instruction: pointer.instruction,
+        label: pointer.label,
+        slideId: pointer.slideId,
+        ...(pointer.targetElementId ? { targetElementId: pointer.targetElementId } : {}),
+        x: pointer.x,
+        y: pointer.y,
+      })),
       prompt: parsed.data.prompt,
       provider: routing.decision.provider,
       slideId: parsed.data.slideId,

@@ -339,6 +339,7 @@ function LoadedEditor({
     readDocumentSlidePointers(document),
   );
   const [selectedPointerId, setSelectedPointerId] = useState<string | null>(null);
+  const [referencedPointerIds, setReferencedPointerIds] = useState<string[]>([]);
   const [editorHistory, setEditorHistory] = useState<EditorHistory>({
     redoStack: [],
     undoStack: [],
@@ -381,9 +382,15 @@ function LoadedEditor({
     () => activeSlidePointers.find((pointer) => pointer.id === selectedPointerId),
     [activeSlidePointers, selectedPointerId],
   );
+  const referencedSlidePointers = useMemo(() => {
+    const referencedIds = new Set(referencedPointerIds);
+    return activeSlidePointers.filter((pointer) => referencedIds.has(pointer.id));
+  }, [activeSlidePointers, referencedPointerIds]);
+  const requestPointers =
+    referencedSlidePointers.length > 0 ? referencedSlidePointers : activeSlidePointers;
   const pointerContext = useMemo(
-    () => buildSlidePointerContext(activeSlide.id, activeSlidePointers),
-    [activeSlide.id, activeSlidePointers],
+    () => buildSlidePointerContext(activeSlide.id, requestPointers),
+    [activeSlide.id, requestPointers],
   );
   const assistantPreview = [assistantText.trim(), pointerContext].filter(Boolean).join("\n\n");
   const selectedShapeFill = selectedElement?.type === "shape" ? selectedElement.fill : undefined;
@@ -421,6 +428,7 @@ function LoadedEditor({
   useEffect(() => {
     setEditorHistory({ redoStack: [], undoStack: [] });
     setSlidePointers(readDocumentSlidePointers(document));
+    setReferencedPointerIds([]);
     setAiProposal(null);
     setAiProposalError(null);
     setAiProposalStatus("idle");
@@ -537,10 +545,28 @@ function LoadedEditor({
   }
 
   function addSlidePointer(point: { x: number; y: number }): void {
+    addSlidePointerForSlide(activeSlide.id, point);
+  }
+
+  function addSlidePointerForSlide(slideId: string, point: { x: number; y: number }): void {
+    const slide = document.slides.find((candidate) => candidate.id === slideId);
+    if (!slide) return;
+    const slidePointerCount = slidePointers.filter((pointer) => pointer.slideId === slideId).length;
+    const targetElement = slide.elements
+      .filter(
+        (element) =>
+          element.visible &&
+          point.x >= element.frame.x &&
+          point.x <= element.frame.x + element.frame.width &&
+          point.y >= element.frame.y &&
+          point.y <= element.frame.y + element.frame.height,
+      )
+      .sort((left, right) => right.zIndex - left.zIndex)[0];
     const pointer = createSlidePointer({
-      id: `${activeSlide.id}-pointer-${Date.now()}`,
-      label: String(activeSlidePointers.length + 1),
-      slideId: activeSlide.id,
+      id: `${slideId}-pointer-${Date.now()}`,
+      label: String(slidePointerCount + 1),
+      slideId,
+      ...(targetElement ? { targetElementId: targetElement.id } : {}),
       x: point.x,
       y: point.y,
     });
@@ -555,6 +581,72 @@ function LoadedEditor({
       selectedSlideId,
       slidePointers: nextSlidePointers,
     });
+  }
+
+  function updatePointer(
+    pointerId: string,
+    changes: Pick<SlidePointer, "instruction" | "label">,
+  ): void {
+    const nextSlidePointers = normalizeSlidePointers(
+      slidePointers.map((pointer) =>
+        pointer.id === pointerId
+          ? {
+              ...pointer,
+              instruction: changes.instruction,
+              label: changes.label.trim() || pointer.label,
+            }
+          : pointer,
+      ),
+    );
+    commitSnapshot({
+      assistantText,
+      document: syncDocumentSlidePointers(document, nextSlidePointers),
+      selectedElementId,
+      selectedPointerId: pointerId,
+      selectedSlideId,
+      slidePointers: nextSlidePointers,
+    });
+  }
+
+  function removePointer(pointerId: string): void {
+    const nextSlidePointers = normalizeSlidePointers(
+      slidePointers.filter((pointer) => pointer.id !== pointerId),
+    );
+    setReferencedPointerIds((current) => current.filter((id) => id !== pointerId));
+    commitSnapshot({
+      assistantText,
+      document: syncDocumentSlidePointers(document, nextSlidePointers),
+      selectedElementId,
+      selectedPointerId: selectedPointerId === pointerId ? null : selectedPointerId,
+      selectedSlideId,
+      slidePointers: nextSlidePointers,
+    });
+  }
+
+  function clearSlidePointers(slideId: string): void {
+    const removedIds = new Set(
+      slidePointers.filter((pointer) => pointer.slideId === slideId).map((pointer) => pointer.id),
+    );
+    const nextSlidePointers = normalizeSlidePointers(
+      slidePointers.filter((pointer) => pointer.slideId !== slideId),
+    );
+    setReferencedPointerIds((current) => current.filter((id) => !removedIds.has(id)));
+    commitSnapshot({
+      assistantText,
+      document: syncDocumentSlidePointers(document, nextSlidePointers),
+      selectedElementId,
+      selectedPointerId: null,
+      selectedSlideId,
+      slidePointers: nextSlidePointers,
+    });
+  }
+
+  function togglePointerReference(pointerId: string): void {
+    setReferencedPointerIds((current) =>
+      current.includes(pointerId)
+        ? current.filter((id) => id !== pointerId)
+        : [...current, pointerId],
+    );
   }
 
   function updateSelectedPointerInstruction(instruction: string): void {
@@ -661,7 +753,7 @@ function LoadedEditor({
       const documentWithPointers = syncDocumentSlidePointers(document, slidePointers);
       const requestBody = {
         document: documentWithPointers,
-        pointers: activeSlidePointers,
+        pointers: requestPointers,
         prompt,
         slideId: activeSlide.id,
         ...(selectedElementId ? { selectedElementId } : {}),
@@ -766,7 +858,14 @@ function LoadedEditor({
         <PresentationPreview
           initialSlideId={activeSlide.id}
           onClose={() => setIsPreviewOpen(false)}
+          onClearPointers={clearSlidePointers}
+          onPointerAdd={addSlidePointerForSlide}
+          onPointerChange={updatePointer}
+          onPointerRemove={removePointer}
+          onPointerReferenceToggle={togglePointerReference}
+          pointers={slidePointers}
           presentation={syncDocumentSlidePointers(document, slidePointers)}
+          referencedPointerIds={referencedPointerIds}
         />
       ) : null}
       <aside className="border-r border-line bg-white px-4 py-5">
@@ -1173,6 +1272,24 @@ function LoadedEditor({
               ))}
             </div>
             <div className="flex gap-3">
+              {referencedSlidePointers.length > 0 ? (
+                <div
+                  className="flex shrink-0 items-center gap-1"
+                  aria-label="Chat pointer references"
+                >
+                  {referencedSlidePointers.map((pointer) => (
+                    <button
+                      key={pointer.id}
+                      type="button"
+                      title={`Remove pointer ${pointer.label} from chat`}
+                      onClick={() => togglePointerReference(pointer.id)}
+                      className="flex h-9 items-center gap-1 rounded-app border border-primary bg-primary/5 px-2 text-xs font-semibold text-primary"
+                    >
+                      <MapPin size={13} /> {pointer.label} <X size={12} />
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <input
                 value={assistantText}
                 onChange={(event) => setAssistantText(event.target.value)}
@@ -1432,6 +1549,7 @@ function readDocumentSlidePointers(document: PresentationDocument): SlidePointer
         instruction: pointer.instruction,
         label: pointer.label,
         slideId: slide.id,
+        ...(pointer.targetElementId ? { targetElementId: pointer.targetElementId } : {}),
         x: pointer.x,
         y: pointer.y,
       })),
@@ -1449,7 +1567,7 @@ function normalizeSlidePointers(pointers: readonly SlidePointer[]): SlidePointer
     return {
       ...pointer,
       instruction: pointer.instruction.trim() || "Describe the requested change here",
-      label: String(nextCount),
+      label: pointer.label.trim() || String(nextCount),
     };
   });
 }
@@ -1474,6 +1592,7 @@ function syncDocumentSlidePointers(
         id: pointer.id,
         instruction: pointer.instruction,
         label: pointer.label,
+        ...(pointer.targetElementId ? { targetElementId: pointer.targetElementId } : {}),
         x: pointer.x,
         y: pointer.y,
       })),

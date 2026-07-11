@@ -193,6 +193,39 @@ describe("AI edit proposals API", () => {
     expect(mockedProviderCredentialFindMany).not.toHaveBeenCalled();
     expect(mockedAiOperationCreate).not.toHaveBeenCalled();
   });
+
+  it("rejects pointer references outside the requested slide", async () => {
+    const document = createDemoPresentationDocument({ now: "2026-07-02T12:00:00.000Z" });
+    mockedFindPresentationDocument.mockResolvedValue(document);
+
+    const response = await POST(
+      new Request("http://test.local", {
+        body: JSON.stringify({
+          document,
+          pointers: [
+            {
+              id: "pointer-1",
+              instruction: "Change this item",
+              label: "1",
+              slideId: "another-slide",
+              x: 240,
+              y: 180,
+            },
+          ],
+          prompt: "Change the linked item.",
+          slideId: "slide-1",
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      }),
+      { params: Promise.resolve({ presentationId: "demo-presentation" }) },
+    );
+    const payload = (await response.json()) as { error: { code: string } };
+
+    expect(response.status).toBe(400);
+    expect(payload.error.code).toBe("VALIDATION_FAILED");
+    expect(mockedAiOperationCreate).not.toHaveBeenCalled();
+  });
 });
 
 function createBudgetSettings(overrides = {}) {
