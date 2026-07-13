@@ -47,10 +47,12 @@ import type { LucideIcon } from "lucide-react";
 import {
   applyCommands,
   buildSlidePointerContext,
+  createLayoutSuggestions,
   createBlankSlide,
   createSlidePointer,
   getSlideSelectionAfterDelete,
   type EditorCommand,
+  type LayoutSuggestion,
   type PointerDrivenEditProposal,
   type SlidePointer,
 } from "@slide-agent/editor-core";
@@ -58,6 +60,7 @@ import { SlideRenderer } from "@slide-agent/presentation-renderer";
 import { validatePresentation, type PresentationDocument } from "@slide-agent/presentation-schema";
 
 import { PresentationPreview } from "./presentation-preview";
+import { LayoutSuggestionPreview } from "./layout-suggestion-preview";
 
 type InspectorTab = "properties" | "layers" | "design" | "assets";
 type TextElement = Extract<
@@ -352,6 +355,7 @@ function LoadedEditor({
   const [aiProposal, setAiProposal] = useState<PointerDrivenEditProposal | null>(null);
   const [aiProposalError, setAiProposalError] = useState<string | null>(null);
   const [aiProposalStatus, setAiProposalStatus] = useState<AiProposalStatus>("idle");
+  const [layoutSuggestions, setLayoutSuggestions] = useState<LayoutSuggestion[]>([]);
   const [currentExport, setCurrentExport] = useState<PresentationExportSummary | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportStatus, setExportStatus] = useState<ExportStatus>("idle");
@@ -848,6 +852,19 @@ function LoadedEditor({
     setAiProposalStatus("idle");
   }
 
+  function requestLayoutSuggestions(): void {
+    setLayoutSuggestions(createLayoutSuggestions({ document, slideId: activeSlide.id }));
+  }
+
+  function applyLayoutSuggestion(suggestion: LayoutSuggestion): void {
+    commitDocumentCommands(suggestion.commands, { selectedSlideId: activeSlide.id });
+    setLayoutSuggestions([]);
+  }
+
+  function rejectLayoutSuggestions(): void {
+    setLayoutSuggestions([]);
+  }
+
   async function requestPresentationExport(): Promise<void> {
     if (exportStatus === "exporting") return;
 
@@ -997,6 +1014,9 @@ function LoadedEditor({
               </IconButton>
               <IconButton label="Preview" onClick={() => setIsPreviewOpen(true)}>
                 <Eye size={17} />
+              </IconButton>
+              <IconButton label="Layout suggestions" onClick={requestLayoutSuggestions}>
+                <Sparkles size={17} />
               </IconButton>
               <button
                 type="button"
@@ -1368,6 +1388,11 @@ function LoadedEditor({
                 {assistantPreview}
               </pre>
             ) : null}
+            <LayoutSuggestionPreview
+              suggestions={layoutSuggestions}
+              onApply={applyLayoutSuggestion}
+              onReject={rejectLayoutSuggestions}
+            />
             {aiProposal ? (
               <div className="mt-3 rounded-app border border-line bg-canvas px-3 py-3">
                 <div className="flex items-start justify-between gap-3">
