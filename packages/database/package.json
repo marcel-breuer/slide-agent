@@ -12,6 +12,7 @@
     "test": "vitest run --passWithNoTests",
     "typecheck": "pnpm prisma:generate && tsc --noEmit",
     "prisma:generate": "prisma generate",
+    "prisma:deploy": "prisma migrate deploy",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx src/seed.ts"
   },

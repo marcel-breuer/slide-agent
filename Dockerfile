@@ -25,8 +25,12 @@ RUN pnpm build
 FROM base AS runner
 ENV NODE_ENV=production
 RUN useradd --user-group --create-home --shell /bin/false appuser
+COPY docker/web-entrypoint.sh /usr/local/bin/slide-agent-web-entrypoint
+COPY docker/prepare-database.mjs /usr/local/bin/slide-agent-prepare-database.mjs
+RUN chmod 755 /usr/local/bin/slide-agent-web-entrypoint /usr/local/bin/slide-agent-prepare-database.mjs
 COPY --from=builder --chown=appuser:appuser /app /app
 RUN mkdir -p /app/storage && chown -R appuser:appuser /app/storage
 USER appuser
+ENTRYPOINT ["/usr/local/bin/slide-agent-web-entrypoint"]
 EXPOSE 3000
 CMD ["pnpm", "--filter", "web", "start"]
