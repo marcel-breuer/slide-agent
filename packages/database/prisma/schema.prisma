@@ -44,6 +44,11 @@ enum ReusableAssetKind {
   BRAND_KIT
 }
 
+enum PresentationCommentStatus {
+  OPEN
+  RESOLVED
+}
+
 model User {
   id              String    @id @default(uuid())
   email           String    @unique
@@ -65,6 +70,13 @@ model User {
   auditLogs              AuditLog[]
   collaborationSessions  PresentationCollaboratorSession[]
   reusableAssets         ReusableAsset[]
+  authoredComments       PresentationComment[]             @relation("CommentAuthors")
+  commentReplies         PresentationCommentReply[]        @relation("CommentReplyAuthors")
+  commentEvents          PresentationCommentEvent[]        @relation("CommentEventActors")
+  deletedComments        PresentationComment[]             @relation("CommentDeleters")
+  resolvedComments       PresentationComment[]             @relation("CommentResolvers")
+  commentMentions        PresentationCommentMention[]      @relation("CommentMentionRecipients")
+  commentNotifications   PresentationCommentNotification[] @relation("CommentNotificationRecipients")
 
   @@index([role])
   @@index([deletedAt])
@@ -209,6 +221,7 @@ model Presentation {
   collaborationSessions    PresentationCollaboratorSession[]
   reusableAssetId          String?
   reusableAsset            ReusableAsset?                    @relation(fields: [reusableAssetId], references: [id], onDelete: SetNull)
+  comments                 PresentationComment[]
 
   @@index([ownerId])
   @@index([projectId, status])
@@ -310,6 +323,83 @@ model PresentationCollaboratorSession {
 
   @@unique([presentationId, userId, clientId])
   @@index([presentationId, lastSeenAt])
+}
+
+model PresentationComment {
+  id             String                            @id @default(uuid())
+  presentationId String
+  authorId       String
+  slideId        String
+  elementId      String?
+  body           String
+  status         PresentationCommentStatus         @default(OPEN)
+  resolvedAt     DateTime?
+  resolvedById   String?
+  deletedAt      DateTime?
+  deletedById    String?
+  createdAt      DateTime                          @default(now())
+  updatedAt      DateTime                          @updatedAt
+  presentation   Presentation                      @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  author         User                              @relation("CommentAuthors", fields: [authorId], references: [id], onDelete: Cascade)
+  resolvedBy     User?                             @relation("CommentResolvers", fields: [resolvedById], references: [id], onDelete: SetNull)
+  deletedBy      User?                             @relation("CommentDeleters", fields: [deletedById], references: [id], onDelete: SetNull)
+  replies        PresentationCommentReply[]
+  events         PresentationCommentEvent[]
+  mentions       PresentationCommentMention[]
+  notifications  PresentationCommentNotification[]
+
+  @@index([presentationId, status, deletedAt])
+  @@index([slideId, elementId])
+}
+
+model PresentationCommentReply {
+  id        String              @id @default(uuid())
+  commentId String
+  authorId  String
+  body      String
+  createdAt DateTime            @default(now())
+  comment   PresentationComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  author    User                @relation("CommentReplyAuthors", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([commentId, createdAt])
+}
+
+model PresentationCommentEvent {
+  id        String              @id @default(uuid())
+  commentId String
+  actorId   String
+  action    String
+  metadata  Json                @default("{}")
+  createdAt DateTime            @default(now())
+  comment   PresentationComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  actor     User                @relation("CommentEventActors", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([commentId, createdAt])
+}
+
+model PresentationCommentMention {
+  id              String              @id @default(uuid())
+  commentId       String
+  mentionedUserId String
+  createdAt       DateTime            @default(now())
+  comment         PresentationComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  mentionedUser   User                @relation("CommentMentionRecipients", fields: [mentionedUserId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, mentionedUserId])
+  @@index([mentionedUserId, createdAt])
+}
+
+model PresentationCommentNotification {
+  id          String              @id @default(uuid())
+  commentId   String
+  recipientId String
+  kind        String
+  readAt      DateTime?
+  createdAt   DateTime            @default(now())
+  comment     PresentationComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  recipient   User                @relation("CommentNotificationRecipients", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, readAt, createdAt])
 }
 
 model ReusableAsset {

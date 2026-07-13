@@ -196,6 +196,7 @@ function createWorkflow(): Parameters<typeof PresentationOverview>[0]["workflow"
     lastExportAt: null,
     project: { id: "project-1", name: "Board" },
     slideCount: 5,
+    unresolvedCommentCount: 0,
     slideTitles: [{ id: "slide-1", order: 1, title: "Opening" }],
     briefing: {
       id: "briefing-1",
