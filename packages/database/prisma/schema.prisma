@@ -138,6 +138,16 @@ model UserSettings {
   defaultImageryStyle        String   @default("minimal")
   defaultExportFormat        String   @default("pptx")
   defaultExportCompatibility String   @default("modern")
+  billingPlanCode            String   @default("free")
+  billingStatus              String   @default("active")
+  billingProvider            String?
+  billingCustomerId          String?
+  billingSubscriptionId      String?  @unique
+  billingPeriodStart         DateTime?
+  billingPeriodEnd           DateTime?
+  billingCancelAtPeriodEnd   Boolean  @default(false)
+  billingGraceUntil          DateTime?
+  billingStateUpdatedAt      DateTime?
   user                       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
@@ -678,6 +688,22 @@ model AuditLog {
   metadata  Json     @default("{}")
   createdAt DateTime @default(now())
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model BillingEvent {
+  id          String   @id @default(uuid())
+  provider    String
+  eventId     String
+  eventType   String
+  userId      String?
+  occurredAt  DateTime
+  payload     Json
+  status      String
+  processedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  @@unique([provider, eventId])
+  @@index([userId, occurredAt])
 }
 
 model AdminSetting {
