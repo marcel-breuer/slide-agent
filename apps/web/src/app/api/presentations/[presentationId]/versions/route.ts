@@ -6,6 +6,7 @@ import { findPresentationDocument } from "@slide-agent/database";
 import { fail, ok } from "@/lib/api";
 import { sanitizeCommentBody } from "@/lib/presentation-comments";
 import { getAuthenticatedUserId } from "@/lib/server-session";
+import { activePresentationScope, canAccess, getPresentationAccess } from "@/lib/team-access";
 
 const VersionInputSchema = z.object({
   changeSummary: z.string().trim().max(240).optional(),
@@ -20,7 +21,7 @@ export async function GET(_request: Request, context: RouteContext) {
   const { presentationId } = await context.params;
 
   const presentation = await prisma.presentation.findFirst({
-    where: { id: presentationId, ownerId: userId },
+    where: { id: presentationId, ...activePresentationScope(userId) },
     select: { id: true },
   });
   if (!presentation) return fail("PRESENTATION_NOT_FOUND", "Presentation was not found.", 404);
@@ -68,10 +69,13 @@ export async function POST(request: Request, context: RouteContext) {
 
   const { presentationId } = await context.params;
   const presentation = await prisma.presentation.findFirst({
-    where: { id: presentationId, ownerId: userId },
+    where: { id: presentationId, ...activePresentationScope(userId) },
     select: { id: true },
   });
   if (!presentation) return fail("PRESENTATION_NOT_FOUND", "Presentation was not found.", 404);
+  if (!canAccess(await getPresentationAccess(presentationId, userId), "edit")) {
+    return fail("FORBIDDEN", "You do not have permission to edit this presentation.", 403);
+  }
 
   const document = await findPresentationDocument(prisma, presentationId);
   if (!document) return fail("PRESENTATION_NOT_FOUND", "Presentation was not found.", 404);

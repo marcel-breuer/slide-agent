@@ -5,6 +5,7 @@ import { prisma } from "@slide-agent/database";
 import { fail, ok } from "@/lib/api";
 import { MAX_COMMENT_LENGTH, sanitizeCommentBody } from "@/lib/presentation-comments";
 import { getAuthenticatedUserId } from "@/lib/server-session";
+import { activePresentationScope } from "@/lib/team-access";
 
 const ReplySchema = z.object({ body: z.string().trim().min(1).max(MAX_COMMENT_LENGTH) });
 type RouteContext = { params: Promise<{ commentId: string; presentationId: string }> };
@@ -24,7 +25,7 @@ export async function POST(request: Request, context: RouteContext) {
 
   const { commentId, presentationId } = await context.params;
   const comment = await prisma.presentationComment.findFirst({
-    where: { id: commentId, presentationId, presentation: { ownerId: userId }, deletedAt: null },
+    where: { id: commentId, presentationId, presentation: activePresentationScope(userId), deletedAt: null },
     select: { id: true },
   });
   if (!comment) return fail("COMMENT_NOT_FOUND", "Comment was not found.", 404);

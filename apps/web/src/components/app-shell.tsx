@@ -15,6 +15,7 @@ import {
   Shield,
   SlidersHorizontal,
   UserRound,
+  Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
@@ -25,6 +26,7 @@ import { cn } from "./ui";
 
 const workspaceLinks: NavigationItem[] = [
   { href: "/app/projects", labelKey: "navProjects", icon: FolderKanban },
+  { href: "/app/teams" as Route, labelKey: "navTeams", icon: Users },
   { href: "/app/design-profiles", labelKey: "navDesignProfiles", icon: Palette },
   { href: "/app/templates" as Route, labelKey: "navTemplates", icon: LayoutTemplate },
   { href: "/app/settings/presentations", labelKey: "navPresentationDefaults", icon: FileText },
@@ -52,6 +54,7 @@ type NavigationItem = {
     | "navProfile"
     | "navProjects"
     | "navSecurity"
+    | "navTeams"
     | "navTemplates";
 };
 

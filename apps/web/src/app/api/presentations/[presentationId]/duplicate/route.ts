@@ -9,6 +9,7 @@ import { validatePresentation } from "@slide-agent/presentation-schema";
 
 import { fail, ok } from "@/lib/api";
 import { getAuthenticatedUserId } from "@/lib/server-session";
+import { activePresentationScope, canAccess, getPresentationAccess } from "@/lib/team-access";
 
 type RouteContext = {
   params: Promise<{
@@ -36,7 +37,7 @@ export async function POST(request: Request, context: RouteContext) {
 
   const { presentationId } = await context.params;
   const source = await prisma.presentation.findFirst({
-    where: { id: presentationId, ownerId: userId, archivedAt: null },
+    where: { id: presentationId, ...activePresentationScope(userId), archivedAt: null },
     include: {
       project: {
         select: {
@@ -51,6 +52,9 @@ export async function POST(request: Request, context: RouteContext) {
 
   if (!source || source.project.archivedAt) {
     return fail("PRESENTATION_NOT_FOUND", "Presentation was not found.", 404);
+  }
+  if (!canAccess(await getPresentationAccess(presentationId, userId), "edit")) {
+    return fail("FORBIDDEN", "You do not have permission to duplicate this presentation.", 403);
   }
 
   const now = new Date().toISOString();

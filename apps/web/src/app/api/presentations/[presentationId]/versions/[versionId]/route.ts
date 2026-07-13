@@ -10,6 +10,7 @@ import {
 import { fail, ok } from "@/lib/api";
 import { createVersion } from "../route";
 import { getAuthenticatedUserId } from "@/lib/server-session";
+import { activePresentationScope, canAccess, getPresentationAccess } from "@/lib/team-access";
 
 const RestoreSchema = z.object({
   action: z.literal("restore"),
@@ -23,7 +24,7 @@ export async function GET(_request: Request, context: RouteContext) {
   const { presentationId, versionId } = await context.params;
 
   const version = await prisma.presentationVersion.findFirst({
-    where: { id: versionId, presentationId, presentation: { ownerId: userId } },
+    where: { id: versionId, presentationId, presentation: activePresentationScope(userId) },
     include: { actor: { select: { displayName: true, email: true, id: true } } },
   });
   if (!version) return fail("VERSION_NOT_FOUND", "Presentation version was not found.", 404);
@@ -43,8 +44,11 @@ export async function POST(request: Request, context: RouteContext) {
   const parsed = RestoreSchema.safeParse(body);
   if (!parsed.success) return fail("VALIDATION_FAILED", "Restore input is invalid.", 400);
   const { presentationId, versionId } = await context.params;
+  if (!canAccess(await getPresentationAccess(presentationId, userId), "edit")) {
+    return fail("FORBIDDEN", "You do not have permission to restore this presentation.", 403);
+  }
   const version = await prisma.presentationVersion.findFirst({
-    where: { id: versionId, presentationId, presentation: { ownerId: userId } },
+    where: { id: versionId, presentationId, presentation: activePresentationScope(userId) },
     select: { document: true, version: true },
   });
   if (!version) return fail("VERSION_NOT_FOUND", "Presentation version was not found.", 404);

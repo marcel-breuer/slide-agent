@@ -11,6 +11,20 @@ enum UserRole {
   ADMIN
 }
 
+enum TeamRole {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum TeamInvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
 enum PresentationStatus {
   DRAFT
   BRIEFING
@@ -78,6 +92,11 @@ model User {
   commentMentions        PresentationCommentMention[]      @relation("CommentMentionRecipients")
   commentNotifications   PresentationCommentNotification[] @relation("CommentNotificationRecipients")
   presentationVersions   PresentationVersion[]             @relation("PresentationVersionActors")
+  createdTeams            Team[]                            @relation("TeamCreators")
+  teamMemberships         TeamMembership[]
+  sentTeamInvitations     TeamInvitation[]                  @relation("TeamInvitationSenders")
+  acceptedTeamInvitations TeamInvitation[]                  @relation("TeamInvitationAcceptors")
+  teamAuditEvents         TeamMembershipAuditLog[]           @relation("TeamAuditActors")
 
   @@index([role])
   @@index([deletedAt])
@@ -151,6 +170,74 @@ model UserSettings {
   user                       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model Team {
+  id          String                  @id @default(uuid())
+  name        String
+  createdById String
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  createdBy   User                    @relation("TeamCreators", fields: [createdById], references: [id], onDelete: Cascade)
+  members     TeamMembership[]
+  invitations TeamInvitation[]
+  auditEvents TeamMembershipAuditLog[]
+  projects    Project[]
+
+  @@index([createdById])
+}
+
+model TeamMembership {
+  id        String   @id @default(uuid())
+  teamId    String
+  userId    String
+  role      TeamRole
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([userId, revokedAt])
+  @@index([teamId, role, revokedAt])
+}
+
+model TeamInvitation {
+  id           String                @id @default(uuid())
+  teamId       String
+  email        String
+  role         TeamRole
+  tokenHash    String                @unique
+  status       TeamInvitationStatus  @default(PENDING)
+  invitedById  String
+  acceptedById String?
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  revokedAt    DateTime?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  team         Team                  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  invitedBy    User                  @relation("TeamInvitationSenders", fields: [invitedById], references: [id], onDelete: Cascade)
+  acceptedBy   User?                 @relation("TeamInvitationAcceptors", fields: [acceptedById], references: [id], onDelete: SetNull)
+
+  @@index([teamId, status, expiresAt])
+  @@index([email, status])
+}
+
+model TeamMembershipAuditLog {
+  id            String   @id @default(uuid())
+  teamId        String
+  actorId       String?
+  subjectUserId String?
+  action        String
+  metadata      Json     @default("{}")
+  createdAt     DateTime @default(now())
+  team          Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  actor         User?    @relation("TeamAuditActors", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([teamId, createdAt])
+  @@index([subjectUserId, createdAt])
+}
+
 model ProviderCredential {
   id          String   @id @default(uuid())
   userId      String
@@ -188,6 +275,7 @@ model ProviderConfiguration {
 model Project {
   id            String         @id @default(uuid())
   ownerId       String
+  teamId        String?
   name          String
   description   String?
   archivedAt    DateTime?
@@ -195,9 +283,11 @@ model Project {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   owner         User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  team          Team?          @relation(fields: [teamId], references: [id], onDelete: SetNull)
   presentations Presentation[]
 
   @@index([ownerId, archivedAt])
+  @@index([teamId, archivedAt])
 }
 
 model Presentation {

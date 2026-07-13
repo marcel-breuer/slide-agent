@@ -9,6 +9,7 @@ import {
   readPptxExportDownload,
 } from "../../../../../../../lib/presentation-exports";
 import { getAuthenticatedUserId } from "../../../../../../../lib/server-session";
+import { canAccess, getPresentationAccess } from "../../../../../../../lib/team-access";
 
 type RouteContext = {
   params: Promise<{
@@ -28,12 +29,16 @@ export async function GET(_request: Request, context: RouteContext) {
     await ensureDemoPresentation(prisma);
   }
 
+  const access = await getPresentationAccess(presentationId, userId);
+  if (!canAccess(access, "read")) return fail("FORBIDDEN", "You cannot download this export.", 403);
+
   try {
     const download = await readPptxExportDownload({
       client: prisma,
       exportId,
       presentationId,
       userId,
+      ...(access?.teamId ? { allowSharedAccess: true } : {}),
     });
 
     return new Response(toArrayBuffer(download.bytes), {

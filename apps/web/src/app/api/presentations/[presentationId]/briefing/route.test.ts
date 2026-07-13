@@ -54,7 +54,7 @@ describe("presentation briefing API", () => {
     expect(response.status).toBe(200);
     expect(payload.data.id).toBe("briefing-1");
     expect(mockedFindPresentation).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: "presentation-1", ownerId: "user-1" } }),
+      expect.objectContaining({ where: expect.objectContaining({ id: "presentation-1", OR: expect.any(Array) }) }),
     );
   });
 

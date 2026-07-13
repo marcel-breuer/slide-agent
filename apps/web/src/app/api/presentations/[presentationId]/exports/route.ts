@@ -13,6 +13,7 @@ import {
   PresentationExportNotFoundError,
 } from "../../../../../lib/presentation-exports";
 import { getAuthenticatedUserId } from "../../../../../lib/server-session";
+import { activePresentationScope, canAccess, getPresentationAccess } from "../../../../../lib/team-access";
 
 type RouteContext = {
   params: Promise<{
@@ -47,6 +48,9 @@ export async function POST(request: Request, context: RouteContext) {
     await ensureDemoPresentation(prisma);
   }
 
+  const access = await getPresentationAccess(presentationId, userId);
+  if (!canAccess(access, "edit")) return fail("FORBIDDEN", "You cannot export this presentation.", 403);
+
   try {
     await assertBillingQuota(userId, "exports");
   } catch (error) {
@@ -60,6 +64,7 @@ export async function POST(request: Request, context: RouteContext) {
       presentationId,
       settings: settings.data,
       userId,
+      ...(access?.teamId ? { allowSharedAccess: true } : {}),
     });
 
     return ok(exportSummary, 201);
@@ -88,7 +93,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
   const { presentationId } = await context.params;
   const presentation = await prisma.presentation.findFirst({
-    where: { id: presentationId, ownerId: userId },
+    where: { id: presentationId, ...activePresentationScope(userId) },
     select: {
       id: true,
       title: true,

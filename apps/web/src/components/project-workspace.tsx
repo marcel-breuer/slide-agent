@@ -10,6 +10,7 @@ import { Button, ButtonLink, PageHeader, ui } from "./ui";
 
 type ProjectSummary = {
   id: string;
+  teamId: string | null;
   name: string;
   description: string | null;
   archivedAt: string | null;
@@ -25,6 +26,8 @@ type ProjectsApiResponse =
 type ProjectApiResponse =
   { ok: true; data: ProjectSummary } | { ok: false; error: { code: string; message: string } };
 
+type TeamSummary = { id: string; name: string; role: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER" };
+
 export function ProjectWorkspace(): ReactElement {
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +35,8 @@ export function ProjectWorkspace(): ReactElement {
   const [isLoading, setIsLoading] = useState(true);
   const [name, setName] = useState("");
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [teamId, setTeamId] = useState("");
+  const [teams, setTeams] = useState<TeamSummary[]>([]);
 
   async function loadProjects(): Promise<void> {
     setIsLoading(true);
@@ -45,6 +50,11 @@ export function ProjectWorkspace(): ReactElement {
         return;
       }
       setProjects(payload.data);
+      const teamsResponse = await fetch("/api/teams");
+      const teamsPayload = (await teamsResponse.json()) as
+        | { ok: true; data: TeamSummary[] }
+        | { ok: false; error: { message: string } };
+      if (teamsResponse.ok && teamsPayload.ok) setTeams(teamsPayload.data);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Projects could not be loaded.");
     } finally {
@@ -68,6 +78,7 @@ export function ProjectWorkspace(): ReactElement {
         body: JSON.stringify({
           description: description.trim() || undefined,
           name,
+          teamId: teamId || undefined,
         }),
         headers: { "Content-Type": "application/json" },
         method: "POST",
@@ -81,6 +92,7 @@ export function ProjectWorkspace(): ReactElement {
       setProjects((current) => [payload.data, ...current]);
       setDescription("");
       setName("");
+      setTeamId("");
     } catch (createError) {
       setError(
         createError instanceof Error ? createError.message : "Project could not be created.",
@@ -151,6 +163,13 @@ export function ProjectWorkspace(): ReactElement {
             maxLength={160}
             required
           />
+        </div>
+        <div className={ui.field}>
+          <label htmlFor="project-team">Workspace</label>
+          <select className={ui.input} id="project-team" value={teamId} onChange={(event) => setTeamId(event.target.value)}>
+            <option value="">Personal workspace</option>
+            {teams.filter((team) => team.role !== "VIEWER").map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
+          </select>
         </div>
         <div className={ui.field}>
           <label htmlFor="project-description">Description</label>

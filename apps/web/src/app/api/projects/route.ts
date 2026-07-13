@@ -2,6 +2,7 @@ import { prisma } from "@slide-agent/database";
 
 import { ProjectInputSchema, fail, ok } from "@/lib/api";
 import { getAuthenticatedUserId } from "@/lib/server-session";
+import { activeProjectScope, canAccess, getTeamMembership } from "@/lib/team-access";
 
 export async function GET(request: Request) {
   const userId = await getAuthenticatedUserId();
@@ -10,7 +11,7 @@ export async function GET(request: Request) {
   const includeArchived = new URL(request.url).searchParams.get("includeArchived") === "true";
   const projects = await prisma.project.findMany({
     where: {
-      ownerId: userId,
+      ...activeProjectScope(userId),
       ...(includeArchived ? {} : { archivedAt: null }),
     },
     orderBy: [{ archivedAt: "asc" }, { updatedAt: "desc" }],
@@ -21,6 +22,7 @@ export async function GET(request: Request) {
       archivedAt: true,
       createdAt: true,
       updatedAt: true,
+      teamId: true,
       _count: {
         select: {
           presentations: true,
@@ -36,6 +38,7 @@ export async function GET(request: Request) {
   return ok(
     projects.map((project) => ({
       id: project.id,
+      teamId: project.teamId,
       name: project.name,
       description: project.description,
       archivedAt: project.archivedAt?.toISOString() ?? null,
@@ -61,11 +64,19 @@ export async function POST(request: Request) {
   const parsed = ProjectInputSchema.safeParse(body);
   if (!parsed.success) return fail("VALIDATION_FAILED", "Project input is invalid.", 400);
 
+  if (parsed.data.teamId) {
+    const membership = await getTeamMembership(parsed.data.teamId, userId);
+    if (!membership || !canAccess({ projectId: "", role: membership.role, teamId: parsed.data.teamId, userId }, "edit")) {
+      return fail("FORBIDDEN", "You cannot create projects in this team.", 403);
+    }
+  }
+
   const project = await prisma.project.create({
     data: {
       ownerId: userId,
       name: parsed.data.name,
       description: parsed.data.description?.trim() ? parsed.data.description : null,
+      ...(parsed.data.teamId ? { teamId: parsed.data.teamId } : {}),
     },
     select: {
       id: true,
@@ -74,12 +85,14 @@ export async function POST(request: Request) {
       archivedAt: true,
       createdAt: true,
       updatedAt: true,
+      teamId: true,
     },
   });
 
   return ok(
     {
       id: project.id,
+      teamId: project.teamId,
       name: project.name,
       description: project.description,
       archivedAt: project.archivedAt?.toISOString() ?? null,

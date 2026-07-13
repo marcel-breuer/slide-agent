@@ -70,7 +70,7 @@ describe("projects API", () => {
     );
     expect(mockedFindProjects).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { ownerId: "user-1", archivedAt: null },
+        where: expect.objectContaining({ archivedAt: null, OR: expect.any(Array) }),
       }),
     );
   });

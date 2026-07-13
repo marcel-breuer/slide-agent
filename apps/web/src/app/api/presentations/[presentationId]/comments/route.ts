@@ -10,6 +10,7 @@ import {
   serializeComment,
 } from "@/lib/presentation-comments";
 import { getAuthenticatedUserId } from "@/lib/server-session";
+import { activePresentationScope } from "@/lib/team-access";
 
 const CommentInputSchema = z.object({
   body: z.string().trim().min(1).max(MAX_COMMENT_LENGTH),
@@ -26,7 +27,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
   const { presentationId } = await context.params;
   const presentation = await prisma.presentation.findFirst({
-    where: { id: presentationId, ownerId: userId },
+    where: { id: presentationId, ...activePresentationScope(userId) },
     select: { id: true },
   });
   if (!presentation) return fail("PRESENTATION_NOT_FOUND", "Presentation was not found.", 404);
@@ -76,7 +77,7 @@ export async function POST(request: Request, context: RouteContext) {
 
   const { presentationId } = await context.params;
   const presentation = await prisma.presentation.findFirst({
-    where: { id: presentationId, ownerId: userId },
+    where: { id: presentationId, ...activePresentationScope(userId) },
     select: {
       id: true,
       ownerId: true,
