@@ -42,17 +42,28 @@ Suggested validation:
 - Compose config validation.
 - Browser QA for admin status page where applicable.
 
+## GitHub Issue Index
+
+The implementation backlog is tracked in [Issue #48](https://github.com/marcel-breuer/slide-agent/issues/48).
+The current stable-release work is split into [#72](https://github.com/marcel-breuer/slide-agent/issues/72),
+[#73](https://github.com/marcel-breuer/slide-agent/issues/73),
+[#74](https://github.com/marcel-breuer/slide-agent/issues/74), and
+[#75](https://github.com/marcel-breuer/slide-agent/issues/75). Build issue
+[#76](https://github.com/marcel-breuer/slide-agent/issues/76) is covered by the
+forgot-password regression test and Docker build validation.
+
 ## Backlog After MVP
 
-- Collaborative editing.
-- Template and brand kit management.
-- Commenting and review workflow.
-- Version history and restore points.
-- Visual regression testing for slide rendering.
-- Advanced layout suggestions.
-- Team accounts and shared workspaces.
-- Billing and quota enforcement.
+- [#64](https://github.com/marcel-breuer/slide-agent/issues/64) Collaborative editing.
+- [#65](https://github.com/marcel-breuer/slide-agent/issues/65) Template and brand kit management.
+- [#66](https://github.com/marcel-breuer/slide-agent/issues/66) Commenting and review workflow.
+- [#67](https://github.com/marcel-breuer/slide-agent/issues/67) Version history and restore points.
+- [#68](https://github.com/marcel-breuer/slide-agent/issues/68) Visual regression testing for slide rendering.
+- [#69](https://github.com/marcel-breuer/slide-agent/issues/69) Advanced layout suggestions.
+- [#70](https://github.com/marcel-breuer/slide-agent/issues/70) Team accounts and shared workspaces.
+- [#71](https://github.com/marcel-breuer/slide-agent/issues/71) Billing and quota enforcement.
 
 ## Immediate Next Step
 
-Start with Work Package 12: Production Hardening And Observability. Project and presentation management is now production-backed, so operational readiness is the next production blocker.
+Start with provider-backed generation in [Issue #72](https://github.com/marcel-breuer/slide-agent/issues/72).
+The production build is currently green; #76 should be closed after CI confirms the same result.
