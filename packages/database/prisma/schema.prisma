@@ -83,6 +83,7 @@ model User {
   designProfiles         DesignProfile[]
   auditLogs              AuditLog[]
   collaborationSessions  PresentationCollaboratorSession[]
+  collaborationOperations PresentationCollaborationOperation[] @relation("CollaborationOperationActors")
   reusableAssets         ReusableAsset[]
   authoredComments       PresentationComment[]             @relation("CommentAuthors")
   commentReplies         PresentationCommentReply[]        @relation("CommentReplyAuthors")
@@ -320,6 +321,7 @@ model Presentation {
   jobs                     GenerationJob[]
   exports                  Export[]
   collaborationSessions    PresentationCollaboratorSession[]
+  collaborationOperations PresentationCollaborationOperation[]
   reusableAssetId          String?
   reusableAsset            ReusableAsset?                    @relation(fields: [reusableAssetId], references: [id], onDelete: SetNull)
   comments                 PresentationComment[]
@@ -431,6 +433,25 @@ model PresentationCollaboratorSession {
 
   @@unique([presentationId, userId, clientId])
   @@index([presentationId, lastSeenAt])
+}
+
+model PresentationCollaborationOperation {
+  id             String       @id @default(uuid())
+  presentationId String
+  actorId        String
+  clientId       String
+  operationId    String
+  sequence       Int          @default(autoincrement())
+  baseUpdatedAt  DateTime
+  command        Json
+  resultUpdatedAt DateTime
+  createdAt      DateTime     @default(now())
+  presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  actor          User         @relation("CollaborationOperationActors", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@unique([presentationId, operationId])
+  @@index([presentationId, sequence])
+  @@index([actorId, createdAt])
 }
 
 model PresentationComment {

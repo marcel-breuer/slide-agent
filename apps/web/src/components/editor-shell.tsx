@@ -99,6 +99,7 @@ type CollaborationApiResponse =
         collaborators: CollaborationParticipant[];
         currentUpdatedAt: string;
         document: PresentationDocument | null;
+        operationSequence: number;
       };
     }
   | { ok: false; error: { code: string; message: string } };
@@ -379,6 +380,7 @@ function LoadedEditor({
   const {
     collaborators,
     error: collaborationError,
+    submitCommands,
     status: collaborationStatus,
   } = usePresentationCollaboration({
     canApplyRemote: saveStatus === "saved",
@@ -531,6 +533,7 @@ function LoadedEditor({
       ...overrides,
       slidePointers: nextSlidePointers,
     });
+    void submitCommands(commands);
   }
 
   function undoEditorChange(): void {
@@ -1477,6 +1480,14 @@ function usePresentationAutosave({
       return;
     }
 
+    if (document.metadata.updatedAt !== savedUpdatedAtRef.current) {
+      savedUpdatedAtRef.current = document.metadata.updatedAt;
+      savedSerializedRef.current = serialized;
+      setStatus("saved");
+      setError(null);
+      return;
+    }
+
     setStatus("dirty");
     setError(null);
 
@@ -1542,11 +1553,14 @@ function usePresentationCollaboration({
   collaborators: CollaborationParticipant[];
   error: string | null;
   status: CollaborationStatus;
+  submitCommands: (commands: readonly EditorCommand[]) => Promise<void>;
 } {
   const [clientId, setClientId] = useState<string | null>(null);
   const [collaborators, setCollaborators] = useState<CollaborationParticipant[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<CollaborationStatus>("connecting");
+  const operationQueueRef = useRef(Promise.resolve());
+  const operationSequenceRef = useRef(0);
 
   useEffect(() => {
     const nextClientId = getCollaborationClientId(presentationId);
@@ -1578,6 +1592,10 @@ function usePresentationCollaboration({
         }
 
         setCollaborators(payload.data.collaborators);
+        operationSequenceRef.current = Math.max(
+          operationSequenceRef.current,
+          payload.data.operationSequence,
+        );
         setError(null);
 
         if (payload.data.document) {
@@ -1611,7 +1629,52 @@ function usePresentationCollaboration({
     };
   }, [canApplyRemote, document.metadata.updatedAt, presentationId, selectedSlideId, setDocument]);
 
-  return { clientId, collaborators, error, status };
+  function submitCommands(commands: readonly EditorCommand[]): Promise<void> {
+    for (const command of commands) {
+      operationQueueRef.current = operationQueueRef.current
+        .catch(() => undefined)
+        .then(async () => {
+          const operationId = globalThis.crypto.randomUUID();
+          const response = await fetch(
+            `/api/presentations/${encodeURIComponent(presentationId)}/collaboration`,
+            {
+              body: JSON.stringify({
+                clientId: clientId ?? getCollaborationClientId(presentationId),
+                knownUpdatedAt: document.metadata.updatedAt,
+                operation: { command, operationId },
+                selectedSlideId: selectedSlideId || null,
+                sinceSequence: operationSequenceRef.current,
+              }),
+              headers: { "Content-Type": "application/json" },
+              method: "POST",
+            },
+          );
+          const payload = (await response.json()) as CollaborationApiResponse;
+
+          if (!response.ok || !payload.ok) {
+            throw new Error(payload.ok ? "Collaboration operation failed." : payload.error.message);
+          }
+
+          setCollaborators(payload.data.collaborators);
+          operationSequenceRef.current = Math.max(
+            operationSequenceRef.current,
+            payload.data.operationSequence,
+          );
+          if (payload.data.document) setDocument(payload.data.document);
+          setError(null);
+          setStatus("connected");
+        });
+    }
+
+    const result = operationQueueRef.current;
+    void result.catch((operationError: unknown) => {
+      setStatus("failed");
+      setError(operationError instanceof Error ? operationError.message : "Collaboration failed.");
+    });
+    return result;
+  }
+
+  return { clientId, collaborators, error, status, submitCommands };
 }
 
 function getCollaborationClientId(presentationId: string): string {
