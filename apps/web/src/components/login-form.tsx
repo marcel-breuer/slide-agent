@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type FormEvent, type ReactElement } from "react";
 
 export function LoginForm({ nextPath }: { nextPath: string }): ReactElement {
@@ -53,6 +54,15 @@ export function LoginForm({ nextPath }: { nextPath: string }): ReactElement {
           onChange={(event) => setEmail(event.target.value)}
           className="h-11 w-full rounded-app border border-line bg-white px-3 text-sm text-ink"
         />
+      </div>
+
+      <div className="flex items-center justify-between text-sm">
+        <Link className="font-semibold text-primary hover:underline" href="/forgot-password">
+          Forgot password?
+        </Link>
+        <Link className="font-semibold text-primary hover:underline" href="/register">
+          Create account
+        </Link>
       </div>
 
       <div>
