@@ -3,6 +3,7 @@ import type { Mock } from "vitest";
 
 import { hashPassword } from "@slide-agent/auth";
 import { prisma } from "@slide-agent/database";
+import { logSafe } from "@/lib/safe-logger";
 
 import { POST } from "./route";
 
@@ -16,6 +17,10 @@ vi.mock("@slide-agent/database", () => ({
       create: vi.fn(),
     },
   },
+}));
+
+vi.mock("@/lib/safe-logger", () => ({
+  logSafe: vi.fn(),
 }));
 
 const mockedHashPassword = vi.mocked(hashPassword);
@@ -93,5 +98,27 @@ describe("register API", () => {
 
     expect(response.status).toBe(409);
     expect(payload.error.code).toBe("EMAIL_ALREADY_REGISTERED");
+  });
+
+  it("returns a safe generic error when persistence fails unexpectedly", async () => {
+    mockedCreateUser.mockRejectedValue(new Error("database unavailable"));
+
+    const response = await POST(
+      new Request("http://test.local/api/auth/register", {
+        body: JSON.stringify({ email: "user@example.com", password: "StrongPassword!123" }),
+        method: "POST",
+      }),
+    );
+    const payload = (await response.json()) as { error: { code: string; message: string } };
+
+    expect(response.status).toBe(500);
+    expect(payload.error).toEqual({
+      code: "REGISTRATION_FAILED",
+      message: "Account could not be created.",
+    });
+    expect(logSafe).toHaveBeenCalledWith("error", "registration failed", {
+      errorName: "Error",
+      prismaCode: undefined,
+    });
   });
 });

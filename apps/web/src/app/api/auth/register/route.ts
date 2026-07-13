@@ -4,6 +4,7 @@ import { hashPassword } from "@slide-agent/auth";
 import { prisma } from "@slide-agent/database";
 
 import { fail, ok } from "@/lib/api";
+import { logSafe } from "@/lib/safe-logger";
 
 const RegisterSchema = z.object({
   displayName: z.string().trim().min(1).max(120).optional(),
@@ -51,10 +52,19 @@ export async function POST(request: Request) {
       return fail("EMAIL_ALREADY_REGISTERED", "An account with this email already exists.", 409);
     }
 
+    logSafe("error", "registration failed", {
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      prismaCode: getPrismaErrorCode(error),
+    });
     return fail("REGISTRATION_FAILED", "Account could not be created.", 500);
   }
 }
 
 function isUniqueConstraintError(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === "P2002";
+}
+
+function getPrismaErrorCode(error: unknown): string | undefined {
+  if (typeof error !== "object" || error === null || !("code" in error)) return undefined;
+  return typeof error.code === "string" ? error.code : undefined;
 }

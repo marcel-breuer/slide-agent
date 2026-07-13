@@ -9,6 +9,7 @@ services:
       - node-modules:/app/node_modules
     environment:
       NODE_ENV: development
+      RUN_DATABASE_MIGRATIONS: "false"
 
   worker:
     command: pnpm --filter worker dev

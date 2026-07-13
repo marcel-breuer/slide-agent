@@ -25,7 +25,10 @@ The root compose file includes deployable defaults for the app, database, Redis,
 - `DEMO_LOGIN_PASSWORD`
 - `POSTGRES_PASSWORD`
 - `WORKER_CONCURRENCY`
+- `RUN_DATABASE_MIGRATIONS=true`
 - SMTP settings if outbound email should be sent through a real mail provider
+
+The web container runs `prisma migrate deploy` before starting Next.js. Keep this enabled for production releases so a new database receives the versioned schema before registration or other authenticated routes are used. If the database contains the exact 45-table schema from the pre-migration release, the entrypoint verifies that there is no schema diff, baselines the initial migration automatically, and then deploys normally. Any schema drift fails the release instead of being hidden; do not use `prisma db push` in production.
 
 Uploaded files, generated assets, and exports are stored in the `app-storage` Docker volume mounted at `/app/storage` in the web and worker containers.
 
@@ -40,6 +43,7 @@ Run these smoke checks after every production deployment:
 - Open `/api/health` and confirm `status` is `ok` or only `degraded` because of a known worker restart window.
 - Open `/admin/system` and confirm Postgres, Redis, storage, and worker status cards reflect live checks.
 - Create or open a presentation, generate a PPTX export, and download it.
+- Register a fresh test account and confirm the registration response is successful before testing login.
 - Confirm the worker container logs show structured JSON for job completion or failure events and no plaintext credentials, cookies, tokens, or provider secrets.
 
 ## Backups

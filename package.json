@@ -16,6 +16,7 @@
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "db:generate": "pnpm --filter @slide-agent/database prisma:generate",
+    "db:deploy": "pnpm --filter @slide-agent/database prisma:deploy",
     "db:migrate": "pnpm --filter @slide-agent/database prisma:migrate",
     "db:seed": "pnpm --filter @slide-agent/database prisma:seed"
   },
