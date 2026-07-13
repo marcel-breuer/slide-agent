@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { SlideDocumentSchema } from "@slide-agent/presentation-schema";
+
 export function ok<T>(data: T, status = 200): Response {
   return Response.json({ ok: true, data }, { status });
 }
@@ -16,6 +18,7 @@ export const ProjectInputSchema = z.object({
 export const PresentationInputSchema = z.object({
   designProfileId: z.string().trim().min(1).optional(),
   projectId: z.string().min(1),
+  reusableAssetId: z.string().trim().min(1).optional(),
   title: z.string().trim().min(1).max(180),
   requestedSlideCount: z.number().int().min(1).max(50).optional(),
 });
@@ -80,3 +83,31 @@ export const DesignProfileImportSchema = z.object({
   sourceEvidence: z.array(z.string().trim().min(1).max(280)).max(24).default([]),
   sourceType: z.string().trim().min(1).max(80).default("import"),
 });
+
+export const ReusableAssetKindSchema = z.enum(["TEMPLATE", "BRAND_KIT"]);
+
+export const ReusableAssetDefinitionSchema = z.object({
+  profile: DesignProfileDefinitionSchema,
+  slides: z.array(SlideDocumentSchema).max(24).default([]),
+});
+
+export const ReusableAssetInputSchema = z.object({
+  description: z.string().trim().max(1000).nullable().optional(),
+  definition: ReusableAssetDefinitionSchema,
+  kind: ReusableAssetKindSchema.default("TEMPLATE"),
+  name: z.string().trim().min(1).max(160),
+});
+
+export const ReusableAssetImportSchema = ReusableAssetInputSchema.extend({
+  sourceType: z.string().trim().min(1).max(80).default("import"),
+});
+
+export const ReusableAssetUpdateSchema = z
+  .object({
+    archived: z.boolean().optional(),
+    description: z.string().trim().max(1000).nullable().optional(),
+    definition: ReusableAssetDefinitionSchema.optional(),
+    kind: ReusableAssetKindSchema.optional(),
+    name: z.string().trim().min(1).max(160).optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0);

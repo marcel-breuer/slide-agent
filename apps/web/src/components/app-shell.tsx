@@ -25,6 +25,7 @@ import { cn } from "./ui";
 const workspaceLinks: NavigationItem[] = [
   { href: "/app/projects", labelKey: "navProjects", icon: FolderKanban },
   { href: "/app/design-profiles", labelKey: "navDesignProfiles", icon: Palette },
+  { href: "/app/templates" as Route, labelKey: "navTemplates", icon: LayoutTemplate },
   { href: "/app/settings/presentations", labelKey: "navPresentationDefaults", icon: FileText },
 ];
 
@@ -47,7 +48,8 @@ type NavigationItem = {
     | "navPresentationDefaults"
     | "navProfile"
     | "navProjects"
-    | "navSecurity";
+    | "navSecurity"
+    | "navTemplates";
 };
 
 export function AppShell({ children }: { children: ReactNode }): ReactElement {

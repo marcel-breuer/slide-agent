@@ -39,6 +39,11 @@ enum JobType {
   ACCOUNT_DELETION
 }
 
+enum ReusableAssetKind {
+  TEMPLATE
+  BRAND_KIT
+}
+
 model User {
   id              String    @id @default(uuid())
   email           String    @unique
@@ -59,6 +64,7 @@ model User {
   designProfiles         DesignProfile[]
   auditLogs              AuditLog[]
   collaborationSessions  PresentationCollaboratorSession[]
+  reusableAssets         ReusableAsset[]
 
   @@index([role])
   @@index([deletedAt])
@@ -201,10 +207,13 @@ model Presentation {
   jobs                     GenerationJob[]
   exports                  Export[]
   collaborationSessions    PresentationCollaboratorSession[]
+  reusableAssetId          String?
+  reusableAsset            ReusableAsset?                    @relation(fields: [reusableAssetId], references: [id], onDelete: SetNull)
 
   @@index([ownerId])
   @@index([projectId, status])
   @@index([designProfileId])
+  @@index([reusableAssetId])
 }
 
 model Conversation {
@@ -301,6 +310,34 @@ model PresentationCollaboratorSession {
 
   @@unique([presentationId, userId, clientId])
   @@index([presentationId, lastSeenAt])
+}
+
+model ReusableAsset {
+  id            String                 @id @default(uuid())
+  ownerId       String
+  name          String
+  description   String?
+  kind          ReusableAssetKind      @default(TEMPLATE)
+  sourceType    String                 @default("manual")
+  archivedAt    DateTime?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  owner         User                   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  versions      ReusableAssetVersion[]
+  presentations Presentation[]
+
+  @@index([ownerId, kind, archivedAt])
+}
+
+model ReusableAssetVersion {
+  id              String        @id @default(uuid())
+  reusableAssetId String
+  version         Int
+  definition      Json
+  createdAt       DateTime      @default(now())
+  reusableAsset   ReusableAsset @relation(fields: [reusableAssetId], references: [id], onDelete: Cascade)
+
+  @@unique([reusableAssetId, version])
 }
 
 model DesignProfile {

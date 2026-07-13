@@ -16,6 +16,9 @@ vi.mock("@slide-agent/database", () => ({
     designProfile: {
       findFirst: vi.fn(),
     },
+    reusableAsset: {
+      findFirst: vi.fn(),
+    },
     project: {
       findFirst: vi.fn(),
     },
@@ -33,6 +36,7 @@ const mockedCreatePresentation = prisma.presentation.create as unknown as Mock;
 const mockedFindDesignProfile = prisma.designProfile.findFirst as unknown as Mock;
 const mockedFindPresentations = prisma.presentation.findMany as unknown as Mock;
 const mockedFindProject = prisma.project.findFirst as unknown as Mock;
+const mockedFindReusableAsset = prisma.reusableAsset.findFirst as unknown as Mock;
 const mockedGetAuthenticatedUserId = vi.mocked(getAuthenticatedUserId);
 const mockedUpsertSettings = prisma.userSettings.upsert as unknown as Mock;
 
@@ -196,6 +200,86 @@ describe("presentations API", () => {
     expect(mockedCreatePresentation).not.toHaveBeenCalled();
   });
 
+  it("applies an owned reusable asset to the initial presentation document", async () => {
+    mockedFindProject.mockResolvedValue({ id: "project-1" });
+    mockedFindReusableAsset.mockResolvedValue({
+      id: "asset-1",
+      kind: "TEMPLATE",
+      name: "Board template",
+      versions: [{ definition: createReusableAssetDefinition(), version: 3 }],
+    });
+    mockedCreatePresentation.mockResolvedValue({
+      id: "presentation-1",
+      projectId: "project-1",
+      title: "Q3 Review",
+      status: "EDITING",
+      requestedSlideCount: 2,
+      archivedAt: null,
+      createdAt: new Date("2026-07-09T08:00:00.000Z"),
+      updatedAt: new Date("2026-07-09T08:00:00.000Z"),
+    });
+
+    const response = await POST(
+      new Request("http://test.local/api/presentations", {
+        body: JSON.stringify({
+          projectId: "project-1",
+          requestedSlideCount: 2,
+          reusableAssetId: "asset-1",
+          title: "Q3 Review",
+        }),
+        method: "POST",
+      }),
+    );
+    const payload = (await response.json()) as { data: { id: string } };
+    const createCall = mockedCreatePresentation.mock.calls[0]?.[0] as {
+      data: {
+        designContext: {
+          reusableAsset: { id: string; version: number };
+          theme: { colors: Record<string, string> };
+        };
+        reusableAssetId: string;
+        slides: { create: Array<{ document: unknown }> };
+      };
+    };
+
+    expect(response.status).toBe(201);
+    expect(payload.data.id).toBe("presentation-1");
+    expect(createCall.data.reusableAssetId).toBe("asset-1");
+    expect(createCall.data.designContext.reusableAsset).toEqual({
+      id: "asset-1",
+      kind: "TEMPLATE",
+      name: "Board template",
+      version: 3,
+    });
+    expect(createCall.data.designContext.theme.colors.Primary).toBe("#0F766E");
+    expect(mockedFindReusableAsset).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { archivedAt: null, id: "asset-1", ownerId: "user-1" },
+      }),
+    );
+  });
+
+  it("rejects missing or unauthorized reusable assets", async () => {
+    mockedFindProject.mockResolvedValue({ id: "project-1" });
+    mockedFindReusableAsset.mockResolvedValue(null);
+
+    const response = await POST(
+      new Request("http://test.local/api/presentations", {
+        body: JSON.stringify({
+          projectId: "project-1",
+          reusableAssetId: "asset-1",
+          title: "Q3 Review",
+        }),
+        method: "POST",
+      }),
+    );
+    const payload = (await response.json()) as { error: { code: string } };
+
+    expect(response.status).toBe(404);
+    expect(payload.error.code).toBe("REUSABLE_ASSET_NOT_FOUND");
+    expect(mockedCreatePresentation).not.toHaveBeenCalled();
+  });
+
   it("applies saved presentation defaults when slide count is omitted", async () => {
     mockedFindProject.mockResolvedValue({ id: "project-1" });
     mockedCreatePresentation.mockResolvedValue({
@@ -257,3 +341,17 @@ describe("presentations API", () => {
     expect(mockedCreatePresentation).not.toHaveBeenCalled();
   });
 });
+
+function createReusableAssetDefinition() {
+  return {
+    profile: {
+      colors: [{ hex: "#0F766E", name: "Primary teal", role: "Primary" }],
+      fonts: [{ family: "Inter", role: "Body", weight: "600" }],
+      layoutRules: [],
+      logos: [],
+      previewCards: [],
+      sourceEvidence: [],
+    },
+    slides: [],
+  };
+}
