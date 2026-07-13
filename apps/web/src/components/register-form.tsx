@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type FormEvent, type ReactElement } from "react";
 
 export function RegisterForm(): ReactElement {
@@ -109,6 +110,12 @@ export function RegisterForm(): ReactElement {
       >
         {submitting ? "Creating account..." : "Create account"}
       </button>
+      <p className="text-center text-sm text-muted">
+        Already have an account?{" "}
+        <Link className="font-semibold text-primary hover:underline" href="/login">
+          Sign in
+        </Link>
+      </p>
     </form>
   );
 }
