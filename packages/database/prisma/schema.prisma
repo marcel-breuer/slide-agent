@@ -77,6 +77,7 @@ model User {
   resolvedComments       PresentationComment[]             @relation("CommentResolvers")
   commentMentions        PresentationCommentMention[]      @relation("CommentMentionRecipients")
   commentNotifications   PresentationCommentNotification[] @relation("CommentNotificationRecipients")
+  presentationVersions   PresentationVersion[]             @relation("PresentationVersionActors")
 
   @@index([role])
   @@index([deletedAt])
@@ -304,10 +305,17 @@ model SlideVersion {
 model PresentationVersion {
   id             String       @id @default(uuid())
   presentationId String
+  actorId        String?
   version        Int
+  source         String       @default("manual")
+  changeSummary  String?
   document       Json
   createdAt      DateTime     @default(now())
   presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  actor          User?        @relation("PresentationVersionActors", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@unique([presentationId, version])
+  @@index([presentationId, createdAt])
 }
 
 model PresentationCollaboratorSession {

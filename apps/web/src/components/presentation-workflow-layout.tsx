@@ -19,6 +19,7 @@ import { useUiLocale } from "@/lib/ui-locale";
 
 import { ButtonLink, cn, ui } from "./ui";
 import { PresentationCommentsWorkspace } from "./presentation-comments-workspace";
+import { PresentationHistoryWorkspace } from "./presentation-history-workspace";
 
 type Workflow = NonNullable<PresentationWorkflow>;
 
@@ -215,6 +216,8 @@ export function PresentationOverview({ workflow }: { workflow: Workflow }): Reac
       </section>
 
       <PresentationCommentsWorkspace presentationId={workflow.id} slides={workflow.slideTitles} />
+
+      <PresentationHistoryWorkspace presentationId={workflow.id} updatedAt={workflow.updatedAt} />
     </div>
   );
 }
