@@ -58,6 +58,7 @@ model User {
   projects               Project[]
   designProfiles         DesignProfile[]
   auditLogs              AuditLog[]
+  collaborationSessions  PresentationCollaboratorSession[]
 
   @@index([role])
   @@index([deletedAt])
@@ -171,15 +172,15 @@ model Project {
 }
 
 model Presentation {
-  id                       String                @id @default(uuid())
+  id                       String                            @id @default(uuid())
   ownerId                  String
   projectId                String
   title                    String
   description              String?
-  status                   PresentationStatus    @default(DRAFT)
-  requestedSlideCount      Int                   @default(10)
-  format                   String                @default("WIDE_16_9")
-  outputLanguage           String                @default("en")
+  status                   PresentationStatus                @default(DRAFT)
+  requestedSlideCount      Int                               @default(10)
+  format                   String                            @default("WIDE_16_9")
+  outputLanguage           String                            @default("en")
   designContext            Json?
   designProfileId          String?
   activeStorylineVersionId String?
@@ -187,10 +188,10 @@ model Presentation {
   generationStatus         String?
   lastExportAt             DateTime?
   archivedAt               DateTime?
-  createdAt                DateTime              @default(now())
-  updatedAt                DateTime              @updatedAt
-  project                  Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  designProfile            DesignProfile?        @relation(fields: [designProfileId], references: [id], onDelete: SetNull)
+  createdAt                DateTime                          @default(now())
+  updatedAt                DateTime                          @updatedAt
+  project                  Project                           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  designProfile            DesignProfile?                    @relation(fields: [designProfileId], references: [id], onDelete: SetNull)
   conversations            Conversation[]
   briefings                Briefing[]
   storylines               Storyline[]
@@ -199,6 +200,7 @@ model Presentation {
   assets                   Asset[]
   jobs                     GenerationJob[]
   exports                  Export[]
+  collaborationSessions    PresentationCollaboratorSession[]
 
   @@index([ownerId])
   @@index([projectId, status])
@@ -284,6 +286,21 @@ model PresentationVersion {
   document       Json
   createdAt      DateTime     @default(now())
   presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+}
+
+model PresentationCollaboratorSession {
+  id              String       @id @default(uuid())
+  presentationId  String
+  userId          String
+  clientId        String
+  selectedSlideId String?
+  lastSeenAt      DateTime     @default(now())
+  createdAt       DateTime     @default(now())
+  presentation    Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([presentationId, userId, clientId])
+  @@index([presentationId, lastSeenAt])
 }
 
 model DesignProfile {
