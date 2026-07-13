@@ -63,7 +63,7 @@ describe("project detail API", () => {
       "/app/presentations/presentation-1/editor",
     );
     expect(mockedFindProject).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: "project-1", ownerId: "user-1" } }),
+      expect.objectContaining({ where: expect.objectContaining({ id: "project-1", OR: expect.any(Array) }) }),
     );
   });
 
@@ -91,7 +91,7 @@ describe("project detail API", () => {
     expect(payload.data.archivedAt).toBe("2026-07-09T09:00:00.000Z");
     expect(mockedUpdateProject).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "project-1", ownerId: "user-1" },
+        where: { id: "project-1" },
       }),
     );
   });

@@ -67,7 +67,7 @@ type PresentationExportClient = PresentationLookupClient & {
     findFirst(args: {
       where: {
         id: string;
-        ownerId: string;
+        ownerId?: string;
         presentationId: string;
       };
       select: {
@@ -132,6 +132,7 @@ export class PresentationExportFailedError extends Error {
 export async function createPptxExport({
   client,
   env = process.env,
+  allowSharedAccess = false,
   presentationId,
   settings = DEFAULT_PRESENTATION_EXPORT_SETTINGS,
   userId,
@@ -141,10 +142,13 @@ export async function createPptxExport({
   presentationId: string;
   settings?: PresentationExportSettings;
   userId: string;
+  allowSharedAccess?: boolean;
 }): Promise<PresentationExportSummary> {
   const document = await findPresentationDocument(client, presentationId);
   if (!document) throw new PresentationExportNotFoundError();
-  if (document.metadata.ownerId !== userId) throw new PresentationExportForbiddenError();
+  if (!allowSharedAccess && document.metadata.ownerId !== userId) {
+    throw new PresentationExportForbiddenError();
+  }
 
   const exportId = randomUUID();
   const jobId = randomUUID();
@@ -244,6 +248,7 @@ export async function createPptxExport({
 export async function readPptxExportDownload({
   client,
   env = process.env,
+  allowSharedAccess = false,
   exportId,
   presentationId,
   userId,
@@ -253,9 +258,12 @@ export async function readPptxExportDownload({
   exportId: string;
   presentationId: string;
   userId: string;
+  allowSharedAccess?: boolean;
 }): Promise<PresentationExportDownload> {
   const exportRecord = await client.export.findFirst({
-    where: { id: exportId, ownerId: userId, presentationId },
+    where: allowSharedAccess
+      ? { id: exportId, presentationId }
+      : { id: exportId, ownerId: userId, presentationId },
     select: {
       id: true,
       presentationId: true,

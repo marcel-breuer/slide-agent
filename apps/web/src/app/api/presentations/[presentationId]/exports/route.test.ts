@@ -256,7 +256,7 @@ describe("presentation export API", () => {
       "/api/presentations/presentation-1/exports/export-1/download",
     );
     expect(mockedFindPresentation).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: "presentation-1", ownerId: "demo-user" } }),
+      expect.objectContaining({ where: expect.objectContaining({ id: "presentation-1", OR: expect.any(Array) }) }),
     );
   });
 });

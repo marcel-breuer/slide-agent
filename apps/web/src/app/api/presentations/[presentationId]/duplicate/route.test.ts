@@ -74,7 +74,7 @@ describe("presentation duplicate API", () => {
     expect(payload.data.editorUrl).toBe("/app/presentations/presentation-copy/editor");
     expect(mockedFindPresentation).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "presentation-1", ownerId: "user-1", archivedAt: null },
+        where: expect.objectContaining({ id: "presentation-1", archivedAt: null, OR: expect.any(Array) }),
       }),
     );
     expect(mockedCreatePresentation).toHaveBeenCalledWith(

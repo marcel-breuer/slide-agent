@@ -3,12 +3,13 @@ import {
   DEFAULT_PRESENTATION_EXPORT_SETTINGS,
   type PresentationExportSettings,
 } from "@/lib/presentation-exports";
+import { activePresentationScope } from "@/lib/team-access";
 
 export type PresentationWorkflow = Awaited<ReturnType<typeof getPresentationWorkflow>>;
 
 export async function getPresentationWorkflow(userId: string, presentationId: string) {
   const presentation = await prisma.presentation.findFirst({
-    where: { id: presentationId, ownerId: userId },
+    where: { id: presentationId, ...activePresentationScope(userId) },
     select: {
       id: true,
       title: true,

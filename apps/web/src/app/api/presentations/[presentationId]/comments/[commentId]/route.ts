@@ -5,6 +5,7 @@ import { prisma } from "@slide-agent/database";
 import { fail, ok } from "@/lib/api";
 import { serializeComment } from "@/lib/presentation-comments";
 import { getAuthenticatedUserId } from "@/lib/server-session";
+import { activePresentationScope } from "@/lib/team-access";
 
 const CommentActionSchema = z.object({ action: z.enum(["resolve", "reopen", "delete"]) });
 
@@ -25,7 +26,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   const { commentId, presentationId } = await context.params;
   const comment = await prisma.presentationComment.findFirst({
-    where: { id: commentId, presentationId, presentation: { ownerId: userId } },
+    where: { id: commentId, presentationId, presentation: activePresentationScope(userId) },
     select: { id: true, status: true },
   });
   if (!comment) return fail("COMMENT_NOT_FOUND", "Comment was not found.", 404);

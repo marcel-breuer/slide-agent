@@ -84,7 +84,7 @@ describe("presentations API", () => {
     expect(response.status).toBe(200);
     expect(payload.data[0]?.editorUrl).toBe("/app/presentations/presentation-1/editor");
     expect(mockedFindProject).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: "project-1", ownerId: "user-1" } }),
+      expect.objectContaining({ where: expect.objectContaining({ id: "project-1", OR: expect.any(Array) }) }),
     );
   });
 

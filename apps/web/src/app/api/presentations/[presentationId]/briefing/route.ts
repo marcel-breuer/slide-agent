@@ -4,6 +4,7 @@ import { prisma } from "@slide-agent/database";
 
 import { fail, ok } from "@/lib/api";
 import { getAuthenticatedUserId } from "@/lib/server-session";
+import { activePresentationScope, canAccess, getPresentationAccess } from "@/lib/team-access";
 
 type RouteContext = {
   params: Promise<{
@@ -45,7 +46,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
   const { presentationId } = await context.params;
   const presentation = await prisma.presentation.findFirst({
-    where: { id: presentationId, ownerId: userId },
+    where: { id: presentationId, ...activePresentationScope(userId) },
     select: {
       id: true,
       briefings: {
@@ -88,10 +89,13 @@ export async function POST(request: Request, context: RouteContext) {
 
   const { presentationId } = await context.params;
   const presentation = await prisma.presentation.findFirst({
-    where: { id: presentationId, ownerId: userId, archivedAt: null },
+    where: { id: presentationId, ...activePresentationScope(userId), archivedAt: null },
     select: { id: true },
   });
   if (!presentation) return fail("PRESENTATION_NOT_FOUND", "Presentation was not found.", 404);
+  if (!canAccess(await getPresentationAccess(presentationId, userId), "edit")) {
+    return fail("FORBIDDEN", "You do not have permission to edit this presentation.", 403);
+  }
 
   const briefing = await prisma.briefing.create({
     data: {
@@ -105,7 +109,7 @@ export async function POST(request: Request, context: RouteContext) {
   });
 
   await prisma.presentation.updateMany({
-    where: { id: presentationId, ownerId: userId },
+    where: { id: presentationId, ...activePresentationScope(userId) },
     data: { status: parsed.data.approved ? "STORYLINE_REVIEW" : "BRIEFING" },
   });
 

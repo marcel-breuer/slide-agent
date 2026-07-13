@@ -22,6 +22,7 @@ import { fail, ok } from "../../../../../lib/api";
 import { assertBillingQuota, BillingQuotaError, billingQuotaErrorDetails } from "../../../../../lib/billing";
 import { budgetRoutingLimits, loadBudgetUsageSnapshot } from "../../../../../lib/budget-usage";
 import { getAuthenticatedUserId } from "../../../../../lib/server-session";
+import { canAccess, getPresentationAccess } from "../../../../../lib/team-access";
 
 type RouteContext = {
   params: Promise<{
@@ -85,6 +86,9 @@ export async function POST(request: Request, context: RouteContext) {
 
   const persistedDocument = await findPresentationDocument(prisma, presentationId);
   if (!persistedDocument) return fail("PRESENTATION_NOT_FOUND", "Presentation was not found.", 404);
+  if (!canAccess(await getPresentationAccess(presentationId, userId), "edit")) {
+    return fail("FORBIDDEN", "You do not have permission to edit this presentation.", 403);
+  }
 
   let body: unknown;
   try {

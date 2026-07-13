@@ -5,6 +5,8 @@ import type { Prisma } from "@slide-agent/database";
 import { importPptxPackage, type PptxImportReport } from "@slide-agent/pptx-importer";
 import { createLocalObjectStorageFromEnv, sanitizeStorageKey } from "@slide-agent/storage";
 
+import { activeProjectScope } from "@/lib/team-access";
+
 export const PPTX_MIME_TYPE =
   "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
@@ -70,11 +72,7 @@ export type PresentationImportClient = {
   ): Promise<T>;
   project: {
     findFirst(args: {
-      where: {
-        id: string;
-        ownerId: string;
-        archivedAt: null;
-      };
+      where: Prisma.ProjectWhereInput;
       select: { id: true };
     }): Promise<{ id: string } | null>;
   };
@@ -112,7 +110,7 @@ export async function createPptxImport({
   userId: string;
 }): Promise<PresentationImportSummary> {
   const project = await client.project.findFirst({
-    where: { id: projectId, ownerId: userId, archivedAt: null },
+    where: { id: projectId, ...activeProjectScope(userId), archivedAt: null },
     select: { id: true },
   });
   if (!project) throw new PresentationImportProjectNotFoundError();

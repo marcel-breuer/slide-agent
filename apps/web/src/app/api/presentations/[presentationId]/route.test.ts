@@ -137,7 +137,7 @@ describe("presentation document API", () => {
     expect(payload.data.archivedAt).toBe("2026-07-09T09:00:00.000Z");
     expect(prisma.presentation.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "presentation-1", ownerId: "user-1" },
+        where: expect.objectContaining({ id: "presentation-1", OR: expect.any(Array) }),
       }),
     );
   });

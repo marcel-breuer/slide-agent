@@ -4,6 +4,7 @@ import { prisma } from "@slide-agent/database";
 
 import { fail, ok } from "@/lib/api";
 import { getAuthenticatedUserId } from "@/lib/server-session";
+import { activeProjectScope, canAccess, getProjectAccess, getTeamMembership } from "@/lib/team-access";
 
 type RouteContext = {
   params: Promise<{
@@ -16,6 +17,7 @@ const ProjectUpdateSchema = z
     archived: z.boolean().optional(),
     description: z.string().trim().max(1000).nullable().optional(),
     name: z.string().trim().min(1).max(160).optional(),
+    teamId: z.string().trim().min(1).nullable().optional(),
   })
   .refine((data) => Object.keys(data).length > 0);
 
@@ -25,7 +27,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
   const { projectId } = await context.params;
   const project = await prisma.project.findFirst({
-    where: { id: projectId, ownerId: userId },
+    where: { id: projectId, ...activeProjectScope(userId) },
     select: {
       id: true,
       name: true,
@@ -33,6 +35,7 @@ export async function GET(_request: Request, context: RouteContext) {
       archivedAt: true,
       createdAt: true,
       updatedAt: true,
+      teamId: true,
       presentations: {
         orderBy: [{ archivedAt: "asc" }, { updatedAt: "desc" }],
         select: {
@@ -52,6 +55,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
   return ok({
     id: project.id,
+    teamId: project.teamId,
     name: project.name,
     description: project.description,
     archivedAt: project.archivedAt?.toISOString() ?? null,
@@ -85,8 +89,31 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (!parsed.success) return fail("VALIDATION_FAILED", "Project update is invalid.", 400);
 
   const { projectId } = await context.params;
+  const access = await getProjectAccess(projectId, userId);
+  if (!access) return fail("PROJECT_NOT_FOUND", "Project was not found.", 404);
+  if (!canAccess(access, "edit")) {
+    return fail("FORBIDDEN", "You do not have permission to edit this project.", 403);
+  }
+
+  if (parsed.data.teamId !== undefined) {
+    if (!canAccess(access, "manage")) {
+      return fail("FORBIDDEN", "Only team owners and admins can move projects.", 403);
+    }
+    if (parsed.data.teamId) {
+      const targetMembership = await getTeamMembership(parsed.data.teamId, userId);
+      if (
+        !targetMembership ||
+        !canAccess(
+          { projectId: "", role: targetMembership.role, teamId: parsed.data.teamId, userId },
+          "edit",
+        )
+      ) {
+        return fail("FORBIDDEN", "You cannot move projects into this team.", 403);
+      }
+    }
+  }
   const updateResult = await prisma.project.updateMany({
-    where: { id: projectId, ownerId: userId },
+    where: { id: projectId },
     data: {
       ...(parsed.data.name !== undefined ? { name: parsed.data.name } : {}),
       ...(parsed.data.description !== undefined
@@ -95,6 +122,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       ...(parsed.data.archived !== undefined
         ? { archivedAt: parsed.data.archived ? new Date() : null }
         : {}),
+      ...(parsed.data.teamId !== undefined ? { teamId: parsed.data.teamId } : {}),
     },
   });
 
@@ -103,7 +131,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const project = await prisma.project.findFirst({
-    where: { id: projectId, ownerId: userId },
+    where: { id: projectId, ...activeProjectScope(userId) },
     select: {
       id: true,
       name: true,
@@ -111,6 +139,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       archivedAt: true,
       createdAt: true,
       updatedAt: true,
+      teamId: true,
     },
   });
 
@@ -118,6 +147,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   return ok({
     id: project.id,
+    teamId: project.teamId,
     name: project.name,
     description: project.description,
     archivedAt: project.archivedAt?.toISOString() ?? null,

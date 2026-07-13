@@ -13,6 +13,21 @@ export function fail(code: string, message: string, status = 400): Response {
 export const ProjectInputSchema = z.object({
   description: z.string().trim().max(1000).optional(),
   name: z.string().trim().min(1).max(160),
+  teamId: z.string().trim().min(1).nullable().optional(),
+});
+
+export const TeamInputSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+});
+
+export const TeamInvitationInputSchema = z.object({
+  email: z.string().trim().email().max(320),
+  role: z.enum(["ADMIN", "EDITOR", "VIEWER"]),
+});
+
+export const TeamMemberUpdateSchema = z.object({
+  role: z.enum(["ADMIN", "EDITOR", "VIEWER"]),
+  userId: z.string().trim().min(1),
 });
 
 export const PresentationInputSchema = z.object({

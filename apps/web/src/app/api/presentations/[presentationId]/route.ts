@@ -13,6 +13,7 @@ import { DEMO_PRESENTATION_ID, PresentationDocumentSchema } from "@slide-agent/p
 
 import { fail, ok } from "@/lib/api";
 import { getAuthenticatedUserId } from "@/lib/server-session";
+import { activePresentationScope, canAccess, getPresentationAccess } from "@/lib/team-access";
 
 type RouteContext = {
   params: Promise<{
@@ -45,7 +46,8 @@ export async function GET(_request: Request, context: RouteContext) {
 
   const document = await findPresentationDocument(prisma, presentationId);
   if (!document) return fail("PRESENTATION_NOT_FOUND", "Presentation was not found.", 404);
-  if (document.metadata.ownerId !== userId) {
+  const access = await getPresentationAccess(presentationId, userId);
+  if (document.metadata.ownerId !== userId && !access?.teamId) {
     return fail("FORBIDDEN", "Presentation is not available for this user.", 403);
   }
 
@@ -74,12 +76,17 @@ export async function PUT(request: Request, context: RouteContext) {
   if (!parsed.success)
     return fail("VALIDATION_FAILED", "Presentation document update is invalid.", 400);
 
+  const access = await getPresentationAccess(presentationId, userId);
+  if (!canAccess(access, "edit")) {
+    return fail("FORBIDDEN", "Presentation is not available for editing by this user.", 403);
+  }
+
   try {
     const document = await savePresentationDocument(prisma, {
       presentationId,
       expectedUpdatedAt: parsed.data.expectedUpdatedAt,
       document: parsed.data.document,
-      ownerId: userId,
+      ...(access?.teamId ? {} : { ownerId: userId }),
     });
 
     return ok(document);
@@ -125,8 +132,12 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (!parsed.success) return fail("VALIDATION_FAILED", "Presentation update is invalid.", 400);
 
   const { presentationId } = await context.params;
+  const access = await getPresentationAccess(presentationId, userId);
+  if (!canAccess(access, "edit")) {
+    return fail("FORBIDDEN", "You do not have permission to edit this presentation.", 403);
+  }
   const updateResult = await prisma.presentation.updateMany({
-    where: { id: presentationId, ownerId: userId },
+    where: { id: presentationId, ...activePresentationScope(userId) },
     data: {
       ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
       ...(parsed.data.archived !== undefined
@@ -143,7 +154,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const presentation = await prisma.presentation.findFirst({
-    where: { id: presentationId, ownerId: userId },
+    where: { id: presentationId, ...activePresentationScope(userId) },
     select: {
       id: true,
       projectId: true,

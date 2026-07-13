@@ -13,6 +13,7 @@ import { ReusableAssetDefinitionSchema, PresentationInputSchema, fail, ok } from
 import { assertBillingQuota, BillingQuotaError, billingQuotaErrorDetails } from "@/lib/billing";
 import type { ReusableAssetDefinition } from "@/lib/reusable-assets";
 import { getAuthenticatedUserId } from "@/lib/server-session";
+import { activePresentationScope, activeProjectScope, canAccess, getProjectAccess } from "@/lib/team-access";
 
 export async function GET(request: Request) {
   const userId = await getAuthenticatedUserId();
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
 
   if (projectId) {
     const project = await prisma.project.findFirst({
-      where: { id: projectId, ownerId: userId },
+      where: { id: projectId, ...activeProjectScope(userId) },
       select: { id: true },
     });
     if (!project) return fail("PROJECT_NOT_FOUND", "Project was not found.", 404);
@@ -32,7 +33,7 @@ export async function GET(request: Request) {
 
   const presentations = await prisma.presentation.findMany({
     where: {
-      ownerId: userId,
+      ...activePresentationScope(userId),
       ...(projectId ? { projectId } : {}),
       ...(includeArchived ? {} : { archivedAt: null }),
     },
@@ -67,10 +68,15 @@ export async function POST(request: Request) {
   if (!parsed.success) return fail("VALIDATION_FAILED", "Presentation input is invalid.", 400);
 
   const project = await prisma.project.findFirst({
-    where: { id: parsed.data.projectId, ownerId: userId, archivedAt: null },
+    where: { id: parsed.data.projectId, ...activeProjectScope(userId), archivedAt: null },
     select: { id: true },
   });
   if (!project) return fail("PROJECT_NOT_FOUND", "Project was not found.", 404);
+
+  const projectAccess = await getProjectAccess(project.id, userId);
+  if (!canAccess(projectAccess, "edit")) {
+    return fail("FORBIDDEN", "You do not have permission to create presentations here.", 403);
+  }
 
   try {
     await assertBillingQuota(userId, "presentations");

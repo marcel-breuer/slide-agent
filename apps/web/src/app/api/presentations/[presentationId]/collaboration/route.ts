@@ -5,6 +5,7 @@ import { findPresentationDocument, prisma } from "@slide-agent/database";
 import { fail, ok } from "@/lib/api";
 import { assertBillingQuota, BillingQuotaError, billingQuotaErrorDetails } from "@/lib/billing";
 import { getAuthenticatedUserId } from "@/lib/server-session";
+import { activePresentationScope, getPresentationAccess } from "@/lib/team-access";
 
 const SESSION_TTL_MS = 30_000;
 
@@ -38,12 +39,14 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const presentation = await prisma.presentation.findFirst({
-    where: { id: presentationId, ownerId: userId },
+    where: { id: presentationId, ...activePresentationScope(userId) },
     select: { id: true, updatedAt: true },
   });
   if (!presentation) {
     return fail("PRESENTATION_NOT_FOUND", "Presentation was not found.", 404);
   }
+  const access = await getPresentationAccess(presentationId, userId);
+  if (!access) return fail("PRESENTATION_NOT_FOUND", "Presentation was not found.", 404);
 
   try {
     await assertBillingQuota(userId, "members", 0);
