@@ -11,6 +11,8 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
+    "visual:test": "playwright test --config=playwright.config.ts",
+    "visual:update": "playwright test --config=playwright.config.ts --update-snapshots",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "db:generate": "pnpm --filter @slide-agent/database prisma:generate",
@@ -19,6 +21,7 @@
   },
   "devDependencies": {
     "@eslint/js": "9.39.4",
+    "@playwright/test": "1.51.1",
     "@types/node": "24.13.2",
     "@typescript-eslint/eslint-plugin": "8.62.1",
     "@typescript-eslint/parser": "8.62.1",

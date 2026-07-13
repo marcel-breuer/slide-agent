@@ -1,0 +1,20 @@
+name: Visual regression
+
+on:
+  pull_request:
+    paths:
+      - "apps/web/**"
+      - "packages/presentation-renderer/**"
+      - "packages/presentation-schema/**"
+      - "tests/visual/**"
+      - "playwright.config.ts"
+      - "package.json"
+      - "pnpm-lock.yaml"
+
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose -f compose.yaml -f compose.dev.yaml run --rm web sh -lc 'pnpm --filter web dev > /tmp/slide-agent-web.log 2>&1 & until node -e "fetch(\"http://127.0.0.1:3000/visual-fixtures?mode=editor\").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; do sleep 1; done; pnpm exec playwright install chromium; VISUAL_BASE_URL=http://127.0.0.1:3000 pnpm visual:test'
