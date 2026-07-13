@@ -39,6 +39,7 @@ import {
   Trash2,
   Type,
   Undo2,
+  Users,
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -79,7 +80,28 @@ type PresentationApiResponse =
 
 type PresentationSaveResponse = PresentationApiResponse;
 
+type CollaborationParticipant = {
+  clientId: string;
+  displayName: string;
+  id: string;
+  lastSeenAt: string;
+  selectedSlideId: string | null;
+  userId: string;
+};
+
+type CollaborationApiResponse =
+  | {
+      ok: true;
+      data: {
+        collaborators: CollaborationParticipant[];
+        currentUpdatedAt: string;
+        document: PresentationDocument | null;
+      };
+    }
+  | { ok: false; error: { code: string; message: string } };
+
 type SaveStatus = "saved" | "dirty" | "saving" | "failed";
+type CollaborationStatus = "connecting" | "connected" | "conflict" | "failed";
 type AiProposalStatus = "idle" | "loading" | "ready" | "failed";
 type ExportStatus = "idle" | "exporting" | "ready" | "failed";
 
@@ -348,6 +370,17 @@ function LoadedEditor({
   const { error: saveError, status: saveStatus } = usePresentationAutosave({
     document,
     presentationId,
+    setDocument,
+  });
+  const {
+    collaborators,
+    error: collaborationError,
+    status: collaborationStatus,
+  } = usePresentationCollaboration({
+    canApplyRemote: saveStatus === "saved",
+    document,
+    presentationId,
+    selectedSlideId,
     setDocument,
   });
   const activeSlide =
@@ -944,6 +977,17 @@ function LoadedEditor({
             </p>
           </div>
           <div className="flex flex-col items-end gap-1">
+            <div
+              className="flex items-center gap-1 text-xs text-muted"
+              aria-live="polite"
+              title={
+                collaborationError ??
+                collaborators.map((collaborator) => collaborator.displayName).join(", ")
+              }
+            >
+              <Users size={14} />
+              <span>{collaborationStatusLabel(collaborationStatus, collaborators.length)}</span>
+            </div>
             <div className="flex items-center gap-2">
               <IconButton label="Undo" disabled={!canUndo} onClick={undoEditorChange}>
                 <Undo2 size={17} />
@@ -1456,6 +1500,105 @@ function usePresentationAutosave({
   return { error, status };
 }
 
+function usePresentationCollaboration({
+  canApplyRemote,
+  document,
+  presentationId,
+  selectedSlideId,
+  setDocument,
+}: {
+  canApplyRemote: boolean;
+  document: PresentationDocument;
+  presentationId: string;
+  selectedSlideId: string;
+  setDocument: Dispatch<SetStateAction<PresentationDocument | null>>;
+}): {
+  clientId: string | null;
+  collaborators: CollaborationParticipant[];
+  error: string | null;
+  status: CollaborationStatus;
+} {
+  const [clientId, setClientId] = useState<string | null>(null);
+  const [collaborators, setCollaborators] = useState<CollaborationParticipant[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<CollaborationStatus>("connecting");
+
+  useEffect(() => {
+    const nextClientId = getCollaborationClientId(presentationId);
+    setClientId(nextClientId);
+
+    let cancelled = false;
+
+    async function sendHeartbeat(): Promise<void> {
+      try {
+        const response = await fetch(
+          `/api/presentations/${encodeURIComponent(presentationId)}/collaboration`,
+          {
+            body: JSON.stringify({
+              clientId: nextClientId,
+              knownUpdatedAt: document.metadata.updatedAt,
+              selectedSlideId: selectedSlideId || null,
+            }),
+            headers: { "Content-Type": "application/json" },
+            method: "POST",
+          },
+        );
+        const payload = (await response.json()) as CollaborationApiResponse;
+
+        if (cancelled) return;
+        if (!response.ok || !payload.ok) {
+          setStatus("failed");
+          setError(payload.ok ? "Collaboration is unavailable." : payload.error.message);
+          return;
+        }
+
+        setCollaborators(payload.data.collaborators);
+        setError(null);
+
+        if (payload.data.document) {
+          if (canApplyRemote) {
+            setDocument(payload.data.document);
+            setStatus("connected");
+          } else {
+            setStatus("conflict");
+            setError("Remote changes are waiting. Save or reload before continuing.");
+          }
+        } else {
+          setStatus("connected");
+        }
+      } catch (heartbeatError) {
+        if (cancelled) return;
+        setStatus("failed");
+        setError(
+          heartbeatError instanceof Error
+            ? heartbeatError.message
+            : "Collaboration is unavailable.",
+        );
+      }
+    }
+
+    void sendHeartbeat();
+    const intervalId = globalThis.setInterval(() => void sendHeartbeat(), 2_500);
+
+    return () => {
+      cancelled = true;
+      globalThis.clearInterval(intervalId);
+    };
+  }, [canApplyRemote, document.metadata.updatedAt, presentationId, selectedSlideId, setDocument]);
+
+  return { clientId, collaborators, error, status };
+}
+
+function getCollaborationClientId(presentationId: string): string {
+  const storageKey = `slide-agent:collaboration-client:${presentationId}`;
+  const existing = globalThis.localStorage?.getItem(storageKey);
+  if (existing) return existing;
+
+  const nextClientId = globalThis.crypto.randomUUID();
+  globalThis.localStorage?.setItem(storageKey, nextClientId);
+  return nextClientId;
+}
+
 async function savePresentation({
   document,
   expectedUpdatedAt,
@@ -1490,6 +1633,13 @@ function saveStatusLabel(status: SaveStatus): string {
     case "saved":
       return "Saved";
   }
+}
+
+function collaborationStatusLabel(status: CollaborationStatus, collaboratorCount: number): string {
+  if (status === "connecting") return "Connecting";
+  if (status === "conflict") return "Remote changes detected";
+  if (status === "failed") return "Collaboration unavailable";
+  return `${collaboratorCount} active ${collaboratorCount === 1 ? "session" : "sessions"}`;
 }
 
 function exportStatusLabel(
