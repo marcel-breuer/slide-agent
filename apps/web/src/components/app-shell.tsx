@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { Route } from "next";
 import {
   BarChart3,
+  CreditCard,
   FileText,
   FolderKanban,
   KeyRound,
@@ -33,6 +34,7 @@ const settingsLinks: NavigationItem[] = [
   { href: "/app/settings/profile", labelKey: "navProfile", icon: UserRound },
   { href: "/app/settings/providers", labelKey: "navAiProviders", icon: KeyRound },
   { href: "/app/settings/budget", labelKey: "navBudget", icon: BarChart3 },
+  { href: "/app/settings/billing" as Route, labelKey: "navBilling", icon: CreditCard },
   { href: "/app/settings/language", labelKey: "navLanguage", icon: SlidersHorizontal },
   { href: "/app/settings/security", labelKey: "navSecurity", icon: Shield },
 ];
@@ -42,6 +44,7 @@ type NavigationItem = {
   icon: LucideIcon;
   labelKey:
     | "navAiProviders"
+    | "navBilling"
     | "navBudget"
     | "navDesignProfiles"
     | "navLanguage"

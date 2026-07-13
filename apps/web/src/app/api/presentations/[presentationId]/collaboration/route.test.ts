@@ -18,6 +18,7 @@ vi.mock("@slide-agent/database", () => ({
       findMany: vi.fn(),
       upsert: vi.fn(),
     },
+    userSettings: { upsert: vi.fn() },
   },
 }));
 
@@ -37,6 +38,9 @@ const mockedUpsertSession = prisma.presentationCollaboratorSession.upsert as unk
   mockResolvedValue(value: unknown): void;
 };
 const mockedFindSessions = prisma.presentationCollaboratorSession.findMany as unknown as {
+  mockResolvedValue(value: unknown): void;
+};
+const mockedSettingsUpsert = prisma.userSettings.upsert as unknown as {
   mockResolvedValue(value: unknown): void;
 };
 
@@ -59,6 +63,14 @@ describe("presentation collaboration API", () => {
         user: { displayName: "Marcel", email: "marcel@example.com", id: "user-1" },
       },
     ]);
+    mockedSettingsUpsert.mockResolvedValue({
+      billingCancelAtPeriodEnd: false,
+      billingGraceUntil: null,
+      billingPeriodEnd: null,
+      billingPeriodStart: null,
+      billingPlanCode: "free",
+      billingStatus: "active",
+    });
   });
 
   it("requires an authenticated session", async () => {

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { findPresentationDocument, prisma } from "@slide-agent/database";
 
 import { fail, ok } from "@/lib/api";
+import { assertBillingQuota, BillingQuotaError, billingQuotaErrorDetails } from "@/lib/billing";
 import { getAuthenticatedUserId } from "@/lib/server-session";
 
 const SESSION_TTL_MS = 30_000;
@@ -42,6 +43,13 @@ export async function POST(request: Request, context: RouteContext) {
   });
   if (!presentation) {
     return fail("PRESENTATION_NOT_FOUND", "Presentation was not found.", 404);
+  }
+
+  try {
+    await assertBillingQuota(userId, "members", 0);
+  } catch (error) {
+    if (error instanceof BillingQuotaError) return fail(...billingQuotaErrorDetails(error));
+    throw error;
   }
 
   const now = new Date();

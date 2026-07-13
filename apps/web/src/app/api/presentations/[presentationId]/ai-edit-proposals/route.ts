@@ -19,6 +19,7 @@ import {
   resolveAiEditRouting,
 } from "../../../../../lib/ai-provider-routing";
 import { fail, ok } from "../../../../../lib/api";
+import { assertBillingQuota, BillingQuotaError, billingQuotaErrorDetails } from "../../../../../lib/billing";
 import { budgetRoutingLimits, loadBudgetUsageSnapshot } from "../../../../../lib/budget-usage";
 import { getAuthenticatedUserId } from "../../../../../lib/server-session";
 
@@ -117,6 +118,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   try {
+    await assertBillingQuota(userId, "generations");
     const budgetSnapshot = await loadBudgetUsageSnapshot(userId);
     if (budgetSnapshot.usage.hardStopReached) {
       return fail(
@@ -202,6 +204,7 @@ export async function POST(request: Request, context: RouteContext) {
 
     return ok(proposal);
   } catch (error) {
+    if (error instanceof BillingQuotaError) return fail(...billingQuotaErrorDetails(error));
     if (error instanceof AiRoutingConfigurationError) {
       return fail(error.code, error.message, error.status);
     }

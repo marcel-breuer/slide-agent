@@ -11,6 +11,7 @@ vi.mock("@slide-agent/database", () => ({
   prisma: {
     presentation: {
       create: vi.fn(),
+      count: vi.fn(),
       findMany: vi.fn(),
     },
     designProfile: {
@@ -33,6 +34,7 @@ vi.mock("@/lib/server-session", () => ({
 }));
 
 const mockedCreatePresentation = prisma.presentation.create as unknown as Mock;
+const mockedCountPresentations = prisma.presentation.count as unknown as Mock;
 const mockedFindDesignProfile = prisma.designProfile.findFirst as unknown as Mock;
 const mockedFindPresentations = prisma.presentation.findMany as unknown as Mock;
 const mockedFindProject = prisma.project.findFirst as unknown as Mock;
@@ -44,6 +46,7 @@ describe("presentations API", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockedGetAuthenticatedUserId.mockResolvedValue("user-1");
+    mockedCountPresentations.mockResolvedValue(0);
     mockedUpsertSettings.mockResolvedValue({
       defaultAudience: "executives",
       defaultDetailLevel: "detailed",

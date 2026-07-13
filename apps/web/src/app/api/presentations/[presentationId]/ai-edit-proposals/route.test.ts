@@ -14,6 +14,7 @@ vi.mock("@slide-agent/database", () => ({
   findPresentationDocument: vi.fn(),
   prisma: {
     aiOperation: {
+      count: vi.fn(),
       create: vi.fn(),
       findMany: vi.fn(),
     },
@@ -38,6 +39,7 @@ const mockedEnsureDemoPresentation = vi.mocked(ensureDemoPresentation);
 const mockedFindPresentationDocument = vi.mocked(findPresentationDocument);
 const mockedAiOperationCreate = prisma.aiOperation.create as unknown as Mock;
 const mockedAiOperationFindMany = prisma.aiOperation.findMany as unknown as Mock;
+const mockedAiOperationCount = prisma.aiOperation.count as unknown as Mock;
 const mockedProviderConfigurationFindMany = prisma.providerConfiguration
   .findMany as unknown as Mock;
 const mockedProviderCredentialFindMany = prisma.providerCredential.findMany as unknown as Mock;
@@ -51,6 +53,7 @@ describe("AI edit proposals API", () => {
     mockedEnsureDemoPresentation.mockResolvedValue("demo-presentation");
     mockedUserSettingsUpsert.mockResolvedValue(createBudgetSettings());
     mockedAiOperationFindMany.mockResolvedValue([]);
+    mockedAiOperationCount.mockResolvedValue(0);
     mockedProviderCredentialFindMany.mockResolvedValue([]);
     mockedProviderConfigurationFindMany.mockResolvedValue([]);
     mockedAiOperationCreate.mockResolvedValue({});
@@ -314,6 +317,12 @@ describe("AI edit proposals API", () => {
 
 function createBudgetSettings(overrides = {}) {
   return {
+    billingCancelAtPeriodEnd: false,
+    billingGraceUntil: null,
+    billingPeriodEnd: null,
+    billingPeriodStart: null,
+    billingPlanCode: "free",
+    billingStatus: "active",
     hardStopEnabled: true,
     monthlyMoneyBudget: null,
     monthlyTokenBudget: null,

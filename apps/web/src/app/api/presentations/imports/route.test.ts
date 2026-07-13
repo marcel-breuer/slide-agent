@@ -3,13 +3,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
 
+import { prisma } from "@slide-agent/database";
 import { createPptxImport } from "../../../../lib/presentation-imports";
 import { getAuthenticatedUserId } from "../../../../lib/server-session";
 
 import { POST } from "./route";
 
 vi.mock("@slide-agent/database", () => ({
-  prisma: {},
+  prisma: {
+    export: { findMany: vi.fn() },
+    importReport: { findMany: vi.fn() },
+    presentation: { count: vi.fn() },
+    userSettings: { upsert: vi.fn() },
+  },
 }));
 
 vi.mock("../../../../lib/server-session", () => ({
@@ -30,12 +36,27 @@ vi.mock("../../../../lib/presentation-imports", () => {
 
 const mockedCreatePptxImport = createPptxImport as unknown as Mock;
 const mockedGetAuthenticatedUserId = vi.mocked(getAuthenticatedUserId);
+const mockedPresentationCount = prisma.presentation.count as unknown as Mock;
+const mockedImportFindMany = prisma.importReport.findMany as unknown as Mock;
+const mockedExportFindMany = prisma.export.findMany as unknown as Mock;
+const mockedSettingsUpsert = prisma.userSettings.upsert as unknown as Mock;
 
 describe("presentation import API", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     delete process.env.GLOBAL_MAX_UPLOAD_MB;
     mockedGetAuthenticatedUserId.mockResolvedValue("demo-user");
+    mockedPresentationCount.mockResolvedValue(0);
+    mockedImportFindMany.mockResolvedValue([]);
+    mockedExportFindMany.mockResolvedValue([]);
+    mockedSettingsUpsert.mockResolvedValue({
+      billingCancelAtPeriodEnd: false,
+      billingGraceUntil: null,
+      billingPeriodEnd: null,
+      billingPeriodStart: null,
+      billingPlanCode: "free",
+      billingStatus: "active",
+    });
   });
 
   it("requires an authenticated session", async () => {
@@ -100,7 +121,7 @@ describe("presentation import API", () => {
     expect(payload.data.presentationId).toBe("presentation-1");
     expect(mockedCreatePptxImport).toHaveBeenCalledWith(
       expect.objectContaining({
-        client: {},
+        client: expect.any(Object),
         fileName: "Deck.pptx",
         projectId: "project-demo",
         userId: "demo-user",
