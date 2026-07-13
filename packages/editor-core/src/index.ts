@@ -101,6 +101,22 @@ export type PointerDrivenEditProposal = {
   metadata: PointerDrivenEditProposalMetadata;
 };
 
+export type LayoutSuggestion = {
+  id: string;
+  title: string;
+  summary: string;
+  commands: EditorCommand[];
+  overflowRisk: string | null;
+  designProfileCompatibility: string;
+  preservedElementIds: string[];
+};
+
+export type LayoutSuggestionInput = {
+  document: PresentationDocument;
+  slideId: string;
+  designProfile?: { layoutRules?: readonly string[] };
+};
+
 export type CreatePointerDrivenEditProposalInput = {
   document: PresentationDocument;
   slideId: string;
@@ -301,6 +317,152 @@ export function createPointerDrivenEditProposal(
       },
     },
   };
+}
+
+export function createLayoutSuggestions(input: LayoutSuggestionInput): LayoutSuggestion[] {
+  const slide = input.document.slides.find((candidate) => candidate.id === input.slideId);
+  if (!slide) throw new Error("Selected slide was not found.");
+
+  const title = slide.elements.find((element) => element.id === "title");
+  const content = slide.elements.filter((element) => element.id !== "title" && element.visible);
+  const movable = content.filter((element) => !element.locked);
+  const preservedElementIds = slide.elements
+    .filter((element) => element.locked || !element.visible)
+    .map((element) => element.id);
+  const compatibility = input.designProfile?.layoutRules?.length
+    ? `Evaluated against ${input.designProfile.layoutRules.length} layout rule${input.designProfile.layoutRules.length === 1 ? "" : "s"}.`
+    : "Uses the presentation theme and schema-safe geometry constraints.";
+  const overflowRisk = estimateOverflowRisk(slide, movable);
+
+  return [
+    createSuggestion(
+      "balanced-columns",
+      "Balanced columns",
+      "Keeps the title prominent and distributes editable content across two readable columns.",
+      slide.id,
+      title,
+      movable,
+      preservedElementIds,
+      compatibility,
+      overflowRisk,
+      (index, element) => ({
+        height: Math.max(72, Math.min(180, element.frame.height)),
+        width: 390,
+        x: index % 2 === 0 ? 60 : 550,
+        y: 150 + Math.floor(index / 2) * 190,
+      }),
+    ),
+    createSuggestion(
+      "focus-and-support",
+      "Focus and support",
+      "Gives the first content element a wide focal area and stacks supporting content below it.",
+      slide.id,
+      title,
+      movable,
+      preservedElementIds,
+      compatibility,
+      overflowRisk,
+      (index, element) => ({
+        height: index === 0 ? 210 : Math.max(64, Math.min(120, element.frame.height)),
+        width: index === 0 ? 880 : 270,
+        x: index === 0 ? 60 : 60 + ((index - 1) % 3) * 305,
+        y: index === 0 ? 150 : 390,
+      }),
+    ),
+    createSuggestion(
+      "compact-grid",
+      "Compact grid",
+      "Creates a consistent grid for dense or mixed-content slides while retaining locked elements.",
+      slide.id,
+      title,
+      movable,
+      preservedElementIds,
+      compatibility,
+      overflowRisk,
+      (index, element) => ({
+        height: 145,
+        width: 270,
+        x: 60 + (index % 3) * 305,
+        y: 150 + Math.floor(index / 3) * 165,
+      }),
+    ),
+  ];
+}
+
+function createSuggestion(
+  id: string,
+  title: string,
+  summary: string,
+  slideId: string,
+  titleElement: SlideElement | undefined,
+  movable: SlideElement[],
+  preservedElementIds: string[],
+  designProfileCompatibility: string,
+  overflowRisk: string | null,
+  targetFrame: (
+    index: number,
+    element: SlideElement,
+  ) => { height: number; width: number; x: number; y: number },
+): LayoutSuggestion {
+  const commands: EditorCommand[] = [];
+  if (titleElement && !titleElement.locked) {
+    commands.push({
+      dx: 60 - titleElement.frame.x,
+      dy: 48 - titleElement.frame.y,
+      elementId: titleElement.id,
+      slideId,
+      type: "MOVE_ELEMENT",
+    });
+  }
+  movable.forEach((element, index) => {
+    const target = targetFrame(index, element);
+    commands.push(
+      {
+        dx: target.x - element.frame.x,
+        dy: target.y - element.frame.y,
+        elementId: element.id,
+        slideId,
+        type: "MOVE_ELEMENT",
+      },
+      {
+        elementId: element.id,
+        height: target.height,
+        slideId,
+        type: "RESIZE_ELEMENT",
+        width: target.width,
+      },
+    );
+  });
+
+  return {
+    commands,
+    designProfileCompatibility,
+    id,
+    overflowRisk,
+    preservedElementIds,
+    summary,
+    title,
+  };
+}
+
+function estimateOverflowRisk(slide: SlideDocument, movable: SlideElement[]): string | null {
+  const textLength = movable.reduce(
+    (total, element) =>
+      total +
+      (element.type === "text"
+        ? element.paragraphs
+            .flatMap((paragraph) => paragraph.runs)
+            .reduce((sum, run) => sum + run.text.length, 0)
+        : 0),
+    0,
+  );
+  if (textLength > 420 || movable.length > 8) {
+    return "Dense content may overflow; review text fit after applying.";
+  }
+  if (slide.elements.some((element) => element.type === "image" && !element.locked)) {
+    return "Image crops are preserved, but review focal points after applying.";
+  }
+  return null;
 }
 
 export function applyCommands(
