@@ -30,6 +30,17 @@ The root compose file includes deployable defaults for the app, database, Redis,
 
 The web container runs `prisma migrate deploy` before starting Next.js. Keep this enabled for production releases so a new database receives the versioned schema before registration or other authenticated routes are used. If the database contains the exact 45-table schema from the pre-migration release, the entrypoint verifies that there is no schema diff, baselines the initial migration automatically, and then deploys normally. Any schema drift fails the release instead of being hidden; do not use `prisma db push` in production.
 
+## Tagged releases
+
+Pushing a semantic-version tag such as `v1.2.3`, or starting the `Release` workflow manually with that tag, runs the Docker-backed quality gates before publishing anything. The workflow validates Compose, builds the web and worker images, runs tests, typechecks, and lint, then starts an isolated production Compose stack. It waits for the dependency health endpoint and performs a registration smoke test before pushing immutable images to GitHub Container Registry:
+
+- `ghcr.io/marcel-breuer/slide-agent/web:v1.2.3`
+- `ghcr.io/marcel-breuer/slide-agent/worker:v1.2.3`
+
+The workflow publishes a non-secret `release-metadata.json` asset with the tag, source revision, image references, and publication time. The production platform should deploy both images with the same tag. The web image owns the migration step; the worker must be started from a compatible image after that step completes.
+
+If a release fails before image publication, the previous deployment remains available. To roll back an application release, redeploy the previous web and worker image tag together and keep the database at its newest successfully migrated version. Do not roll back migrations independently: apply a forward-compatible fix, or restore the database and storage backups only as a coordinated recovery operation. Verify `/api/health`, `/admin/system`, registration, export, worker heartbeat, Redis, storage, and SMTP delivery after the rollback.
+
 Uploaded files, generated assets, and exports are stored in the `app-storage` Docker volume mounted at `/app/storage` in the web and worker containers.
 
 ## Operational checks

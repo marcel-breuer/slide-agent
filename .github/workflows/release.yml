@@ -1,0 +1,161 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Semantic release tag, for example v1.2.3"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAMESPACE: ghcr.io/${{ github.repository }}
+
+jobs:
+  quality:
+    name: Quality gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out revision
+        uses: actions/checkout@v4
+
+      - name: Validate Compose configuration
+        run: docker compose -f compose.yaml -f compose.dev.yaml -f compose.prod.yaml config --quiet
+
+      - name: Build test images
+        run: docker compose -f compose.yaml -f compose.dev.yaml build web worker
+
+      - name: Run tests
+        run: docker compose -f compose.yaml -f compose.dev.yaml run --rm web pnpm --filter web test
+
+      - name: Run web typecheck
+        run: docker compose -f compose.yaml -f compose.dev.yaml run --rm web pnpm --filter web typecheck
+
+      - name: Run web lint
+        run: docker compose -f compose.yaml -f compose.dev.yaml run --rm web pnpm --filter web lint
+
+      - name: Run database typecheck
+        run: docker compose -f compose.yaml -f compose.dev.yaml run --rm web pnpm --filter @slide-agent/database typecheck
+
+      - name: Stop quality environment
+        if: always()
+        run: docker compose -f compose.yaml -f compose.dev.yaml down --volumes --remove-orphans
+
+  release:
+    name: Build, smoke test and publish
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check out revision
+        uses: actions/checkout@v4
+
+      - name: Resolve release tag and image names
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_tag="${INPUT_TAG:-${GITHUB_REF_NAME}}"
+          if [[ ! "$release_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Release tag must use semantic versioning and start with v: $release_tag" >&2
+            exit 1
+          fi
+          {
+            echo "RELEASE_TAG=$release_tag"
+            echo "WEB_IMAGE=$IMAGE_NAMESPACE/web"
+            echo "WORKER_IMAGE=$IMAGE_NAMESPACE/worker"
+            echo "IMAGE_TAG=$release_tag"
+          } >> "$GITHUB_ENV"
+
+      - name: Log in to GitHub Container Registry
+        run: echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+      - name: Build immutable release images
+        run: |
+          docker compose -f compose.yaml -f compose.prod.yaml build web worker
+          docker image inspect "$WEB_IMAGE:$RELEASE_TAG" >/dev/null
+          docker image inspect "$WORKER_IMAGE:$RELEASE_TAG" >/dev/null
+
+      - name: Run release smoke environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          compose=(docker compose -f compose.yaml -f compose.prod.yaml)
+          "${compose[@]}" up -d --no-build
+
+          ready=0
+          for attempt in $(seq 1 60); do
+            if "${compose[@]}" exec -T web node -e 'fetch("http://127.0.0.1:3000/api/health").then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))'; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" = 1
+
+          "${compose[@]}" exec -T web node -e 'fetch("http://mailpit:8025/api/v1/info").then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))'
+
+          "${compose[@]}" exec -T web node -e 'fetch("http://127.0.0.1:3000/api/auth/register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ displayName: "Release Smoke User", email: "release-smoke@example.com", password: "StrongPassword!123" }) }).then(async (response) => { const payload = await response.json(); console.log(JSON.stringify({ status: response.status, ok: payload.ok })); process.exit(response.status === 201 && payload.ok === true ? 0 : 1); }).catch(() => process.exit(1))'
+
+          "${compose[@]}" exec -T postgres psql -U slide_agent -d postgres -c 'CREATE DATABASE release_failure_test'
+          "${compose[@]}" exec -T postgres psql -U slide_agent -d release_failure_test -c 'CREATE TABLE unmanaged_release_table (id integer PRIMARY KEY)'
+          migration_status=0
+          "${compose[@]}" run --rm --no-deps -e DATABASE_URL=postgresql://slide_agent:slide_agent@postgres:5432/release_failure_test web true || migration_status=$?
+          "${compose[@]}" exec -T postgres psql -U slide_agent -d postgres -c 'DROP DATABASE release_failure_test'
+          test "$migration_status" -ne 0
+
+          "${compose[@]}" stop redis
+          health_failure_status=0
+          "${compose[@]}" exec -T web node -e 'fetch("http://127.0.0.1:3000/api/health").then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))' || health_failure_status=$?
+          "${compose[@]}" start redis
+          test "$health_failure_status" -ne 0
+
+          recovered=0
+          for attempt in $(seq 1 60); do
+            if "${compose[@]}" exec -T web node -e 'fetch("http://127.0.0.1:3000/api/health").then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))'; then
+              recovered=1
+              break
+            fi
+            sleep 2
+          done
+          test "$recovered" = 1
+
+      - name: Publish immutable images
+        run: docker compose -f compose.yaml -f compose.prod.yaml push web worker
+
+      - name: Publish release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          jq -n \
+            --arg tag "$RELEASE_TAG" \
+            --arg revision "$GITHUB_SHA" \
+            --arg webImage "$WEB_IMAGE:$RELEASE_TAG" \
+            --arg workerImage "$WORKER_IMAGE:$RELEASE_TAG" \
+            --arg generatedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{tag: $tag, revision: $revision, images: {web: $webImage, worker: $workerImage}, generatedAt: $generatedAt}' \
+            > release/release-metadata.json
+          gh release create "$RELEASE_TAG" \
+            --title "Slide Agent $RELEASE_TAG" \
+            --generate-notes \
+            release/release-metadata.json
+
+      - name: Stop release smoke environment
+        if: always()
+        run: docker compose -f compose.yaml -f compose.prod.yaml down --volumes --remove-orphans

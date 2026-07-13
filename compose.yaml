@@ -37,6 +37,7 @@ x-app-environment: &app-environment
 
 services:
   web:
+    image: ${WEB_IMAGE:-slide-agent-web}:${IMAGE_TAG:-local}
     build:
       context: .
       dockerfile: Dockerfile
@@ -69,6 +70,7 @@ services:
       retries: 10
 
   worker:
+    image: ${WORKER_IMAGE:-slide-agent-worker}:${IMAGE_TAG:-local}
     build:
       context: .
       dockerfile: Dockerfile.worker
