@@ -74,6 +74,10 @@ export async function getPresentationWorkflow(userId: string, presentationId: st
           createdAt: true,
         },
       },
+      comments: {
+        where: { deletedAt: null },
+        select: { id: true, status: true },
+      },
     },
   });
 
@@ -92,6 +96,8 @@ export async function getPresentationWorkflow(userId: string, presentationId: st
     lastExportAt: presentation.lastExportAt?.toISOString() ?? null,
     project: presentation.project,
     slideCount: presentation.slides.length,
+    unresolvedCommentCount: presentation.comments.filter((comment) => comment.status === "OPEN")
+      .length,
     slideTitles: presentation.slides.map((slide) => {
       const document = asRecord(slide.document);
       return {

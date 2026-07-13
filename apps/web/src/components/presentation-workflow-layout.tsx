@@ -18,6 +18,7 @@ import type { PresentationWorkflow } from "@/lib/presentation-workflow";
 import { useUiLocale } from "@/lib/ui-locale";
 
 import { ButtonLink, cn, ui } from "./ui";
+import { PresentationCommentsWorkspace } from "./presentation-comments-workspace";
 
 type Workflow = NonNullable<PresentationWorkflow>;
 
@@ -77,6 +78,11 @@ export function PresentationWorkflowLayout({
             >
               <Icon size={16} aria-hidden="true" />
               {msg(step.labelKey)}
+              {step.id === "overview" && workflow.unresolvedCommentCount > 0 ? (
+                <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] text-amber-800">
+                  {workflow.unresolvedCommentCount}
+                </span>
+              ) : null}
             </Link>
           );
         })}
@@ -207,6 +213,8 @@ export function PresentationOverview({ workflow }: { workflow: Workflow }): Reac
           </ButtonLink>
         </div>
       </section>
+
+      <PresentationCommentsWorkspace presentationId={workflow.id} slides={workflow.slideTitles} />
     </div>
   );
 }
