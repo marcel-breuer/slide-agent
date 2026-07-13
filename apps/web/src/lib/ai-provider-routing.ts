@@ -50,6 +50,7 @@ export type AiEditRoutingRequest = {
 export type AiEditRoutingResult = {
   decision: RoutingDecision;
   mode: AiProviderMode;
+  provider: AiProvider | undefined;
   usage: UsageEstimate;
 };
 
@@ -128,20 +129,37 @@ export async function resolveAiEditRouting(
         [mockPolicy],
       ),
       mode: "mock",
+      provider: undefined,
       usage,
     };
   }
 
-  const providers = createDefaultProviders();
-  const providerById = new Map(providers.map((provider) => [provider.id, provider]));
+  const providerIds = createDefaultProviders().map((provider) => provider.id);
+  const enabledCredentials = input.credentials.filter(
+    (credential) => credential.enabled && providerIds.includes(credential.provider),
+  );
   const enabledConfigurations = new Map(
     input.configurations
       .filter((configuration) => configuration.enabled)
       .map((configuration) => [configuration.provider, configuration]),
   );
-  const enabledCredentials = input.credentials.filter(
-    (credential) => credential.enabled && providerById.has(credential.provider),
+  const providerCredentials = Object.fromEntries(
+    enabledCredentials.map((credential) => {
+      const configuration = enabledConfigurations.get(credential.provider);
+      return [
+        credential.provider,
+        {
+          apiKey: decryptCredential(toEncryptedCredential(credential), input.encryptionKey),
+          ...(configuration?.baseUrl ? { baseUrl: configuration.baseUrl } : {}),
+        },
+      ];
+    }),
   );
+  const providers = createDefaultProviders(providerCredentials, {
+    maxRetries: positiveIntegerFromEnv(process.env.AI_PROVIDER_MAX_RETRIES, 2),
+    timeoutMs: positiveIntegerFromEnv(process.env.AI_PROVIDER_TIMEOUT_MS, 30_000),
+  });
+  const providerById = new Map(providers.map((provider) => [provider.id, provider]));
 
   if (enabledCredentials.length === 0) {
     throw new AiRoutingConfigurationError(
@@ -156,11 +174,9 @@ export async function resolveAiEditRouting(
     const provider = providerById.get(credential.provider);
     if (!provider) continue;
 
-    const configuration = enabledConfigurations.get(credential.provider);
-    const apiKey = decryptCredential(toEncryptedCredential(credential), input.encryptionKey);
+    const providerCredential = providerCredentials[credential.provider];
     const validation = await provider.validateCredential({
-      apiKey,
-      ...(configuration?.baseUrl ? { baseUrl: configuration.baseUrl } : {}),
+      ...providerCredential,
     });
 
     if (!validation.valid) {
@@ -203,28 +219,30 @@ export async function resolveAiEditRouting(
     configuredProviders.map((provider) => [provider, "healthy" as const]),
   );
 
+  const decision = routeModel(
+    {
+      taskType: "SLIDE_REVISION",
+      userId: input.userId,
+      presentationId: input.presentationId,
+      requestedQuality: input.requestedQuality ?? "standard",
+      estimatedContextSize: usage.inputTokens,
+      requiresStructuredOutput: true,
+      requiresVision: false,
+      requiresImageGeneration: false,
+      configuredProviders,
+      remainingBudget: input.remainingBudget,
+      remainingTokens: input.remainingTokens,
+      providerHealth,
+      retryAttempt: 0,
+      localOnly: input.localOnly ?? false,
+      estimates,
+    },
+    policies,
+  );
   return {
-    decision: routeModel(
-      {
-        taskType: "SLIDE_REVISION",
-        userId: input.userId,
-        presentationId: input.presentationId,
-        requestedQuality: input.requestedQuality ?? "standard",
-        estimatedContextSize: usage.inputTokens,
-        requiresStructuredOutput: true,
-        requiresVision: false,
-        requiresImageGeneration: false,
-        configuredProviders,
-        remainingBudget: input.remainingBudget,
-        remainingTokens: input.remainingTokens,
-        providerHealth,
-        retryAttempt: 0,
-        localOnly: input.localOnly ?? false,
-        estimates,
-      },
-      policies,
-    ),
+    decision,
     mode: "configured",
+    provider: providerById.get(decision.provider),
     usage,
   };
 }
@@ -319,6 +337,11 @@ function estimateUsageFromPrompt(prompt: string, maxOutputTokens: number): Usage
 function maxOutputTokensFromEnv(value: string | undefined): number {
   const parsed = Number(value ?? 800);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 800;
+}
+
+function positiveIntegerFromEnv(value: string | undefined, fallback: number): number {
+  const parsed = Number(value ?? fallback);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
 function envCurrency(value: string | undefined): Currency {

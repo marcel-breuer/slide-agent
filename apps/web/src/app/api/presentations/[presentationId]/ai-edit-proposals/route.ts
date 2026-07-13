@@ -1,10 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
+import type { AiProvider, TextGenerationRequest } from "@slide-agent/ai-core";
+import { ProviderExecutionError } from "@slide-agent/ai-providers";
 import { createPointerDrivenEditProposal } from "@slide-agent/editor-core";
 import { ensureDemoPresentation, findPresentationDocument, prisma } from "@slide-agent/database";
 import {
   DEMO_PRESENTATION_ID,
+  ColorSchema,
   LOGICAL_SLIDE_HEIGHT,
   LOGICAL_SLIDE_WIDTH,
   PresentationDocumentSchema,
@@ -41,6 +44,31 @@ const AiEditProposalRequestSchema = z.object({
   prompt: z.string().trim().min(1).max(4000),
   selectedElementId: z.string().min(1).optional(),
   slideId: z.string().min(1),
+});
+
+const GeneratedCommandSchema = z.discriminatedUnion("type", [
+  z.object({
+    color: ColorSchema,
+    slideId: z.string().min(1),
+    type: z.literal("UPDATE_SLIDE_BACKGROUND"),
+  }),
+  z.object({
+    elementId: z.string().min(1),
+    fill: ColorSchema,
+    slideId: z.string().min(1),
+    type: z.literal("UPDATE_SHAPE_FILL"),
+  }),
+  z.object({
+    slideId: z.string().min(1),
+    title: z.string().trim().min(1).max(120),
+    type: z.literal("RENAME_SLIDE"),
+  }),
+]);
+
+const GeneratedProposalSchema = z.object({
+  command: GeneratedCommandSchema,
+  summary: z.string().trim().min(1).max(500),
+  title: z.string().trim().min(1).max(120),
 });
 
 export async function POST(request: Request, context: RouteContext) {
@@ -111,28 +139,47 @@ export async function POST(request: Request, context: RouteContext) {
       userId,
     });
     const operationId = randomUUID();
-    const proposalInput = {
-      document: parsed.data.document,
-      model: routing.decision.model,
-      operationId,
-      pointers: parsed.data.pointers.map((pointer) => ({
-        id: pointer.id,
-        instruction: pointer.instruction,
-        label: pointer.label,
-        slideId: pointer.slideId,
-        ...(pointer.targetElementId ? { targetElementId: pointer.targetElementId } : {}),
-        x: pointer.x,
-        y: pointer.y,
-      })),
-      prompt: parsed.data.prompt,
-      provider: routing.decision.provider,
-      slideId: parsed.data.slideId,
-      usage: routing.usage,
-      ...(parsed.data.selectedElementId
-        ? { selectedElementId: parsed.data.selectedElementId }
-        : {}),
-    };
-    const proposal = createPointerDrivenEditProposal(proposalInput);
+    const providerResult =
+      routing.mode === "configured"
+        ? await generateProviderProposal(
+            routing.provider,
+            routing.decision.model,
+            parsed.data,
+            request.signal,
+          )
+        : null;
+    const proposal = providerResult
+      ? createProviderProposal({
+          generated: providerResult.value,
+          operationId,
+          presentation: parsed.data.document,
+          model: routing.decision.model,
+          provider: routing.decision.provider,
+          slideId: parsed.data.slideId,
+          usage: providerResult.usage,
+          pointers: parsed.data.pointers,
+        })
+      : createPointerDrivenEditProposal({
+          document: parsed.data.document,
+          model: routing.decision.model,
+          operationId,
+          pointers: parsed.data.pointers.map((pointer) => ({
+            id: pointer.id,
+            instruction: pointer.instruction,
+            label: pointer.label,
+            slideId: pointer.slideId,
+            ...(pointer.targetElementId ? { targetElementId: pointer.targetElementId } : {}),
+            x: pointer.x,
+            y: pointer.y,
+          })),
+          prompt: parsed.data.prompt,
+          provider: routing.decision.provider,
+          slideId: parsed.data.slideId,
+          usage: routing.usage,
+          ...(parsed.data.selectedElementId
+            ? { selectedElementId: parsed.data.selectedElementId }
+            : {}),
+        });
 
     await prisma.aiOperation.create({
       data: {
@@ -159,6 +206,10 @@ export async function POST(request: Request, context: RouteContext) {
       return fail(error.code, error.message, error.status);
     }
 
+    if (error instanceof ProviderExecutionError) {
+      return fail(...providerErrorResponse(error));
+    }
+
     if (error instanceof Error && error.message.includes("budget constraints")) {
       return fail(
         "BUDGET_LIMIT_REACHED",
@@ -172,6 +223,110 @@ export async function POST(request: Request, context: RouteContext) {
       error instanceof Error ? error.message : "AI edit proposal could not be created.",
       400,
     );
+  }
+}
+
+async function generateProviderProposal(
+  provider: AiProvider | undefined,
+  model: string,
+  input: z.infer<typeof AiEditProposalRequestSchema>,
+  signal: NonNullable<TextGenerationRequest["signal"]>,
+) {
+  if (!provider) {
+    throw new ProviderExecutionError("PROVIDER_UNAVAILABLE", "No configured provider is available.");
+  }
+
+  return provider.generateStructured({
+    maxOutputTokens: maxOutputTokensFromEnv(process.env.AI_MAX_OUTPUT_TOKENS),
+    model,
+    prompt: buildProviderPrompt(input),
+    schema: GeneratedProposalSchema,
+    signal,
+  });
+}
+
+function createProviderProposal(input: {
+  generated: z.infer<typeof GeneratedProposalSchema>;
+  model: string;
+  operationId: string;
+  presentation: z.infer<typeof PresentationDocumentSchema>;
+  provider: string;
+  slideId: string;
+  usage: { inputTokens: number; outputTokens: number; imageGenerations: number };
+  pointers: readonly z.infer<typeof SlidePointerRequestSchema>[];
+}) {
+  const slide = input.presentation.slides.find((candidate) => candidate.id === input.slideId);
+  if (!slide || input.generated.command.slideId !== input.slideId) {
+    throw new ProviderExecutionError(
+      "INVALID_REQUEST",
+      "The provider returned a command outside the requested slide.",
+    );
+  }
+
+  const command = input.generated.command;
+  if (command.type === "UPDATE_SHAPE_FILL") {
+    const element = slide.elements.find((candidate) => candidate.id === command.elementId);
+    if (!element || element.type !== "shape" || element.locked) {
+      throw new ProviderExecutionError(
+        "INVALID_REQUEST",
+        "The provider returned a command for an invalid or locked element.",
+      );
+    }
+  }
+
+  return {
+    id: input.operationId,
+    title: input.generated.title,
+    summary: input.generated.summary,
+    slideId: input.slideId,
+    pointerIds: input.pointers.filter((pointer) => pointer.slideId === input.slideId).map((pointer) => pointer.id),
+    commands: [
+      {
+        command: input.generated.command,
+        description: input.generated.summary,
+      },
+    ],
+    metadata: {
+      operationId: input.operationId,
+      promptVersion: "provider-edit-v1",
+      generatedAt: new Date().toISOString(),
+      provider: input.provider,
+      model: input.model,
+      usage: input.usage,
+    },
+  };
+}
+
+function buildProviderPrompt(input: z.infer<typeof AiEditProposalRequestSchema>): string {
+  return [
+    buildRoutingPrompt(input),
+    "Return one safe, schema-valid edit proposal as JSON with title, summary, and command.",
+    "Allowed command types are UPDATE_SLIDE_BACKGROUND, UPDATE_SHAPE_FILL, and RENAME_SLIDE.",
+    "The command must target the requested slide. Never invent element ids, change locked elements, execute code, or return markdown.",
+  ].join("\n\n");
+}
+
+function maxOutputTokensFromEnv(value: string | undefined): number {
+  const parsed = Number(value ?? 800);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 800;
+}
+
+function providerErrorResponse(error: ProviderExecutionError): [string, string, number] {
+  switch (error.category) {
+    case "AUTHENTICATION_FAILED":
+      return ["AI_PROVIDER_AUTHENTICATION_FAILED", "The configured AI provider rejected its credential.", 502];
+    case "RATE_LIMITED":
+      return ["AI_PROVIDER_RATE_LIMITED", "The AI provider is rate-limiting requests. Please try again later.", 429];
+    case "TIMEOUT":
+      return ["AI_PROVIDER_TIMEOUT", "The AI provider did not respond within the configured timeout.", 504];
+    case "CANCELLED":
+      return ["AI_REQUEST_CANCELLED", "The AI provider request was cancelled.", 499];
+    case "INVALID_REQUEST":
+      return ["AI_PROVIDER_RESPONSE_INVALID", "The AI provider returned an invalid structured response.", 502];
+    case "MODEL_UNAVAILABLE":
+      return ["AI_PROVIDER_MODEL_UNAVAILABLE", "The selected AI model is currently unavailable.", 503];
+    default:
+      return ["AI_PROVIDER_UNAVAILABLE", "The configured AI provider is currently unavailable.", 503];
   }
 }
 
