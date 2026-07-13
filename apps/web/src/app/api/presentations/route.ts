@@ -9,7 +9,8 @@ import {
   validatePresentation,
 } from "@slide-agent/presentation-schema";
 
-import { PresentationInputSchema, fail, ok } from "@/lib/api";
+import { ReusableAssetDefinitionSchema, PresentationInputSchema, fail, ok } from "@/lib/api";
+import type { ReusableAssetDefinition } from "@/lib/reusable-assets";
 import { getAuthenticatedUserId } from "@/lib/server-session";
 
 export async function GET(request: Request) {
@@ -88,6 +89,29 @@ export async function POST(request: Request) {
     return fail("DESIGN_PROFILE_NOT_FOUND", "Design profile was not found.", 404);
   }
 
+  const reusableAsset = parsed.data.reusableAssetId
+    ? await prisma.reusableAsset.findFirst({
+        where: { id: parsed.data.reusableAssetId, ownerId: userId, archivedAt: null },
+        select: {
+          id: true,
+          name: true,
+          kind: true,
+          versions: {
+            orderBy: { version: "desc" },
+            select: { definition: true, version: true },
+            take: 1,
+          },
+        },
+      })
+    : null;
+  if (parsed.data.reusableAssetId && !reusableAsset) {
+    return fail("REUSABLE_ASSET_NOT_FOUND", "Template was not found.", 404);
+  }
+
+  const reusableAssetDefinition = reusableAsset?.versions[0]
+    ? ReusableAssetDefinitionSchema.parse(reusableAsset.versions[0].definition)
+    : undefined;
+
   const settings = await prisma.userSettings.upsert({
     where: { userId },
     update: {},
@@ -104,6 +128,7 @@ export async function POST(request: Request) {
     presentationId: randomUUID(),
     slideCount: requestedSlideCount,
     title: parsed.data.title,
+    ...(reusableAssetDefinition ? { reusableAssetDefinition } : {}),
   });
 
   const presentation = await prisma.presentation.create({
@@ -112,6 +137,7 @@ export async function POST(request: Request) {
       ownerId: userId,
       projectId: project.id,
       designProfileId: designProfile?.id ?? null,
+      reusableAssetId: reusableAsset?.id ?? null,
       title: document.title,
       status: "EDITING",
       requestedSlideCount,
@@ -133,6 +159,14 @@ export async function POST(request: Request) {
               name: designProfile.name,
               profile: designProfile.versions[0]?.profile ?? null,
               version: designProfile.versions[0]?.version ?? null,
+            }
+          : null,
+        reusableAsset: reusableAsset
+          ? {
+              id: reusableAsset.id,
+              kind: reusableAsset.kind,
+              name: reusableAsset.name,
+              version: reusableAsset.versions[0]?.version ?? null,
             }
           : null,
         theme: document.theme,
@@ -189,18 +223,31 @@ function createPresentationDocument({
   locale,
   ownerId,
   presentationId,
+  reusableAssetDefinition,
   slideCount,
   title,
 }: {
   locale: string;
   ownerId: string;
   presentationId: string;
+  reusableAssetDefinition?: ReusableAssetDefinition;
   slideCount: number;
   title: string;
 }) {
   const now = new Date().toISOString();
   const base = createDemoPresentationDocument({ ownerId, now });
-  const templateSlide = base.slides[0];
+  const templateSlides = reusableAssetDefinition?.slides.length
+    ? reusableAssetDefinition.slides
+    : base.slides;
+  const profileColors = Object.fromEntries(
+    reusableAssetDefinition?.profile.colors.map((color) => [color.role, color.hex]) ?? [],
+  );
+  const headingFont = reusableAssetDefinition?.profile.fonts.find((font) =>
+    font.role.toLowerCase().includes("heading"),
+  )?.family;
+  const bodyFont = reusableAssetDefinition?.profile.fonts.find((font) =>
+    font.role.toLowerCase().includes("body"),
+  )?.family;
 
   return validatePresentation({
     ...base,
@@ -213,8 +260,17 @@ function createPresentationDocument({
       updatedAt: now,
       ownerId,
     },
+    theme: {
+      colors: { ...base.theme.colors, ...profileColors },
+      fonts: {
+        body: bodyFont ?? base.theme.fonts.body,
+        heading: headingFont ?? base.theme.fonts.heading,
+      },
+    },
     slides: Array.from({ length: slideCount }, (_value, index) => {
-      const slide = structuredClone(templateSlide);
+      const slide = structuredClone(
+        templateSlides[index % templateSlides.length] ?? base.slides[0],
+      );
       return {
         ...slide,
         id: randomUUID(),

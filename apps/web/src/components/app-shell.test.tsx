@@ -44,6 +44,9 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: "Design profiles" }).getAttribute("href")).toBe(
       "/app/design-profiles",
     );
+    expect(screen.getByRole("link", { name: "Templates & kits" }).getAttribute("href")).toBe(
+      "/app/templates",
+    );
     expect(screen.getByRole("link", { name: "AI providers" }).className).toContain("active");
     expect(screen.getByText("Page content")).toBeTruthy();
   });

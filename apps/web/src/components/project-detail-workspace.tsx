@@ -41,6 +41,18 @@ type SettingsApiResponse =
   | { ok: true; data: { defaultSlideCount: number } }
   | { ok: false; error: { code: string; message: string } };
 
+type ReusableAssetOption = {
+  id: string;
+  name: string;
+  kind: "TEMPLATE" | "BRAND_KIT";
+  archivedAt: string | null;
+  activeVersion: { version: number; compatibilityWarnings: string[] } | null;
+};
+
+type ReusableAssetsApiResponse =
+  | { ok: true; data: ReusableAssetOption[] }
+  | { ok: false; error: { code: string; message: string } };
+
 export function ProjectDetailWorkspace({ projectId }: { projectId: string }): ReactElement {
   const [createTitle, setCreateTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -50,6 +62,8 @@ export function ProjectDetailWorkspace({ projectId }: { projectId: string }): Re
   const [name, setName] = useState("");
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [requestedSlideCount, setRequestedSlideCount] = useState(10);
+  const [reusableAssetId, setReusableAssetId] = useState("");
+  const [reusableAssets, setReusableAssets] = useState<ReusableAssetOption[]>([]);
 
   async function loadProject(): Promise<void> {
     setIsLoading(true);
@@ -67,11 +81,16 @@ export function ProjectDetailWorkspace({ projectId }: { projectId: string }): Re
       setName(payload.data.name);
       setDescription(payload.data.description ?? "");
 
-      const settingsResponse = await fetch("/api/settings");
+      const [settingsResponse, assetsResponse] = await Promise.all([
+        fetch("/api/settings"),
+        fetch("/api/templates"),
+      ]);
       const settingsPayload = (await settingsResponse.json()) as SettingsApiResponse;
       if (settingsResponse.ok && settingsPayload.ok) {
         setRequestedSlideCount(settingsPayload.data.defaultSlideCount);
       }
+      const assetsPayload = (await assetsResponse.json()) as ReusableAssetsApiResponse;
+      if (assetsResponse.ok && assetsPayload.ok) setReusableAssets(assetsPayload.data);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Project could not be loaded.");
     } finally {
@@ -135,6 +154,7 @@ export function ProjectDetailWorkspace({ projectId }: { projectId: string }): Re
         body: JSON.stringify({
           projectId: project.id,
           requestedSlideCount,
+          ...(reusableAssetId ? { reusableAssetId } : {}),
           title: createTitle,
         }),
         headers: { "Content-Type": "application/json" },
@@ -213,6 +233,7 @@ export function ProjectDetailWorkspace({ projectId }: { projectId: string }): Re
     () => project?.presentations.filter((presentation) => presentation.archivedAt) ?? [],
     [project],
   );
+  const selectedReusableAsset = reusableAssets.find((asset) => asset.id === reusableAssetId);
 
   if (isLoading) {
     return (
@@ -310,6 +331,29 @@ export function ProjectDetailWorkspace({ projectId }: { projectId: string }): Re
                 value={requestedSlideCount}
                 onChange={(event) => setRequestedSlideCount(Number(event.target.value))}
               />
+            </div>
+            <div className={ui.field}>
+              <label htmlFor="reusable-asset">Reusable asset</label>
+              <select
+                className={ui.input}
+                id="reusable-asset"
+                value={reusableAssetId}
+                onChange={(event) => setReusableAssetId(event.target.value)}
+              >
+                <option value="">No reusable asset</option>
+                {reusableAssets.map((asset) => (
+                  <option key={asset.id} value={asset.id}>
+                    {asset.kind === "BRAND_KIT" ? "Brand kit" : "Template"}: {asset.name} (v
+                    {asset.activeVersion?.version ?? 0})
+                  </option>
+                ))}
+              </select>
+              {selectedReusableAsset?.activeVersion?.compatibilityWarnings.length ? (
+                <span className="text-xs font-bold normal-case text-amber-700">
+                  Compatibility:{" "}
+                  {selectedReusableAsset.activeVersion.compatibilityWarnings.join(" ")}
+                </span>
+              ) : null}
             </div>
             <Button type="submit" variant="primary" disabled={isCreating}>
               {isCreating ? (
