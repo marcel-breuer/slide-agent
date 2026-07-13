@@ -35,6 +35,7 @@ export const ProviderErrorCategorySchema = z.enum([
   "TIMEOUT",
   "PROVIDER_UNAVAILABLE",
   "NETWORK_ERROR",
+  "CANCELLED",
   "UNKNOWN",
 ]);
 export type ProviderErrorCategory = z.infer<typeof ProviderErrorCategorySchema>;
@@ -77,6 +78,8 @@ export type TextGenerationRequest = {
   model: string;
   prompt: string;
   maxOutputTokens: number;
+  signal?: AbortSignal;
+  timeoutMs?: number;
 };
 
 export type TextGenerationResult = {

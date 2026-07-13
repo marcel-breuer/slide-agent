@@ -1,6 +1,7 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import type { Mock } from "vitest";
 
+import { encryptCredential } from "@slide-agent/auth";
 import { findPresentationDocument, ensureDemoPresentation, prisma } from "@slide-agent/database";
 import { createDemoPresentationDocument } from "@slide-agent/presentation-schema";
 
@@ -53,6 +54,10 @@ describe("AI edit proposals API", () => {
     mockedProviderCredentialFindMany.mockResolvedValue([]);
     mockedProviderConfigurationFindMany.mockResolvedValue([]);
     mockedAiOperationCreate.mockResolvedValue({});
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("requires an authenticated session", async () => {
@@ -158,6 +163,85 @@ describe("AI edit proposals API", () => {
     expect(payload.error.code).toBe("AI_PROVIDER_NOT_CONFIGURED");
     expect(payload.error.message).toContain("Configure at least one AI provider");
     expect(mockedAiOperationCreate).not.toHaveBeenCalled();
+  });
+
+  it("executes configured provider output and records provider usage", async () => {
+    process.env.AI_PROVIDER_MODE = "configured";
+    process.env.CREDENTIAL_ENCRYPTION_KEY = "local-dev-encryption-key";
+    const document = createDemoPresentationDocument({ now: "2026-07-02T12:00:00.000Z" });
+    mockedFindPresentationDocument.mockResolvedValue(document);
+    const encrypted = encryptCredential("sk-test-provider-key", "local-dev-encryption-key");
+    mockedProviderCredentialFindMany.mockResolvedValue([
+      {
+        authTag: encrypted.authTag,
+        ciphertext: encrypted.ciphertext,
+        enabled: true,
+        keyVersion: encrypted.keyVersion,
+        maskedValue: encrypted.metadata.maskedValue,
+        nonce: encrypted.nonce,
+        provider: "openai",
+      },
+    ]);
+    mockedProviderConfigurationFindMany.mockResolvedValue([
+      { baseUrl: "https://provider.test/v1", defaultModel: "gpt-4.1", enabled: true, provider: "openai" },
+    ]);
+    const fetchMock = vi.fn<typeof fetch>(async (_input, init) => {
+      const body = JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> };
+      expect(body.messages[0]?.content).toContain("SLIDE_REVISION");
+      expect(JSON.stringify(body)).not.toContain("sk-test-provider-key");
+      return new Response(
+        JSON.stringify({
+          choices: [
+            {
+              finish_reason: "stop",
+              message: {
+                content: JSON.stringify({
+                  command: { color: "#f8fafc", slideId: "slide-1", type: "UPDATE_SLIDE_BACKGROUND" },
+                  summary: "Use a calmer background.",
+                  title: "Calmer background",
+                }),
+              },
+            },
+          ],
+          usage: { completion_tokens: 6, prompt_tokens: 11 },
+        }),
+        { headers: { "Content-Type": "application/json" } },
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(
+      new Request("http://test.local", {
+        body: JSON.stringify({
+          document,
+          pointers: [],
+          prompt: "Use a calmer background.",
+          slideId: "slide-1",
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      }),
+      { params: Promise.resolve({ presentationId: "demo-presentation" }) },
+    );
+    const payload = (await response.json()) as {
+      data: {
+        commands: Array<{ command: { type: string } }>;
+        metadata: { model: string; provider: string; usage: { inputTokens: number; outputTokens: number } };
+      };
+    };
+
+    expect(response.status).toBe(200);
+    expect(payload.data.commands[0]?.command.type).toBe("UPDATE_SLIDE_BACKGROUND");
+    expect(payload.data.metadata).toMatchObject({
+      model: "gpt-4.1",
+      provider: "openai",
+      usage: { inputTokens: 11, outputTokens: 6 },
+    });
+    expect(mockedAiOperationCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ inputTokens: 11, outputTokens: 6, provider: "openai" }),
+      }),
+    );
   });
 
   it("blocks edit proposals when the current user has reached a hard budget stop", async () => {
