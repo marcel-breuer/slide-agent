@@ -21,6 +21,7 @@ export default [
         project: false,
       },
       globals: {
+        AbortSignal: "readonly",
         Buffer: "readonly",
         console: "readonly",
         crypto: "readonly",

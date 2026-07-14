@@ -379,7 +379,7 @@ export function createLayoutSuggestions(input: LayoutSuggestionInput): LayoutSug
       preservedElementIds,
       compatibility,
       overflowRisk,
-      (index, element) => ({
+      (index, _element) => ({
         height: 145,
         width: 270,
         x: 60 + (index % 3) * 305,
