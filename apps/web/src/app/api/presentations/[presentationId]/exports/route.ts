@@ -3,7 +3,6 @@ import { DEMO_PRESENTATION_ID } from "@slide-agent/presentation-schema";
 import { z } from "zod";
 
 import { fail, ok } from "../../../../../lib/api";
-import { assertBillingQuota, BillingQuotaError, billingQuotaErrorDetails } from "../../../../../lib/billing";
 import {
   createPptxExport,
   DEFAULT_PRESENTATION_EXPORT_SETTINGS,
@@ -50,13 +49,6 @@ export async function POST(request: Request, context: RouteContext) {
 
   const access = await getPresentationAccess(presentationId, userId);
   if (!canAccess(access, "edit")) return fail("FORBIDDEN", "You cannot export this presentation.", 403);
-
-  try {
-    await assertBillingQuota(userId, "exports");
-  } catch (error) {
-    if (error instanceof BillingQuotaError) return fail(...billingQuotaErrorDetails(error));
-    throw error;
-  }
 
   try {
     const exportSummary = await createPptxExport({

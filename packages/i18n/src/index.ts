@@ -5,6 +5,9 @@ export type SupportedLocale = z.infer<typeof SupportedLocaleSchema>;
 
 const messages = {
   en: {
+    accountSettings: "Profile & security",
+    accountSettingsDescription:
+      "Manage your account details, password, active sessions, and account data in one place.",
     accountDataExport: "Account data export",
     accountDeleted: "Account deleted.",
     accountExportReady: "Account export is ready.",
@@ -15,12 +18,7 @@ const messages = {
     appName: "Slide Agent",
     appShellSubtitle: "Create, import, manage, and export decks.",
     appShellWorkspaceLabel: "Demo workspace",
-    billing: "Billing",
-    billingDescription: "Subscription status, plan entitlements, and usage limits.",
     briefing: "Briefing",
-    budgetControls: "Budget controls",
-    budgetControlsDescription:
-      "Monthly spend and token controls for protected generation workflows.",
     changePassword: "Change password",
     confirmEmail: "Confirm email",
     confirmationRequired: "Confirmation required",
@@ -39,22 +37,16 @@ const messages = {
     exportData: "Export data",
     exportSettingsDescription: "Generate a downloadable .pptx from the current deck.",
     language: "Language",
-    loadingBudgetSettings: "Loading budget settings...",
-    loadingBilling: "Loading billing...",
     loadingProviders: "Loading providers...",
     loadingProfile: "Loading profile...",
     loadingSecuritySettings: "Loading security settings...",
     loadingSettings: "Loading settings...",
     navAdmin: "Admin",
     navAiProviders: "AI providers",
-    navBudget: "Budget",
-    navBilling: "Billing",
-    navDesignProfiles: "Design profiles",
+    navAccount: "Profile & security",
     navLanguage: "Language",
     navPresentationDefaults: "Presentation defaults",
-    navProfile: "Profile",
     navProjects: "Projects",
-    navSecurity: "Security",
     navTeams: "Teams",
     navTemplates: "Templates & kits",
     navSettings: "Settings",
@@ -69,7 +61,6 @@ const messages = {
     presentation: "Presentation",
     presentationDefaults: "Presentation defaults",
     presentationLanguage: "Presentation language",
-    preferredCurrency: "Preferred currency",
     providers: "AI providers",
     profileSaved: "Profile saved.",
     profileSettings: "Profile settings",
@@ -95,6 +86,9 @@ const messages = {
     workspace: "Workspace",
   },
   de: {
+    accountSettings: "Profil & Sicherheit",
+    accountSettingsDescription:
+      "Verwalte Kontodaten, Passwort, aktive Sitzungen und Kontodaten an einem Ort.",
     accountDataExport: "Kontodaten-Export",
     accountDeleted: "Konto gelöscht.",
     accountExportReady: "Kontodaten-Export ist bereit.",
@@ -105,12 +99,7 @@ const messages = {
     appName: "Slide Agent",
     appShellSubtitle: "Decks erstellen, importieren, verwalten und exportieren.",
     appShellWorkspaceLabel: "Demo-Arbeitsbereich",
-    billing: "Abrechnung",
-    billingDescription: "Abostatus, Plan-Berechtigungen und Nutzungslimits.",
     briefing: "Briefing",
-    budgetControls: "Budgetsteuerung",
-    budgetControlsDescription:
-      "Monatliche Kosten- und Token-Kontrollen für geschützte Generierungsabläufe.",
     changePassword: "Passwort ändern",
     confirmEmail: "E-Mail bestätigen",
     confirmationRequired: "Bestätigung erforderlich",
@@ -129,22 +118,16 @@ const messages = {
     exportData: "Daten exportieren",
     exportSettingsDescription: "Erzeugt eine herunterladbare .pptx aus dem aktuellen Deck.",
     language: "Sprache",
-    loadingBudgetSettings: "Budgeteinstellungen werden geladen...",
-    loadingBilling: "Abrechnung wird geladen...",
     loadingProviders: "Anbieter werden geladen...",
     loadingProfile: "Profil wird geladen...",
     loadingSecuritySettings: "Sicherheitseinstellungen werden geladen...",
     loadingSettings: "Einstellungen werden geladen...",
     navAdmin: "Administration",
     navAiProviders: "KI-Anbieter",
-    navBudget: "Budget",
-    navBilling: "Abrechnung",
-    navDesignProfiles: "Designprofile",
+    navAccount: "Profil & Sicherheit",
     navLanguage: "Sprache",
     navPresentationDefaults: "Präsentationsstandards",
-    navProfile: "Profil",
     navProjects: "Projekte",
-    navSecurity: "Sicherheit",
     navTeams: "Teams",
     navTemplates: "Vorlagen & Kits",
     navSettings: "Einstellungen",
@@ -159,7 +142,6 @@ const messages = {
     presentation: "Präsentation",
     presentationDefaults: "Präsentationsstandards",
     presentationLanguage: "Präsentationssprache",
-    preferredCurrency: "Bevorzugte Währung",
     providers: "KI-Anbieter",
     profileSaved: "Profil gespeichert.",
     profileSettings: "Profileinstellungen",
@@ -190,17 +172,6 @@ export type MessageKey = keyof typeof messages.en;
 
 export function t(locale: SupportedLocale, key: MessageKey): string {
   return messages[locale]?.[key] ?? messages.en[key] ?? key;
-}
-
-export function formatCurrency(
-  value: number,
-  currency: "EUR" | "USD",
-  locale: SupportedLocale,
-): string {
-  return new Intl.NumberFormat(locale === "de" ? "de-DE" : "en-US", {
-    style: "currency",
-    currency,
-  }).format(value);
 }
 
 export function getMessages(locale: SupportedLocale): Record<MessageKey, string> {

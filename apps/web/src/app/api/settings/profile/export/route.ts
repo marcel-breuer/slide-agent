@@ -63,7 +63,7 @@ export async function GET() {
 
   if (!user) return fail("UNAUTHORIZED", "A valid session is required.", 401);
 
-  const [auditLogs, aiOperations, usageLedgerEntries] = await Promise.all([
+  const [auditLogs, aiOperations] = await Promise.all([
     prisma.auditLog.findMany({
       orderBy: { createdAt: "desc" },
       select: {
@@ -87,19 +87,6 @@ export async function GET() {
         provider: true,
         status: true,
         taskType: true,
-      },
-      take: 100,
-      where: { ownerId: session.userId },
-    }),
-    prisma.usageLedgerEntry.findMany({
-      orderBy: { createdAt: "desc" },
-      select: {
-        amount: true,
-        createdAt: true,
-        currency: true,
-        id: true,
-        kind: true,
-        tokens: true,
       },
       take: 100,
       where: { ownerId: session.userId },
@@ -137,19 +124,7 @@ export async function GET() {
       })),
       updatedAt: project.updatedAt.toISOString(),
     })),
-    settings: user.settings
-      ? {
-          ...user.settings,
-          monthlyMoneyBudget: user.settings.monthlyMoneyBudget
-            ? Number(user.settings.monthlyMoneyBudget)
-            : null,
-        }
-      : null,
-    usageLedgerEntries: usageLedgerEntries.map((entry) => ({
-      ...entry,
-      amount: Number(entry.amount),
-      createdAt: entry.createdAt.toISOString(),
-    })),
+    settings: user.settings,
     user: {
       createdAt: user.createdAt.toISOString(),
       displayName: user.displayName,

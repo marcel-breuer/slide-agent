@@ -1,10 +1,5 @@
-import { AppShell } from "@/components/app-shell";
-import { DesignProfileWorkspace } from "@/components/design-profile-workspace";
+import { redirect } from "next/navigation";
 
 export default function DesignProfilesPage() {
-  return (
-    <AppShell>
-      <DesignProfileWorkspace />
-    </AppShell>
-  );
+  redirect("/app/projects");
 }

@@ -122,15 +122,10 @@ function createSettingsRecord(overrides = {}) {
     defaultSlideCount: 10,
     defaultSpeakerNotes: "talking-points",
     defaultTone: "professional",
-    hardStopEnabled: true,
-    monthlyMoneyBudget: null,
-    monthlyTokenBudget: null,
     personalMaxSlideCount: 50,
-    preferredCurrency: "EUR",
     presentationLocale: "en",
     timeZone: "Europe/Berlin",
     uiLocale: "en",
-    warningThresholdPercentage: 80,
     ...overrides,
   };
 }

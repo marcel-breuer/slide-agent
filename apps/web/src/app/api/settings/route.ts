@@ -16,15 +16,10 @@ const PresentationSettingsSchema = z.object({
   defaultSlideCount: z.number().int().min(1).max(50).optional(),
   defaultSpeakerNotes: z.enum(["none", "talking-points", "full"]).optional(),
   defaultTone: z.enum(["professional", "executive", "persuasive", "technical"]).optional(),
-  hardStopEnabled: z.boolean().optional(),
-  monthlyMoneyBudget: z.number().finite().min(0).max(1_000_000).nullable().optional(),
-  monthlyTokenBudget: z.number().int().min(0).max(1_000_000_000).nullable().optional(),
   personalMaxSlideCount: z.number().int().min(1).max(50).optional(),
-  preferredCurrency: z.enum(["EUR", "USD"]).optional(),
   presentationLocale: LocaleSchema.optional(),
   timeZone: z.string().trim().min(1).max(80).optional(),
   uiLocale: LocaleSchema.optional(),
-  warningThresholdPercentage: z.number().int().min(1).max(100).optional(),
 });
 type PresentationSettingsInput = z.infer<typeof PresentationSettingsSchema>;
 
@@ -98,23 +93,13 @@ function toSettingsUpdateData(
   if (data.defaultSpeakerNotes !== undefined)
     updateData.defaultSpeakerNotes = data.defaultSpeakerNotes;
   if (data.defaultTone !== undefined) updateData.defaultTone = data.defaultTone;
-  if (data.hardStopEnabled !== undefined) updateData.hardStopEnabled = data.hardStopEnabled;
-  if (data.monthlyMoneyBudget !== undefined)
-    updateData.monthlyMoneyBudget = data.monthlyMoneyBudget;
-  if (data.monthlyTokenBudget !== undefined)
-    updateData.monthlyTokenBudget = data.monthlyTokenBudget;
   if (data.personalMaxSlideCount !== undefined) {
     updateData.personalMaxSlideCount = data.personalMaxSlideCount;
   }
-  if (data.preferredCurrency !== undefined) updateData.preferredCurrency = data.preferredCurrency;
   if (data.presentationLocale !== undefined)
     updateData.presentationLocale = data.presentationLocale;
   if (data.timeZone !== undefined) updateData.timeZone = data.timeZone;
   if (data.uiLocale !== undefined) updateData.uiLocale = data.uiLocale;
-  if (data.warningThresholdPercentage !== undefined) {
-    updateData.warningThresholdPercentage = data.warningThresholdPercentage;
-  }
-
   return updateData;
 }
 
@@ -131,12 +116,7 @@ function toSettingsResponse(settings: Awaited<ReturnType<typeof ensureUserSettin
     uiLocale: settings.uiLocale,
     presentationLocale: settings.presentationLocale,
     timeZone: settings.timeZone,
-    preferredCurrency: settings.preferredCurrency,
     personalMaxSlideCount: settings.personalMaxSlideCount,
-    monthlyMoneyBudget: settings.monthlyMoneyBudget ? Number(settings.monthlyMoneyBudget) : null,
-    monthlyTokenBudget: settings.monthlyTokenBudget,
-    warningThresholdPercentage: settings.warningThresholdPercentage,
-    hardStopEnabled: settings.hardStopEnabled,
     defaultSlideCount: settings.defaultSlideCount,
     defaultTone: settings.defaultTone,
     defaultAudience: settings.defaultAudience,

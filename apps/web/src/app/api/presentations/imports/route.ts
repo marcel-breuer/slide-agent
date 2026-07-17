@@ -9,7 +9,6 @@ import {
   PPTX_MIME_TYPE,
 } from "../../../../lib/presentation-imports";
 import { fail, ok } from "../../../../lib/api";
-import { assertBillingQuota, BillingQuotaError, billingQuotaErrorDetails } from "../../../../lib/billing";
 import { getAuthenticatedUserId } from "../../../../lib/server-session";
 
 const DEFAULT_MAX_UPLOAD_MB = 100;
@@ -48,8 +47,6 @@ export async function POST(request: Request) {
   if (!projectId) return fail("VALIDATION_FAILED", "A project id is required.", 400);
 
   try {
-    await assertBillingQuota(userId, "presentations");
-    await assertBillingQuota(userId, "storageBytes", file.size);
     const summary = await createPptxImport({
       bytes: new Uint8Array(await file.arrayBuffer()),
       client: prisma,
@@ -61,7 +58,6 @@ export async function POST(request: Request) {
 
     return ok(summary, 201);
   } catch (error) {
-    if (error instanceof BillingQuotaError) return fail(...billingQuotaErrorDetails(error));
     if (error instanceof PresentationImportProjectNotFoundError) {
       return fail("PROJECT_NOT_FOUND", "Project was not found.", 404);
     }

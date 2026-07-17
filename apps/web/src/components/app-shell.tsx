@@ -4,17 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Route } from "next";
 import {
-  BarChart3,
-  CreditCard,
   FileText,
   FolderKanban,
   KeyRound,
   LayoutTemplate,
   LogOut,
-  Palette,
-  Shield,
   SlidersHorizontal,
-  UserRound,
+  UserRoundCog,
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -27,33 +23,25 @@ import { cn } from "./ui";
 const workspaceLinks: NavigationItem[] = [
   { href: "/app/projects", labelKey: "navProjects", icon: FolderKanban },
   { href: "/app/teams" as Route, labelKey: "navTeams", icon: Users },
-  { href: "/app/design-profiles", labelKey: "navDesignProfiles", icon: Palette },
   { href: "/app/templates" as Route, labelKey: "navTemplates", icon: LayoutTemplate },
   { href: "/app/settings/presentations", labelKey: "navPresentationDefaults", icon: FileText },
 ];
 
 const settingsLinks: NavigationItem[] = [
-  { href: "/app/settings/profile", labelKey: "navProfile", icon: UserRound },
+  { href: "/app/settings/account" as Route, labelKey: "navAccount", icon: UserRoundCog },
   { href: "/app/settings/providers", labelKey: "navAiProviders", icon: KeyRound },
-  { href: "/app/settings/budget", labelKey: "navBudget", icon: BarChart3 },
-  { href: "/app/settings/billing" as Route, labelKey: "navBilling", icon: CreditCard },
   { href: "/app/settings/language", labelKey: "navLanguage", icon: SlidersHorizontal },
-  { href: "/app/settings/security", labelKey: "navSecurity", icon: Shield },
 ];
 
 type NavigationItem = {
   href: Route;
   icon: LucideIcon;
   labelKey:
+    | "navAccount"
     | "navAiProviders"
-    | "navBilling"
-    | "navBudget"
-    | "navDesignProfiles"
     | "navLanguage"
     | "navPresentationDefaults"
-    | "navProfile"
     | "navProjects"
-    | "navSecurity"
     | "navTeams"
     | "navTemplates";
 };

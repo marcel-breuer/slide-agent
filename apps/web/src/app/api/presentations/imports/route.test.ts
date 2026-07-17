@@ -49,14 +49,7 @@ describe("presentation import API", () => {
     mockedPresentationCount.mockResolvedValue(0);
     mockedImportFindMany.mockResolvedValue([]);
     mockedExportFindMany.mockResolvedValue([]);
-    mockedSettingsUpsert.mockResolvedValue({
-      billingCancelAtPeriodEnd: false,
-      billingGraceUntil: null,
-      billingPeriodEnd: null,
-      billingPeriodStart: null,
-      billingPlanCode: "free",
-      billingStatus: "active",
-    });
+    mockedSettingsUpsert.mockResolvedValue({});
   });
 
   it("requires an authenticated session", async () => {

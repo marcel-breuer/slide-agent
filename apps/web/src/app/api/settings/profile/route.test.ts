@@ -85,13 +85,12 @@ describe("profile settings API", () => {
   it("returns profile and regional preferences for the current user", async () => {
     const response = await GET();
     const payload = (await response.json()) as {
-      data: { displayName: string; preferredCurrency: string; timeZone: string };
+      data: { displayName: string; timeZone: string };
     };
 
     expect(response.status).toBe(200);
     expect(payload.data).toMatchObject({
       displayName: "Example User",
-      preferredCurrency: "EUR",
       timeZone: "Europe/Berlin",
     });
     expect(mockedFindUser).toHaveBeenCalledWith(
@@ -104,7 +103,6 @@ describe("profile settings API", () => {
       new Request("http://test.local/api/settings/profile", {
         body: JSON.stringify({
           displayName: " Updated User ",
-          preferredCurrency: "USD",
           timeZone: "America/New_York",
         }),
         method: "PATCH",
@@ -119,12 +117,10 @@ describe("profile settings API", () => {
     expect(mockedUpsertSettings).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({
-          preferredCurrency: "USD",
           timeZone: "America/New_York",
           userId: "user-1",
         }),
         update: {
-          preferredCurrency: "USD",
           timeZone: "America/New_York",
         },
         where: { userId: "user-1" },
@@ -143,7 +139,7 @@ describe("profile settings API", () => {
   it("rejects invalid profile updates", async () => {
     const response = await PATCH(
       new Request("http://test.local/api/settings/profile", {
-        body: JSON.stringify({ preferredCurrency: "GBP" }),
+        body: JSON.stringify({ timeZone: "" }),
         method: "PATCH",
       }),
     );
@@ -208,7 +204,6 @@ function createUser(overrides = {}) {
     email: "user@example.com",
     id: "user-1",
     settings: {
-      preferredCurrency: "EUR",
       timeZone: "Europe/Berlin",
     },
     updatedAt: new Date("2026-07-10T08:00:00.000Z"),

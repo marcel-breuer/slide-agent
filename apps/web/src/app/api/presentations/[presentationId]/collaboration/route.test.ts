@@ -27,7 +27,6 @@ vi.mock("@slide-agent/database", async () => {
         create: vi.fn(),
       },
       $transaction: vi.fn(),
-      userSettings: { upsert: vi.fn() },
     },
   };
 });
@@ -48,9 +47,6 @@ const mockedUpsertSession = prisma.presentationCollaboratorSession.upsert as unk
   mockResolvedValue(value: unknown): void;
 };
 const mockedFindSessions = prisma.presentationCollaboratorSession.findMany as unknown as {
-  mockResolvedValue(value: unknown): void;
-};
-const mockedSettingsUpsert = prisma.userSettings.upsert as unknown as {
   mockResolvedValue(value: unknown): void;
 };
 const mockedFindLatestOperation = prisma.presentationCollaborationOperation
@@ -88,14 +84,6 @@ describe("presentation collaboration API", () => {
         user: { displayName: "Marcel", email: "marcel@example.com", id: "user-1" },
       },
     ]);
-    mockedSettingsUpsert.mockResolvedValue({
-      billingCancelAtPeriodEnd: false,
-      billingGraceUntil: null,
-      billingPeriodEnd: null,
-      billingPeriodStart: null,
-      billingPlanCode: "free",
-      billingStatus: "active",
-    });
     mockedFindLatestOperation.mockResolvedValue(null);
     mockedFindOperation.mockResolvedValue(null);
     mockedCreateOperation.mockResolvedValue({

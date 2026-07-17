@@ -14,9 +14,6 @@ vi.mock("@slide-agent/database", () => ({
     auditLog: {
       findMany: vi.fn(),
     },
-    usageLedgerEntry: {
-      findMany: vi.fn(),
-    },
     user: {
       findUnique: vi.fn(),
     },
@@ -31,7 +28,6 @@ const mockedGetAuthenticatedSession = vi.mocked(getAuthenticatedSession);
 const mockedFindUser = prisma.user.findUnique as unknown as Mock;
 const mockedFindAuditLogs = prisma.auditLog.findMany as unknown as Mock;
 const mockedFindAiOperations = prisma.aiOperation.findMany as unknown as Mock;
-const mockedFindUsageLedger = prisma.usageLedgerEntry.findMany as unknown as Mock;
 
 describe("account export API", () => {
   beforeEach(() => {
@@ -62,16 +58,6 @@ describe("account export API", () => {
         provider: "openai",
         status: "SUCCEEDED",
         taskType: "STORYLINE_GENERATION",
-      },
-    ]);
-    mockedFindUsageLedger.mockResolvedValue([
-      {
-        amount: "1.25",
-        createdAt: new Date("2026-07-10T08:06:00.000Z"),
-        currency: "EUR",
-        id: "usage-1",
-        kind: "AI_USAGE",
-        tokens: 150,
       },
     ]);
   });
@@ -165,17 +151,12 @@ function createExportUser() {
       defaultSlideCount: 10,
       defaultSpeakerNotes: "talking-points",
       defaultTone: "professional",
-      hardStopEnabled: true,
       id: "settings-1",
-      monthlyMoneyBudget: "20",
-      monthlyTokenBudget: 5000,
       personalMaxSlideCount: 50,
-      preferredCurrency: "EUR",
       presentationLocale: "en",
       timeZone: "Europe/Berlin",
       uiLocale: "en",
       userId: "user-1",
-      warningThresholdPercentage: 80,
     },
     updatedAt: new Date("2026-07-10T08:00:00.000Z"),
   };

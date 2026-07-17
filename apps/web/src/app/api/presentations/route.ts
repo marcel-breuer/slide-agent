@@ -10,7 +10,6 @@ import {
 } from "@slide-agent/presentation-schema";
 
 import { ReusableAssetDefinitionSchema, PresentationInputSchema, fail, ok } from "@/lib/api";
-import { assertBillingQuota, BillingQuotaError, billingQuotaErrorDetails } from "@/lib/billing";
 import type { ReusableAssetDefinition } from "@/lib/reusable-assets";
 import { getAuthenticatedUserId } from "@/lib/server-session";
 import { activePresentationScope, activeProjectScope, canAccess, getProjectAccess } from "@/lib/team-access";
@@ -76,13 +75,6 @@ export async function POST(request: Request) {
   const projectAccess = await getProjectAccess(project.id, userId);
   if (!canAccess(projectAccess, "edit")) {
     return fail("FORBIDDEN", "You do not have permission to create presentations here.", 403);
-  }
-
-  try {
-    await assertBillingQuota(userId, "presentations");
-  } catch (error) {
-    if (error instanceof BillingQuotaError) return fail(...billingQuotaErrorDetails(error));
-    throw error;
   }
 
   const designProfile = parsed.data.designProfileId
