@@ -144,12 +144,7 @@ model UserSettings {
   uiLocale                   String   @default("en")
   presentationLocale         String   @default("en")
   timeZone                   String   @default("Europe/Berlin")
-  preferredCurrency          String   @default("EUR")
   personalMaxSlideCount      Int      @default(50)
-  monthlyMoneyBudget         Decimal?
-  monthlyTokenBudget         Int?
-  warningThresholdPercentage Int      @default(80)
-  hardStopEnabled            Boolean  @default(true)
   defaultSlideCount          Int      @default(10)
   defaultTone                String   @default("professional")
   defaultAudience            String   @default("business")
@@ -158,16 +153,6 @@ model UserSettings {
   defaultImageryStyle        String   @default("minimal")
   defaultExportFormat        String   @default("pptx")
   defaultExportCompatibility String   @default("modern")
-  billingPlanCode            String   @default("free")
-  billingStatus              String   @default("active")
-  billingProvider            String?
-  billingCustomerId          String?
-  billingSubscriptionId      String?  @unique
-  billingPeriodStart         DateTime?
-  billingPeriodEnd           DateTime?
-  billingCancelAtPeriodEnd   Boolean  @default(false)
-  billingGraceUntil          DateTime?
-  billingStateUpdatedAt      DateTime?
   user                       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
@@ -663,47 +648,6 @@ model AiOperation {
   @@index([presentationId])
 }
 
-model UsageLedgerEntry {
-  id             String   @id @default(uuid())
-  ownerId        String
-  presentationId String?
-  operationId    String?
-  kind           String
-  tokens         Int
-  amount         Decimal
-  currency       String
-  createdAt      DateTime @default(now())
-
-  @@index([ownerId, createdAt])
-}
-
-model BudgetReservation {
-  id             String    @id @default(uuid())
-  ownerId        String
-  presentationId String?
-  amount         Decimal
-  tokens         Int
-  currency       String
-  status         String
-  expiresAt      DateTime
-  createdAt      DateTime  @default(now())
-  settledAt      DateTime?
-
-  @@index([ownerId, status])
-}
-
-model MonthlyUsage {
-  id        String   @id @default(uuid())
-  ownerId   String
-  period    String
-  tokens    Int      @default(0)
-  amount    Decimal  @default(0)
-  currency  String
-  updatedAt DateTime @updatedAt
-
-  @@unique([ownerId, period, currency])
-}
-
 model ModelCatalogEntry {
   id               String   @id @default(uuid())
   provider         String
@@ -799,22 +743,6 @@ model AuditLog {
   metadata  Json     @default("{}")
   createdAt DateTime @default(now())
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-}
-
-model BillingEvent {
-  id          String   @id @default(uuid())
-  provider    String
-  eventId     String
-  eventType   String
-  userId      String?
-  occurredAt  DateTime
-  payload     Json
-  status      String
-  processedAt DateTime?
-  createdAt   DateTime @default(now())
-
-  @@unique([provider, eventId])
-  @@index([userId, occurredAt])
 }
 
 model AdminSetting {

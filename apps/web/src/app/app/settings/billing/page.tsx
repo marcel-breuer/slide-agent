@@ -1,10 +1,5 @@
-import { AppShell } from "@/components/app-shell";
-import { BillingSettings } from "@/components/billing-settings";
+import { redirect } from "next/navigation";
 
 export default function BillingSettingsPage() {
-  return (
-    <AppShell>
-      <BillingSettings />
-    </AppShell>
-  );
+  redirect("/app/projects");
 }

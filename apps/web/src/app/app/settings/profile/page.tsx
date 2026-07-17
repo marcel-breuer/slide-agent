@@ -1,10 +1,5 @@
-import { AppShell } from "@/components/app-shell";
-import { ProfileSettings } from "@/components/profile-settings";
+import { redirect } from "next/navigation";
 
 export default function ProfileSettingsPage() {
-  return (
-    <AppShell>
-      <ProfileSettings />
-    </AppShell>
-  );
+  redirect("/app/settings/account");
 }

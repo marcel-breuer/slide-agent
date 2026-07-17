@@ -1,10 +1,5 @@
-import { AppShell } from "@/components/app-shell";
-import { BudgetSettings } from "@/components/budget-settings";
+import { redirect } from "next/navigation";
 
 export default function BudgetSettingsPage() {
-  return (
-    <AppShell>
-      <BudgetSettings />
-    </AppShell>
-  );
+  redirect("/app/projects");
 }

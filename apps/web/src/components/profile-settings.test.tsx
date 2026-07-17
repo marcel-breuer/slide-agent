@@ -25,7 +25,6 @@ describe("ProfileSettings", () => {
             ok: true,
             data: createProfile({
               displayName: "Updated User",
-              preferredCurrency: "USD",
               timeZone: "America/New_York",
             }),
           }),
@@ -42,9 +41,6 @@ describe("ProfileSettings", () => {
     fireEvent.change(screen.getByLabelText("Display name"), {
       target: { value: "Updated User" },
     });
-    fireEvent.change(screen.getByLabelText("Preferred currency"), {
-      target: { value: "USD" },
-    });
     fireEvent.change(screen.getByLabelText("Time zone"), {
       target: { value: "America/New_York" },
     });
@@ -59,7 +55,6 @@ describe("ProfileSettings", () => {
       expect.objectContaining({
         body: JSON.stringify({
           displayName: "Updated User",
-          preferredCurrency: "USD",
           timeZone: "America/New_York",
         }),
         method: "PATCH",
@@ -128,7 +123,6 @@ function createProfile(overrides: Partial<ProfileForTest> = {}): ProfileForTest 
     displayName: "Example User",
     email: "user@example.com",
     id: "user-1",
-    preferredCurrency: "EUR",
     timeZone: "Europe/Berlin",
     updatedAt: "2026-07-10T08:00:00.000Z",
     ...overrides,
@@ -140,7 +134,6 @@ type ProfileForTest = {
   displayName: string | null;
   email: string;
   id: string;
-  preferredCurrency: string;
   timeZone: string;
   updatedAt: string;
 };

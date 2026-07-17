@@ -14,7 +14,6 @@ type Profile = {
   displayName: string | null;
   email: string;
   id: string;
-  preferredCurrency: string;
   timeZone: string;
   updatedAt: string;
 };
@@ -26,7 +25,7 @@ type DeleteApiResponse =
   | { ok: true; data: { deleted: boolean } }
   | { ok: false; error: { code: string; message: string } };
 
-export function ProfileSettings(): ReactElement {
+export function ProfileSettings({ embedded = false }: { embedded?: boolean } = {}): ReactElement {
   const { msg } = useUiLocale();
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -34,7 +33,6 @@ export function ProfileSettings(): ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [preferredCurrency, setPreferredCurrency] = useState("EUR");
   const [saved, setSaved] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [timeZone, setTimeZone] = useState("Europe/Berlin");
@@ -72,7 +70,6 @@ export function ProfileSettings(): ReactElement {
       const response = await fetch("/api/settings/profile", {
         body: JSON.stringify({
           displayName: displayName.trim() || null,
-          preferredCurrency,
           timeZone,
         }),
         headers: { "Content-Type": "application/json" },
@@ -151,17 +148,18 @@ export function ProfileSettings(): ReactElement {
   function applyProfile(profile: Profile): void {
     setDisplayName(profile.displayName ?? "");
     setEmail(profile.email);
-    setPreferredCurrency(profile.preferredCurrency);
     setTimeZone(profile.timeZone);
   }
 
   const canDelete = email.length > 0 && deleteConfirmation.toLowerCase() === email.toLowerCase();
 
   return (
-    <section className={ui.workflowShell}>
-      <PageHeader eyebrow={msg("navSettings")} title={msg("profileSettings")}>
-        {msg("profileSettingsDescription")}
-      </PageHeader>
+    <section className={embedded ? "grid gap-4" : ui.workflowShell}>
+      {!embedded ? (
+        <PageHeader eyebrow={msg("navSettings")} title={msg("profileSettings")}>
+          {msg("profileSettingsDescription")}
+        </PageHeader>
+      ) : null}
 
       {loading ? <p className={ui.empty}>{msg("loadingProfile")}</p> : null}
       {error ? <div className={ui.alert}>{error}</div> : null}
@@ -188,17 +186,6 @@ export function ProfileSettings(): ReactElement {
                 maxLength={120}
                 onChange={(event) => setDisplayName(event.target.value)}
               />
-            </label>
-            <label className={ui.field}>
-              <span>{msg("preferredCurrency")}</span>
-              <select
-                className={ui.input}
-                value={preferredCurrency}
-                onChange={(event) => setPreferredCurrency(event.target.value)}
-              >
-                <option value="EUR">EUR</option>
-                <option value="USD">USD</option>
-              </select>
             </label>
             <label className={ui.field}>
               <span>{msg("timeZone")}</span>

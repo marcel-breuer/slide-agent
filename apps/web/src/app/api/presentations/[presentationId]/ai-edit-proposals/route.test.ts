@@ -14,18 +14,13 @@ vi.mock("@slide-agent/database", () => ({
   findPresentationDocument: vi.fn(),
   prisma: {
     aiOperation: {
-      count: vi.fn(),
       create: vi.fn(),
-      findMany: vi.fn(),
     },
     providerConfiguration: {
       findMany: vi.fn(),
     },
     providerCredential: {
       findMany: vi.fn(),
-    },
-    userSettings: {
-      upsert: vi.fn(),
     },
   },
 }));
@@ -38,12 +33,9 @@ const mockedGetAuthenticatedUserId = vi.mocked(getAuthenticatedUserId);
 const mockedEnsureDemoPresentation = vi.mocked(ensureDemoPresentation);
 const mockedFindPresentationDocument = vi.mocked(findPresentationDocument);
 const mockedAiOperationCreate = prisma.aiOperation.create as unknown as Mock;
-const mockedAiOperationFindMany = prisma.aiOperation.findMany as unknown as Mock;
-const mockedAiOperationCount = prisma.aiOperation.count as unknown as Mock;
 const mockedProviderConfigurationFindMany = prisma.providerConfiguration
   .findMany as unknown as Mock;
 const mockedProviderCredentialFindMany = prisma.providerCredential.findMany as unknown as Mock;
-const mockedUserSettingsUpsert = prisma.userSettings.upsert as unknown as Mock;
 
 describe("AI edit proposals API", () => {
   beforeEach(() => {
@@ -51,9 +43,6 @@ describe("AI edit proposals API", () => {
     process.env.AI_PROVIDER_MODE = "mock";
     mockedGetAuthenticatedUserId.mockResolvedValue("demo-user");
     mockedEnsureDemoPresentation.mockResolvedValue("demo-presentation");
-    mockedUserSettingsUpsert.mockResolvedValue(createBudgetSettings());
-    mockedAiOperationFindMany.mockResolvedValue([]);
-    mockedAiOperationCount.mockResolvedValue(0);
     mockedProviderCredentialFindMany.mockResolvedValue([]);
     mockedProviderConfigurationFindMany.mockResolvedValue([]);
     mockedAiOperationCreate.mockResolvedValue({});
@@ -247,40 +236,6 @@ describe("AI edit proposals API", () => {
     );
   });
 
-  it("blocks edit proposals when the current user has reached a hard budget stop", async () => {
-    const document = createDemoPresentationDocument({ now: "2026-07-02T12:00:00.000Z" });
-    mockedFindPresentationDocument.mockResolvedValue(document);
-    mockedUserSettingsUpsert.mockResolvedValue(createBudgetSettings({ monthlyTokenBudget: 1000 }));
-    mockedAiOperationFindMany.mockResolvedValue([
-      { estimatedCost: "0.50", inputTokens: 800, outputTokens: 200 },
-    ]);
-
-    const response = await POST(
-      new Request("http://test.local", {
-        body: JSON.stringify({
-          document,
-          pointers: [],
-          prompt: "Use #f8fafc near pointer 1.",
-          slideId: "slide-1",
-        }),
-        headers: { "Content-Type": "application/json" },
-        method: "POST",
-      }),
-      {
-        params: Promise.resolve({ presentationId: "demo-presentation" }),
-      },
-    );
-    const payload = (await response.json()) as {
-      ok: boolean;
-      error: { code: string; message: string };
-    };
-
-    expect(response.status).toBe(409);
-    expect(payload.error.code).toBe("BUDGET_LIMIT_REACHED");
-    expect(mockedProviderCredentialFindMany).not.toHaveBeenCalled();
-    expect(mockedAiOperationCreate).not.toHaveBeenCalled();
-  });
-
   it("rejects pointer references outside the requested slide", async () => {
     const document = createDemoPresentationDocument({ now: "2026-07-02T12:00:00.000Z" });
     mockedFindPresentationDocument.mockResolvedValue(document);
@@ -314,20 +269,3 @@ describe("AI edit proposals API", () => {
     expect(mockedAiOperationCreate).not.toHaveBeenCalled();
   });
 });
-
-function createBudgetSettings(overrides = {}) {
-  return {
-    billingCancelAtPeriodEnd: false,
-    billingGraceUntil: null,
-    billingPeriodEnd: null,
-    billingPeriodStart: null,
-    billingPlanCode: "free",
-    billingStatus: "active",
-    hardStopEnabled: true,
-    monthlyMoneyBudget: null,
-    monthlyTokenBudget: null,
-    preferredCurrency: "EUR",
-    warningThresholdPercentage: 80,
-    ...overrides,
-  };
-}

@@ -17,7 +17,6 @@ vi.mock("@slide-agent/database", () => ({
     presentation: {
       findFirst: vi.fn(),
     },
-    userSettings: { upsert: vi.fn() },
   },
 }));
 
@@ -50,7 +49,6 @@ const mockedEnsureDemoPresentation = vi.mocked(ensureDemoPresentation);
 const mockedPrisma = await import("@slide-agent/database");
 const mockedFindPresentation = mockedPrisma.prisma.presentation.findFirst as unknown as Mock;
 const mockedExportCount = mockedPrisma.prisma.export.count as unknown as Mock;
-const mockedSettingsUpsert = mockedPrisma.prisma.userSettings.upsert as unknown as Mock;
 
 describe("presentation export API", () => {
   beforeEach(() => {
@@ -58,14 +56,6 @@ describe("presentation export API", () => {
     mockedEnsureDemoPresentation.mockResolvedValue("demo-presentation");
     mockedGetAuthenticatedUserId.mockResolvedValue("demo-user");
     mockedExportCount.mockResolvedValue(0);
-    mockedSettingsUpsert.mockResolvedValue({
-      billingCancelAtPeriodEnd: false,
-      billingGraceUntil: null,
-      billingPeriodEnd: null,
-      billingPeriodStart: null,
-      billingPlanCode: "free",
-      billingStatus: "active",
-    });
   });
 
   it("requires an authenticated session", async () => {

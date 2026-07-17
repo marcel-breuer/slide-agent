@@ -7,7 +7,6 @@ import { getAuthenticatedSession } from "@/lib/server-auth-session";
 
 const ProfileUpdateSchema = z.object({
   displayName: z.string().trim().min(1).max(120).nullable().optional(),
-  preferredCurrency: z.enum(["EUR", "USD"]).optional(),
   timeZone: z.string().trim().min(1).max(80).optional(),
 });
 
@@ -17,7 +16,6 @@ const AccountDeletionSchema = z.object({
 });
 
 type ProfileSettings = {
-  preferredCurrency: string;
   timeZone: string;
 };
 
@@ -59,19 +57,13 @@ export async function PATCH(request: Request) {
     where: { id: session.userId },
   });
 
-  if (parsed.data.preferredCurrency !== undefined || parsed.data.timeZone !== undefined) {
+  if (parsed.data.timeZone !== undefined) {
     await prisma.userSettings.upsert({
       create: {
         userId: session.userId,
-        ...(parsed.data.preferredCurrency !== undefined
-          ? { preferredCurrency: parsed.data.preferredCurrency }
-          : {}),
         ...(parsed.data.timeZone !== undefined ? { timeZone: parsed.data.timeZone } : {}),
       },
       update: {
-        ...(parsed.data.preferredCurrency !== undefined
-          ? { preferredCurrency: parsed.data.preferredCurrency }
-          : {}),
         ...(parsed.data.timeZone !== undefined ? { timeZone: parsed.data.timeZone } : {}),
       },
       where: { userId: session.userId },
@@ -151,7 +143,6 @@ async function loadProfile(userId: string): Promise<ProfileUser | null> {
       id: true,
       settings: {
         select: {
-          preferredCurrency: true,
           timeZone: true,
         },
       },
@@ -177,7 +168,6 @@ function toProfileResponse(profile: ProfileUser) {
     displayName: profile.displayName,
     email: profile.email,
     id: profile.id,
-    preferredCurrency: profile.settings?.preferredCurrency ?? "EUR",
     timeZone: profile.settings?.timeZone ?? "Europe/Berlin",
     updatedAt: profile.updatedAt.toISOString(),
   };

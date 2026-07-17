@@ -37,7 +37,7 @@ type MutationResponse =
   | { ok: true; data: { revoked?: boolean; updated?: boolean } }
   | { ok: false; error: { code: string; message: string } };
 
-export function SecuritySettings(): ReactElement {
+export function SecuritySettings({ embedded = false }: { embedded?: boolean } = {}): ReactElement {
   const { msg } = useUiLocale();
   const [currentPassword, setCurrentPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -143,10 +143,12 @@ export function SecuritySettings(): ReactElement {
   const canChangePassword = currentPassword.length > 0 && passwordsMatch;
 
   return (
-    <section className={ui.workflowShell}>
-      <PageHeader eyebrow={msg("navSettings")} title={msg("securitySettings")}>
-        {msg("securitySettingsDescription")}
-      </PageHeader>
+    <section className={embedded ? "grid gap-4" : ui.workflowShell}>
+      {!embedded ? (
+        <PageHeader eyebrow={msg("navSettings")} title={msg("securitySettings")}>
+          {msg("securitySettingsDescription")}
+        </PageHeader>
+      ) : null}
 
       {loading ? <p className={ui.empty}>{msg("loadingSecuritySettings")}</p> : null}
       {error ? <div className={ui.alert}>{error}</div> : null}

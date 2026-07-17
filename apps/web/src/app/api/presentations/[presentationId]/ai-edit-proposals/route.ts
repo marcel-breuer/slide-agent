@@ -19,8 +19,6 @@ import {
   resolveAiEditRouting,
 } from "../../../../../lib/ai-provider-routing";
 import { fail, ok } from "../../../../../lib/api";
-import { assertBillingQuota, BillingQuotaError, billingQuotaErrorDetails } from "../../../../../lib/billing";
-import { budgetRoutingLimits, loadBudgetUsageSnapshot } from "../../../../../lib/budget-usage";
 import { getAuthenticatedUserId } from "../../../../../lib/server-session";
 import { canAccess, getPresentationAccess } from "../../../../../lib/team-access";
 
@@ -122,26 +120,15 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   try {
-    await assertBillingQuota(userId, "generations");
-    const budgetSnapshot = await loadBudgetUsageSnapshot(userId);
-    if (budgetSnapshot.usage.hardStopReached) {
-      return fail(
-        "BUDGET_LIMIT_REACHED",
-        "Monthly budget limits are reached. Update budget settings or wait until the next month.",
-        409,
-      );
-    }
-
     const providerContext = await loadProviderContext(userId);
-    const routingLimits = budgetRoutingLimits(budgetSnapshot);
     const routing = await resolveAiEditRouting({
       ...providerContext,
       encryptionKey: process.env.CREDENTIAL_ENCRYPTION_KEY ?? "local-dev-encryption-key",
       mode: aiProviderModeFromEnv(process.env),
       presentationId,
       prompt: buildRoutingPrompt(parsed.data),
-      remainingBudget: routingLimits.remainingBudget,
-      remainingTokens: routingLimits.remainingTokens,
+      remainingBudget: null,
+      remainingTokens: null,
       userId,
     });
     const operationId = randomUUID();
@@ -208,21 +195,12 @@ export async function POST(request: Request, context: RouteContext) {
 
     return ok(proposal);
   } catch (error) {
-    if (error instanceof BillingQuotaError) return fail(...billingQuotaErrorDetails(error));
     if (error instanceof AiRoutingConfigurationError) {
       return fail(error.code, error.message, error.status);
     }
 
     if (error instanceof ProviderExecutionError) {
       return fail(...providerErrorResponse(error));
-    }
-
-    if (error instanceof Error && error.message.includes("budget constraints")) {
-      return fail(
-        "BUDGET_LIMIT_REACHED",
-        "No available model can run within the remaining monthly budget limits.",
-        409,
-      );
     }
 
     return fail(

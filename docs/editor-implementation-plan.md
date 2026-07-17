@@ -61,7 +61,7 @@ forgot-password regression test and Docker build validation.
 - [#68](https://github.com/marcel-breuer/slide-agent/issues/68) Visual regression testing for slide rendering.
 - [#69](https://github.com/marcel-breuer/slide-agent/issues/69) Advanced layout suggestions.
 - [#70](https://github.com/marcel-breuer/slide-agent/issues/70) Team accounts and shared workspaces.
-- [#71](https://github.com/marcel-breuer/slide-agent/issues/71) Billing and quota enforcement.
+- Billing and quota enforcement are retired from the product scope; users bring their own AI provider credentials.
 
 ## Immediate Next Step
 

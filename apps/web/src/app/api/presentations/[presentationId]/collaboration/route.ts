@@ -10,7 +10,6 @@ import {
 import { validatePresentation } from "@slide-agent/presentation-schema";
 
 import { fail, ok } from "@/lib/api";
-import { assertBillingQuota, BillingQuotaError, billingQuotaErrorDetails } from "@/lib/billing";
 import { getAuthenticatedUserId } from "@/lib/server-session";
 import { activePresentationScope, canAccess, getPresentationAccess } from "@/lib/team-access";
 
@@ -109,13 +108,6 @@ export async function POST(request: Request, context: RouteContext) {
   }
   const access = await getPresentationAccess(presentationId, userId);
   if (!access) return fail("PRESENTATION_NOT_FOUND", "Presentation was not found.", 404);
-
-  try {
-    await assertBillingQuota(userId, "members", 0);
-  } catch (error) {
-    if (error instanceof BillingQuotaError) return fail(...billingQuotaErrorDetails(error));
-    throw error;
-  }
 
   let operationResult: Awaited<ReturnType<typeof applyCollaborationOperation>> | null = null;
   if (parsed.data.operation) {

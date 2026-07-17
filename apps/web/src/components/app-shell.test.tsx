@@ -41,12 +41,14 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: "Projects" }).getAttribute("href")).toBe(
       "/app/projects",
     );
-    expect(screen.getByRole("link", { name: "Design profiles" }).getAttribute("href")).toBe(
-      "/app/design-profiles",
-    );
     expect(screen.getByRole("link", { name: "Templates & kits" }).getAttribute("href")).toBe(
       "/app/templates",
     );
+    expect(screen.getByRole("link", { name: "Profile & security" }).getAttribute("href")).toBe(
+      "/app/settings/account",
+    );
+    expect(screen.queryByRole("link", { name: "Design profiles" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Billing" })).toBeNull();
     expect(screen.getByRole("link", { name: "AI providers" }).className).toContain("active");
     expect(screen.getByText("Page content")).toBeTruthy();
   });
